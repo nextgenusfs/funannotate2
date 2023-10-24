@@ -1,0 +1,6 @@
+predict:
+    dbCAN:
+        evalue: 1e-15
+        coverage: 0.35
+annotation:
+train:

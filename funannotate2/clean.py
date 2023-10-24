@@ -1,0 +1,135 @@
+import sys
+import os
+import uuid
+import shutil
+from tempfile import NamedTemporaryFile as NTF
+import mappy as mp
+from .fastx import softwrap
+from .log import startLogging, system_info, finishLogging
+from .utilities import runThreadJob
+
+
+def is_duplicated(data, index, tmpdir, min_pident, min_cov):
+    result = False
+    pident = 0
+    coverage = 0
+    # given the genome datatype and index, see if index sequence duplicated in all larger contigs
+    with NTF(mode="w", suffix=".fa", prefix="ref_", dir=tmpdir, delete=False) as ref_fa:
+        reftmp = ref_fa.name
+        for r in data[index + 1 :]:
+            ref_fa.write(">{}\n{}\n".format(r["header"], r["sequence"]))
+    # generate mappy aligner object
+    a = mp.Aligner(reftmp, preset="asm5")
+    for hit in a.map(data[index]["sequence"]):
+        pident = float(hit.mlen) / int(hit.blen) * 100
+        coverage = float(hit.blen) / int(hit.ctg_len) * 100
+        if pident > min_pident and coverage > min_cov:
+            result = True
+            break
+    # clean up the tmpfile
+    os.remove(reftmp)
+    return (data[index]["header"], result, pident, coverage, data[index]["length"])
+
+
+def load_genome(fafile):
+    # parse genome, sort by shortest to longest length
+    data = []
+    for r in mp.fastx_read(fafile, read_comment=False):
+        data.append(
+            {"header": r[0], "length": len(r[1]), "sequence": r[1], "status": None}
+        )
+    sortdata = sorted(data, key=lambda x: x["length"])
+    lengths = [x["length"] for x in sortdata]
+    nlist = []
+    for x in lengths:
+        nlist += [x] * x
+    if len(nlist) % 2 == 0:
+        medianpos = int(len(nlist) / 2)
+        N50 = int((nlist[medianpos] + nlist[medianpos - 1]) / 2)
+    else:
+        medianpos = int(len(nlist) / 2)
+        N50 = int(nlist[medianpos])
+    return sortdata, N50
+
+
+def clean(args):
+    logger = startLogging(logfile=args.logfile)
+    log = logger.info
+    system_info(log)
+
+    # write in a tmpdir
+    if args.tmpdir:
+        tmpdir = args.tmpdir
+    else:
+        tmpdir = "clean_{}".format(str(uuid.uuid4()))
+    if not os.path.isdir(tmpdir):
+        os.makedirs(tmpdir)
+
+    # load genome and sort by length
+    genome, n50 = load_genome(args.fasta)
+
+    # filter to minimum length
+    genome_ms = [x for x in genome if x["length"] > args.minlen]
+    log(
+        "Loaded {} contigs; {} are larger than {}; N50 is {} bp".format(
+            len(genome), len(genome_ms), args.minlen, n50
+        )
+    )
+    max_idx = len(genome_ms)
+    if not args.exhaustive:
+        for i, x in enumerate(genome_ms):
+            if x["length"] > n50:
+                max_idx = i - 1
+                break
+
+    # now loop through data with thread pool
+    log(
+        "Checking {} contigs for duplication [minlen={} maxlen={}]".format(
+            max_idx, genome_ms[0]["length"], genome_ms[max_idx - 1]["length"]
+        )
+    )
+
+    # get a list of lists with arguments
+    job_arguments = []
+    for x in range(0, max_idx):
+        job_arguments.append([genome_ms, x, tmpdir, args.pident, args.cov])
+
+    # run this will threadpool
+    results = runThreadJob(is_duplicated, job_arguments, cpus=args.cpus, progress=False)
+
+    # parse results
+    duplicated = []
+    for r in results:
+        contig, duplic, pident, cov, clen = r.result()
+        if duplic:
+            log(
+                "{} is duplicated; pident={} coverage={} length={}".format(
+                    contig, pident, cov, clen
+                )
+            )
+            duplicated.append(contig)
+    if len(duplicated) == 0:
+        log("0 Duplicated contigs found")
+
+    # message user if rename passed
+    if args.rename:
+        log(
+            'Renaming contigs using "{}" basename and auto-increment from largest to smallest'.format(
+                args.rename
+            )
+        )
+
+    # write output file
+    good_count = 0
+    with open(args.out, "w") as outfile:
+        for r in reversed(genome_ms):
+            if r["header"] not in duplicated:
+                good_count += 1
+                if args.rename:
+                    title = "{}{}".format(args.rename, good_count)
+                else:
+                    title = r["header"]
+                outfile.write(">{}\n{}\n".format(title, softwrap(r["sequence"])))
+    log("Wrote {} contigs to {}".format(good_count, args.out))
+    shutil.rmtree(tmpdir)
+    finishLogging(log, vars(sys.modules[__name__])["__name__"])
