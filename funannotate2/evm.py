@@ -13,7 +13,6 @@ from natsort import natsorted
 from .interlap import InterLap
 from .utilities import readBlocks, execute
 from collections import defaultdict
-from interlap import InterLap
 
 from gfftk.gff import gff2dict, dict2gff3, dict2gff3alignments
 from gfftk.fasta import softwrap
