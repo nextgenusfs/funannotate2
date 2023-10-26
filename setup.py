@@ -25,6 +25,7 @@ REQUIRED = [
     "pyhmmer",
     "pyfastx",
     "biopython",
+    "requests",
 ]
 
 # What packages are optional?
