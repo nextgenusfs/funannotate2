@@ -6,12 +6,12 @@ import getpass
 import random
 from collections import defaultdict, OrderedDict
 from natsort import natsorted
-from interlap import InterLap
 from buscolite.busco import runbusco
 from buscolite.gff import gffwriter
 from buscolite.utilities import summary_writer
 from gfftk.gff import gff2dict, dict2gff3
 from gfftk.fasta import softwrap, fasta2dict
+from .interlap import InterLap
 from .log import startLogging, system_info, finishLogging
 from .fastx import analyzeAssemblySimple
 from .config import env
