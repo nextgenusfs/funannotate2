@@ -86,7 +86,7 @@ def analyzeAssembly(
     errors = []
     split_contigs = []
     for base, num in fa.composition.items():
-        if base not in IUPAC:
+        if base.upper() not in IUPAC:
             errors.append((base, num))
 
     # now loop through each contig (slow)
