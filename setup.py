@@ -26,6 +26,7 @@ REQUIRED = [
     "pyfastx",
     "biopython",
     "requests",
+    "interlap",
 ]
 
 # What packages are optional?
