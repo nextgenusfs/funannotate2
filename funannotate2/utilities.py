@@ -167,8 +167,9 @@ def best_taxonomy(query, ref):
             ],
         )
         res = [i for i, j in zip(query_list, simpletax) if i == j]
-        pos = simpletax.index(res[-1])
-        ref_tax[k] = (len(res), len(simpletax[pos:]))
+        if len(res) > 0:
+            pos = simpletax.index(res[-1])
+            ref_tax[k] = (len(res), len(simpletax[pos:]))
     # what is the max value
     iMax = max(ref_tax.items(), key=lambda x: x[1][0])[1][0]
     # now get a list of all of those keys

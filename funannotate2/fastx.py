@@ -181,7 +181,7 @@ def analyzeAssemblySimple(input, header_max=16):
         if len(seq.name) > header_max:
             bad_names.append(seq.name)
     for base, num in fa.composition.items():
-        if base not in IUPAC:
+        if base.upper() not in IUPAC:
             errors.append((base, num))
 
     # build stats
