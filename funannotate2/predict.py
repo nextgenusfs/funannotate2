@@ -234,7 +234,9 @@ def predict(args):
             )
             if os.path.isdir(busco_model_path):
                 os.remove(busco_tgz)
+
     # now we can loop through the abinitio predictions and run busco for completion
+    # write this to file for re-use if consensus file already present?
     abinitio_scores = {}
     logger.info(
         f"Measuring assembly completeness with buscolite for all ab initio predictions"
@@ -267,6 +269,11 @@ def predict(args):
     for k, v in params["abinitio"].items():
         if k in abinitio_scores:
             abinitio_scores[k]["train"] = v["train_results"]
+    logger.info(
+        "ab initio models scoring by algorithm:\n{}".format(
+            json.dumps(abinitio_scores, indent=2)
+        )
+    )
 
     # now we want to calculate weight estimations based on these results
     weightings = calculate_weights(abinitio_scores, args.weights)
@@ -309,6 +316,11 @@ def predict(args):
 
     # get consensus models in dict format
     consensus_models = gff2dict(Consensus, args.fasta)
+    # get some stats for user
+    consensus_stats = annotation_stats(consensus_models)
+    logger.info(
+        "Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2))
+    )
     # we are finished here with coding sequences, lets check completeness
     # _dict2proteins(input, output=False, strip_stop=False)
     ConsensusProts = os.path.join(misc_dir, "consensus.proteins.fasta")
