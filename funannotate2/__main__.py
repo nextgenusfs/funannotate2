@@ -107,7 +107,11 @@ def predict_subparser(subparsers):
     )
     optional_args = group.add_argument_group("Optional arguments")
     optional_args.add_argument(
-        "--strain", required=False, help="Strain/isolate name (e.g. Af293)", metavar=""
+        "-st",
+        "--strain",
+        required=False,
+        help="Strain/isolate name (e.g. Af293)",
+        metavar="",
     )
     optional_args.add_argument(
         "-w",
@@ -118,13 +122,28 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-m",
+        "--consensus-method",
+        required=False,
+        choices=["evm", "gfftk"],
+        dest="consensus",
+        help="Consensus model generation method [evm,gfftk]",
+        default="evm",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "-ps",
+        "--proteins",
+        required=False,
+        help="Proteins to use for evidence",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "-ts",
         "--transcripts",
         required=False,
         help="Transcripts to use for evidence",
         metavar="",
-    )
-    optional_args.add_argument(
-        "--proteins", required=False, help="Proteins to use for evidence", metavar=""
     )
     optional_args.add_argument(
         "-c",
@@ -135,6 +154,7 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-mi",
         "--max-intron",
         dest="max_intron",
         help="Maximum intron length",
@@ -143,6 +163,7 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-hl",
         "--header-len",
         default=16,
         dest="header_length",
@@ -151,12 +172,15 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
-        "--name",
+        "-l",
+        "--locus-tag",
+        dest="name",
         default="FUN_",
-        help="Shortname for genes, perhaps assigned by NCBI, eg. VC83",
+        help="Locus tag for genes, perhaps assigned by NCBI, eg. VC83",
         metavar="",
     )
     optional_args.add_argument(
+        "-n",
         "--numbering",
         default=1,
         type=int,
@@ -164,13 +188,14 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-pt",
         "--pretrained-species",
         dest="pretrained_species",
         help="Use pretrained parameters for prediction, ie values in funannotate2 species",
         metavar="",
     )
     optional_args.add_argument(
-        "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
+        "-t", "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
     )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(

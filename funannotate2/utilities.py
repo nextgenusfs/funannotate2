@@ -459,7 +459,7 @@ def runThreadJob(func, argList, cpus=2, progress=True):
 
 
 def runProcessJob(function, inputList, cpus=2):
-    # inputList here should be a list of lists with each imput to function
+    # inputList here should be a list of lists with each input to function
     def update(res):
         results.append(res)
 

@@ -136,7 +136,7 @@ def predict(args):
         # now run ab intio in parallel
         abinit_cmds = []
         for c in contigs:
-            abinit_cmds.append([c, params, logger])
+            abinit_cmds.append((c, params, logger))
 
         logger.info(f"Running ab initio gene predictions using {args.cpus} cpus")
         runProcessJob(abinitio_wrapper, abinit_cmds, cpus=args.cpus)
@@ -243,17 +243,20 @@ def predict(args):
         ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
         gene_models = gff2dict(ap, args.fasta)
         _dict2proteins(gene_models, output=ProtPreds)
-        d, m, stats, cfg = runbusco(
-            ProtPreds,
-            busco_model_path,
-            mode="proteins",
-            cpus=args.cpus,
-            logger=logger,
-            verbosity=0,
-        )
+        if checkfile(ProtPreds):
+            d, m, stats, cfg = runbusco(
+                ProtPreds,
+                busco_model_path,
+                mode="proteins",
+                cpus=args.cpus,
+                logger=logger,
+                verbosity=0,
+            )
+            cov = (stats["single-copy"] + stats["duplicated"]) / float(stats["total"])
+        else:
+            cov = 0.00
         # measure completeness for each tool
         ab_initio_tool = os.path.basename(ap).split(".")[1]
-        cov = (stats["single-copy"] + stats["duplicated"]) / float(stats["total"])
         if ab_initio_tool == "augustus-hiq":  # add these just augustus
             ab_initio_tool = "augustus"
         if not ab_initio_tool in abinitio_scores:
@@ -279,17 +282,28 @@ def predict(args):
         t_aligns = []
         if checkfile(TranAlign):
             t_aligns.append(TranAlign)
-        _ = evm_consensus(
-            args.fasta,
-            abinitio_preds,
-            p_aligns,
-            t_aligns,
-            weightings,
-            Consensus,
-            log=logger,
-            tmpdir=consensus_tmp,
-            cpus=args.cpus,
-        )
+        if args.consensus == "evm":
+            _ = evm_consensus(
+                args.fasta,
+                abinitio_preds,
+                p_aligns,
+                t_aligns,
+                weightings,
+                Consensus,
+                log=logger,
+                tmpdir=consensus_tmp,
+                cpus=args.cpus,
+            )
+        elif args.consensus == "gfftk":
+            _ = generate_consensus(
+                args.fasta,
+                abinitio_preds,
+                p_aligns,
+                t_aligns,
+                weightings,
+                Consensus,
+                log=logger.info,
+            )
     else:
         logger.info("Existing consensus predictions found, continuing")
 
