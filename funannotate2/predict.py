@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import shutil
+from collections import OrderedDict
 from natsort import natsorted
 from .utilities import (
     create_directories,
@@ -14,6 +15,7 @@ from .utilities import (
     load_json,
     download,
     runSubprocess,
+    naming_slug,
 )
 from .log import startLogging, system_info, finishLogging
 from .fastx import analyzeAssembly
@@ -25,11 +27,12 @@ from .abinitio import (
     run_augustus,
     run_genemark,
     evidence2hints,
+    run_trnascan,
 )
 from .config import env
 from gfftk.gff import gff2dict, dict2gff3
 from gfftk.stats import annotation_stats
-from gfftk.convert import _dict2proteins
+from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
 from gfftk.consensus import generate_consensus
 from buscolite.busco import runbusco
 
@@ -103,7 +106,7 @@ def predict(args):
             log=logger,
         )
     elif checkfile(TranAlign) and checkfile(TranGenes):
-        log("Existing transcript alignments found, continuing")
+        log("Existing transcript alignments found, will re-use and continue")
 
     # align proteins if passed
     ProtAlign = os.path.join(misc_dir, "protein-alignments.gff3")
@@ -119,7 +122,7 @@ def predict(args):
             log=logger,
         )
     elif checkfile(ProtAlign) and checkfile(ProtGenes):
-        log("Existing protein alignments found, continuing")
+        log("Existing protein alignments found, will re-use and continue")
 
     # lets see if already run, get list of expected output files
     Consensus = os.path.join(misc_dir, "consensus.predictions.gff3")
@@ -192,6 +195,7 @@ def predict(args):
                                     if "\tgene\t" in line:
                                         gene_counts[ab] += 1
                                     outfile.write(line)
+
         # clean up
         shutil.rmtree(tmp_dir)
 
@@ -237,38 +241,50 @@ def predict(args):
 
     # now we can loop through the abinitio predictions and run busco for completion
     # write this to file for re-use if consensus file already present?
-    abinitio_scores = {}
-    logger.info(
-        f"Measuring assembly completeness with buscolite for all ab initio predictions"
-    )
-    for ap in abinitio_preds:
-        ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
-        gene_models = gff2dict(ap, args.fasta)
-        _dict2proteins(gene_models, output=ProtPreds)
-        if checkfile(ProtPreds):
-            d, m, stats, cfg = runbusco(
-                ProtPreds,
-                busco_model_path,
-                mode="proteins",
-                cpus=args.cpus,
-                logger=logger,
-                verbosity=0,
-            )
-            cov = (stats["single-copy"] + stats["duplicated"]) / float(stats["total"])
-        else:
-            cov = 0.00
-        # measure completeness for each tool
-        ab_initio_tool = os.path.basename(ap).split(".")[1]
-        if ab_initio_tool == "augustus-hiq":  # add these just augustus
-            ab_initio_tool = "augustus"
-        if not ab_initio_tool in abinitio_scores:
-            abinitio_scores[ab_initio_tool] = {"busco": cov}
-        else:
-            abinitio_scores[ab_initio_tool]["busco"] += cov
-    # add the params based scoring to the dictionary to calculate weights
-    for k, v in params["abinitio"].items():
-        if k in abinitio_scores:
-            abinitio_scores[k]["train"] = v["train_results"]
+    abinitio_scores_file = os.path.join(misc_dir, "abinitio_algorithm_scoring.json")
+    if checkfile(abinitio_scores_file):
+        logger.info("Existing abinitio scoring file present, will re-use and continue")
+        with open(abinitio_scores_file, "r") as infile:
+            abinitio_scores = json.load(infile)
+    else:
+        abinitio_scores = {}
+        logger.info(
+            f"Measuring assembly completeness with buscolite for all ab initio predictions"
+        )
+        for ap in abinitio_preds:
+            ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
+            gene_models = gff2dict(ap, args.fasta)
+            _dict2proteins(gene_models, output=ProtPreds)
+            if checkfile(ProtPreds):
+                d, m, stats, cfg = runbusco(
+                    ProtPreds,
+                    busco_model_path,
+                    mode="proteins",
+                    cpus=args.cpus,
+                    logger=logger,
+                    verbosity=0,
+                )
+                cov = (stats["single-copy"] + stats["duplicated"]) / float(
+                    stats["total"]
+                )
+            else:
+                cov = 0.00
+            # measure completeness for each tool
+            ab_initio_tool = os.path.basename(ap).split(".")[1]
+            if ab_initio_tool == "augustus-hiq":  # add these just augustus
+                ab_initio_tool = "augustus"
+            if not ab_initio_tool in abinitio_scores:
+                abinitio_scores[ab_initio_tool] = {"busco": cov}
+            else:
+                abinitio_scores[ab_initio_tool]["busco"] += cov
+        # add the params based scoring to the dictionary to calculate weights
+        for k, v in params["abinitio"].items():
+            if k in abinitio_scores:
+                abinitio_scores[k]["train"] = v["train_results"]
+        # write it to file
+        with open(abinitio_scores_file, "w") as outfile:
+            json.dump(abinitio_scores, outfile, indent=2)
+
     logger.info(
         "ab initio models scoring by algorithm:\n{}".format(
             json.dumps(abinitio_scores, indent=2)
@@ -312,17 +328,45 @@ def predict(args):
                 log=logger.info,
             )
     else:
-        logger.info("Existing consensus predictions found, continuing")
+        logger.info("Existing consensus predictions found, will re-use and continue")
 
-    # get consensus models in dict format
-    consensus_models = gff2dict(Consensus, args.fasta)
+    # predict tRNA
+    trna_predictions = os.path.join(misc_dir, "tRNA.predictions.gff3")
+    if not checkfile(trna_predictions):
+        logger.info("Predicting tRNA genes")
+        run_trnascan(args.fasta, trna_predictions, cpus=args.cpus, log=logger)
+    else:
+        logger.info("Existing tRNA predictions found, will re-use and continue")
+
+    # need to combine consensus predictions and RNA and rename gene models
+    finalGFF3 = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gff3")
+    finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
+    finalTBL = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.tbl")
+    finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
+    logger.info(
+        f"Merging all gene models, sorting, and renaming using locus_tag={args.name}"
+    )
+    consensus_models = merge_rename_models(
+        [Consensus, trna_predictions], args.fasta, finalGFF3, locus_tag=args.name
+    )
+    # generate renaming output files
+    shutil.copyfile(args.fasta, finalFA)
+    logger.info("Converting to GenBank format")
+    gff2tbl(finalGFF3, args.fasta, output=finalTBL, table=1)
+    tbl2gbff(
+        finalTBL,
+        args.fasta,
+        output=finalGBK,
+        organism=args.species,
+        strain=args.strain,
+    )
+
     # get some stats for user
     consensus_stats = annotation_stats(consensus_models)
     logger.info(
         "Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2))
     )
     # we are finished here with coding sequences, lets check completeness
-    # _dict2proteins(input, output=False, strip_stop=False)
     ConsensusProts = os.path.join(misc_dir, "consensus.proteins.fasta")
     _dict2proteins(consensus_models, output=ConsensusProts)
     logger.info("Measuring assembly completeness with buscolite")
@@ -353,6 +397,33 @@ def predict(args):
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])
+
+
+def merge_rename_models(gffList, genome, output, locus_tag="FUN_"):
+    def _sortDict(d):
+        return (d[1]["contig"], d[1]["location"][0])
+
+    Genes = {}
+    for gff in gffList:
+        Genes = gff2dict(
+            os.path.abspath(gff), os.path.abspath(genome), annotation=Genes
+        )
+
+    sGenes = natsorted(iter(Genes.items()), key=_sortDict)
+    sortedGenes = OrderedDict(sGenes)
+    renamedGenes = {}
+    counter = 1
+    locus_tag = locus_tag.rstrip("_")
+    for k, v in list(sortedGenes.items()):
+        locusTag = locus_tag + "_" + str(counter).zfill(6)
+        renamedGenes[locusTag] = v
+        newIds = []
+        for i in range(0, len(v["ids"])):
+            newIds.append("{}-T{}".format(locusTag, i + 1))
+        renamedGenes[locusTag]["ids"] = newIds
+        counter += 1
+    dict2gff3(renamedGenes, output=output, source="funannotate2")
+    return renamedGenes
 
 
 def abinitio_wrapper(contig, params, logger):

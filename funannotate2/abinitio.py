@@ -45,6 +45,136 @@ class reversor:
         return other.obj < self.obj
 
 
+def run_trnascan(genome, predictions, cpus=1, folder="/tmp", log=sys.stderr.write):
+    def _trnaraw2gff3(raw, gff3):
+        """
+        Sequence   		tRNA   	Bounds 	tRNA	Anti	Intron Bounds	Inf
+        Name       	tRNA #	Begin  	End    	Type	Codon	Begin	End	Score	Note
+        --------   	------	-----  	------ 	----	-----	-----	----	------	------
+        scaffold_1 	1	661826 	661896 	Gly	GCC	0	0	64.0
+        scaffold_1 	2	1175981	1176054	Ile	AAT	0	0	74.0
+        scaffold_1 	3	1306530	1306629	Ser	TGA	1306567	1306585	66.8
+        scaffold_1 	4	1343311	1343240	iMet	CAT	0	0	69.3
+        scaffold_1 	5	1331666	1331595	Gly	CCC	0	0	47.0
+        scaffold_1 	6	1225093	1225001	Ser	CGA	1225056	1225045	73.4
+        scaffold_1 	7	1078648	1078577	Ala	AGC	0	0	68.8
+        """
+        with open(gff3, "w") as outfile:
+            outfile.write("##gff-version 3\n")
+            with open(raw, "r") as infile:
+                data = infile.readlines()
+            tdata = [[x.strip() for x in d.rstrip().split("\t")] for d in data[3:]]
+            for i, pred in enumerate(tdata):
+                feature = "gene"
+                (
+                    contig,
+                    n,
+                    start,
+                    end,
+                    t_type,
+                    anticodon,
+                    intron_start,
+                    intron_end,
+                    score,
+                ) = pred[:9]
+                if len(pred) == 10:
+                    if pred[-1] == "pseudo":
+                        feature = "pseudogene"
+                start = int(start)
+                end = int(end)
+                intron_start = int(intron_start)
+                intron_end = int(intron_end)
+                gene_name = f"{t_type}_{i+1}"
+                trna_name = f"{gene_name}_tRNA"
+                product = f"tRNA-{t_type}"
+                note = f"Predicted {anticodon} anticodon"
+                if start < end:
+                    strand = "+"
+                    outfile.write(
+                        f"{contig}\ttRNAScan-SE\t{feature}\t{start}\t{end}\t{score}\t{strand}\t.\tID={gene_name};\n"
+                    )
+                    outfile.write(
+                        f"{contig}\ttRNAScan-SE\ttRNA\t{start}\t{end}\t{score}\t{strand}\t.\tID={trna_name};Parent={gene_name};product={product};note={note};\n"
+                    )
+                    if intron_start > 0 and intron_end > 0:
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{start}\t{intron_start-1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                        )
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{intron_end+1}\t{end}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
+                        )
+                    else:
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{start}\t{end}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                        )
+                else:
+                    strand = "-"
+                    outfile.write(
+                        f"{contig}\ttRNAScan-SE\t{feature}\t{end}\t{start}\t{score}\t{strand}\t.\tID={gene_name};\n"
+                    )
+                    outfile.write(
+                        f"{contig}\ttRNAScan-SE\ttRNA\t{end}\t{start}\t{score}\t{strand}\t.\tID={trna_name};Parent={gene_name};product={product};note={note};\n"
+                    )
+                    if intron_start > 0 and intron_end > 0:
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{end}\t{intron_end+1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                        )
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{intron_start-1}\t{start}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
+                        )
+                    else:
+                        outfile.write(
+                            f"{contig}\ttRNAScan-SE\texon\t{end}\t{start}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                        )
+
+    # generate training directory ontop of the dir that is passed
+    tmpdir = os.path.join(folder, f"trnascan-{uuid.uuid4()}")
+    if os.path.isdir(tmpdir):
+        shutil.rmtree(tmpdir)
+    os.makedirs(tmpdir)
+    tRNAout = os.path.join(tmpdir, "tRNAscan.out")
+    tRNAlenOut = os.path.join(tmpdir, "tRNAscan.len-filtered.out")
+    cmd = [
+        "tRNAscan-SE",
+        "-o",
+        os.path.abspath(tRNAout),
+        "--thread",
+        str(cpus),
+        os.path.abspath(genome),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        runSubprocess(cmd, log, cwd=tmpdirname)
+
+    # enforce NCBI length rules
+    with open(tRNAlenOut, "w") as lenOut:
+        with open(tRNAout, "r") as infile:
+            for line in infile:
+                if (
+                    line.startswith("Sequence")
+                    or line.startswith("Name")
+                    or line.startswith("--------")
+                ):
+                    lenOut.write(f"{line}")
+                else:
+                    cols = line.split("\t")
+                    start = cols[2]
+                    end = cols[3]
+                    if int(start) < int(end):
+                        length = abs(int(end) - int(start))
+                    else:
+                        length = abs(int(start) - int(end))
+                    if length < 50 or length > 150:
+                        continue
+                    else:
+                        lenOut.write(f"{line}")
+    # convert to GFF3 format
+    _trnaraw2gff3(tRNAlenOut, predictions)
+    # if os.path.isdir(tmpdir):
+    #    shutil.rmtree(tmpdir)
+
+    return 0
+
+
 def train_glimmerhmm(
     genome,
     train_gff,
@@ -316,7 +446,7 @@ def run_glimmerhmm(
         scaffold_39     GlimmerHMM      CDS     27257   27899   .       -       0       ID=scaffold_39.cds13.2;Parent=scaffold_39.path1.gene13;Name=scaffold_39.path1.gene13;Note=initial-exon
         """
         with open(output, "w") as outfile:
-            outfile.write(("##gff-version 3\n"))
+            outfile.write("##gff-version 3\n")
             exonCounts = {}
             GeneCount = 1
             skipList = []
