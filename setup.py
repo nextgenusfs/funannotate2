@@ -23,7 +23,7 @@ REQUIRED = [
     "buscolite",
     "gapmm2",
     "pyhmmer",
-    "pyfastx",
+    "pyfastx>=2.0.0",
     "biopython",
     "requests",
 ]
