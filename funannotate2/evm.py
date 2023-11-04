@@ -12,7 +12,7 @@ from gfftk.gff import gff2dict, dict2gff3, dict2gff3alignments
 from gfftk.fasta import softwrap
 from collections import ChainMap
 import bisect
-from .utilities import runSubprocess, runProcessJob
+from .utilities import runSubprocess, runProcessJob, checkfile
 
 
 def merge(coords):
@@ -70,7 +70,7 @@ def evm_consensus(
     log=sys.stderr.write,
     cpus=1,
 ):
-    # run evidence modeler v2.1.1
+    # run evidence modeler v2.1.1 or older version, basically need to see where evidence_modeler.pl is located
     # check for EVM_HOME
     try:
         EVM = os.environ["EVM_HOME"]
@@ -82,6 +82,12 @@ def evm_consensus(
     Combine = os.path.join(EVM, "EvmUtils", "recombine_EVM_partial_outputs.pl")
     Convert = os.path.join(EVM, "EvmUtils", "convert_EVM_outputs_to_GFF3.pl")
     RunEVM = os.path.join(EVM, "EvmUtils", "evidence_modeler.pl")
+    if not checkfile(RunEVM):
+        RunEVM = os.path.join(EVM, "evidence_modeler.pl")
+        if not checkfile(RunEVM):
+            log.error(
+                f"EVM installation problem, unable to location evidence_modeler.pl script in {EVM}"
+            )
 
     # load the genome
     fa = pyfastx.Fasta(genome)
