@@ -47,8 +47,7 @@ def contig_analysis(title, seq):
     for i, nuc in enumerate(seq):
         if nuc.islower():
             masked.append(i)
-        nuc = nuc.upper()
-        if nuc == "N":
+        if nuc in ["N", "n"]:
             masked.append(i)
             gaps.append(i)
     mask_grouped = list(list2groups(masked))

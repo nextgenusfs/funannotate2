@@ -446,7 +446,7 @@ def cmd_splitter(
                 if len(v["protein_evidence"]) > 0:
                     protPred = os.path.join(partDir, "protein_alignments.gff3")
                     dict2gff3alignments(
-                        v["protein_evidence"], output=tranPred, alignments="protein"
+                        v["protein_evidence"], output=protPred, alignments="protein"
                     )
                     subcmd += ["--protein_alignments", os.path.basename(protPred)]
 
