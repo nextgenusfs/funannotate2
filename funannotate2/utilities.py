@@ -35,11 +35,17 @@ def execute(cmd, cwd="."):
         raise subprocess.CalledProcessError(return_code, cmd)
 
 
-def naming_slug(species, strain):
-    if strain:
-        return f"{species.replace(' ', '_').lower()}_{strain.replace(' ', '')}"
+def naming_slug(species, strain, lowercase=False):
+    combo = species.replace(" ", "_")
+    if lowercase:
+        combo = combo.lower()
     else:
-        return species.replace(" ", "_").lower()
+        combo = combo.capitalize()
+    if strain:
+        slug = f"{combo}_{strain.replace(' ', '')}"
+    else:
+        slug = combo
+    return slug
 
 
 def load_json(filename):
