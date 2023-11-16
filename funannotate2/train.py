@@ -44,7 +44,9 @@ def train(args):
     # load genome and do some QC checks
     # set max header high as going to simplify below if no other issues
     logger.info("Loading genome assembly and running QC checks")
-    stats, bad_names, nuc_errors = analyzeAssemblySimple(args.fasta, header_max=100)
+    stats, bad_names, nuc_errors = analyzeAssemblySimple(
+        args.fasta, header_max=args.header_length
+    )
     if len(bad_names) > 0:
         bad_string = ", ".join(bad_names)
         logger.critical(

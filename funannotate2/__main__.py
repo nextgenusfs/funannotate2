@@ -257,7 +257,7 @@ def train_subparser(subparsers):
     )
     optional_args.add_argument(
         "--header-len",
-        default=16,
+        default=100,
         dest="header_length",
         type=int,
         help="Max length for fasta headers",
