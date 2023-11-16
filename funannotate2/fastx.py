@@ -27,6 +27,16 @@ def fasta2dict(fasta_file):
     return fa
 
 
+def simplify_headers(inputfile, outputfile, base="contig_"):
+    # will keep the same order of contigs, just simplify the headers
+    names = {}
+    with open(outputfile, "w") as outfile:
+        for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
+            names[title] = ">{base}{i+1}"
+            outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
+    return names
+
+
 def list2groups(L):
     # via https://stackoverflow.com/questions/2154249/identify-groups-of-continuous-numbers-in-a-list
     if len(L) < 1:

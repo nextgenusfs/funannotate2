@@ -13,7 +13,7 @@ from gfftk.gff import gff2dict, dict2gff3
 from gfftk.fasta import softwrap, fasta2dict
 from .interlap import InterLap
 from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssemblySimple
+from .fastx import analyzeAssemblySimple, simplify_headers
 from .config import env
 from .utilities import (
     lookup_taxonomy,
@@ -42,10 +42,9 @@ def train(args):
     system_info(log)
 
     # load genome and do some QC checks
+    # set max header high as going to simplify below if no other issues
     logger.info("Loading genome assembly and running QC checks")
-    stats, bad_names, nuc_errors = analyzeAssemblySimple(
-        args.fasta, header_max=args.header_length
-    )
+    stats, bad_names, nuc_errors = analyzeAssemblySimple(args.fasta, header_max=100)
     if len(bad_names) > 0:
         bad_string = ", ".join(bad_names)
         logger.critical(
@@ -61,6 +60,10 @@ def train(args):
         )
         raise SystemExit(1)
     logger.info(f"Genome stats:\n{json.dumps(stats, indent=2)}")
+
+    # to circumvent any downstream issues, rename headers
+    GenomeFasta = os.path.join(misc_dir, "genome.fasta")
+    header_map = simplify_headers(args.fasta, GenomeFasta, base="contig_")
 
     # get taxonomy information
     taxonomy = lookup_taxonomy(args.species)
@@ -105,7 +108,7 @@ def train(args):
                             os.remove(busco_tgz)
                 log("Running buscolite to generate training set")
                 buscolite(
-                    args.fasta,
+                    GenomeFasta,
                     busco_model_path,
                     args.training_set,
                     species=aug_species,
@@ -118,7 +121,7 @@ def train(args):
             else:
                 logger.info(f"Existing BUSCO results found: {args.training_set}")
         # load  GFF3 training set, load with gfftk
-        train_set = gff2dict(args.training_set, args.fasta)
+        train_set = gff2dict(args.training_set, GenomeFasta)
         logger.info(
             f"Training set [{args.training_set}] loaded with {len(train_set)} gene models"
         )
@@ -129,11 +132,11 @@ def train(args):
             raise SystemExit(1)
 
         # now filter training set
-        models4training = selectTrainingModels(args.fasta, train_set, tmpdir=misc_dir)
+        models4training = selectTrainingModels(GenomeFasta, train_set, tmpdir=misc_dir)
         dict2gff3(models4training, filt_train_models)
     else:
         logger.info(f"Using existing training set: {filt_train_models}")
-        models4training = trainmodels2dict(args.fasta, filt_train_models)
+        models4training = trainmodels2dict(GenomeFasta, filt_train_models)
 
     # split into test/train sets
     n_test = int(len(models4training) * 0.20)
@@ -153,7 +156,7 @@ def train(args):
     # run augustus training functions
     logger.info(f"Training augustus using training set")
     augustus_train = train_augustus(
-        args.fasta,
+        GenomeFasta,
         train_models,
         test_models,
         folder=misc_dir,
@@ -166,14 +169,14 @@ def train(args):
     # run snap training functions
     logger.info(f"Training snap using training set")
     snap_train = train_snap(
-        args.fasta, train_models, test_models, folder=misc_dir, log=logger
+        GenomeFasta, train_models, test_models, folder=misc_dir, log=logger
     )
     snap_train["training_set"] = filt_train_models_final
 
     # run glimmerHMM training functions
     logger.info(f"Training glimmerHMM using training set")
     glimm_train = train_glimmerhmm(
-        args.fasta,
+        GenomeFasta,
         train_models,
         test_models,
         folder=misc_dir,
@@ -196,7 +199,7 @@ def train(args):
         if taxonomy["kingdom"] == "Fungi":
             fungus_flag = True
         genemark_train = train_genemark(
-            args.fasta,
+            GenomeFasta,
             train_models,
             test_models,
             folder=misc_dir,
