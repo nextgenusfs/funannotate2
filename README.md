@@ -7,6 +7,15 @@
 
 #### This is work in progress. Do not expect it to work until a release is tagged.
 
+Setting up a conda environment with these packages is necessary, then it can be installed with pip.
+
+```bash
+mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond blast
+conda activate funannotate2
+python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
+```
+
+Additional tools like genemarkHMM must be installed manually due to licensing.
 
 To install release versions use the pip package manager, like so:
 ```
