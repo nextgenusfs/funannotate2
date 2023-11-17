@@ -10,7 +10,7 @@
 Setting up a conda environment with these packages is necessary, then it can be installed with pip.
 
 ```bash
-mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond blast
+mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond blast trnascan-se table2asn
 conda activate funannotate2
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
 ```
