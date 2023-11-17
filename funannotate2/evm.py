@@ -392,7 +392,7 @@ def cmd_splitter(
                     protPred = os.path.join(chrDir, "protein_alignments.gff3")
                     dict2gff3alignments(
                         v["protein_evidence"],
-                        output=tranPred,
+                        output=protPred,
                         alignments="protein",
                         newline=True,
                     )
