@@ -128,7 +128,7 @@ def predict_subparser(subparsers):
         choices=["evm", "gfftk"],
         dest="consensus",
         help="Consensus model generation method [evm,gfftk]",
-        default="evm",
+        default="gfftk",
         metavar="",
     )
     optional_args.add_argument(
@@ -165,7 +165,7 @@ def predict_subparser(subparsers):
     optional_args.add_argument(
         "-hl",
         "--header-len",
-        default=16,
+        default=100,
         dest="header_length",
         type=int,
         help="Max length for fasta headers",
