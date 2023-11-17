@@ -32,7 +32,7 @@ def simplify_headers(inputfile, outputfile, base="contig_"):
     names = {}
     with open(outputfile, "w") as outfile:
         for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
-            names[title] = ">{base}{i+1}"
+            names[f"{base}{i+1}"] = title
             outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
     return names
 

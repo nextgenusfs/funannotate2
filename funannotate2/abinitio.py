@@ -613,7 +613,10 @@ def train_genemark(
 
     # define training model
     genemark_mod = os.path.join(tmpdir, "gmhmm.mod")
-    shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
+    if os.path.abspath(genome) != os.path.abspath(
+        os.path.join(folder, os.path.basename(genome))
+    ):
+        shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
     cmd = [
         "gmes_petap.pl",
         "--ES",
