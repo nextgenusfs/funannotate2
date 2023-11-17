@@ -20,11 +20,7 @@ from .utilities import (
     execute,
 )
 from .config import env
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore")
-    from .genbank import gff3_to_gb
+from .genbank import gff3_to_gb
 import subprocess
 import pyfastx
 import types

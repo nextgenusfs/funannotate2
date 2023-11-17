@@ -18,7 +18,7 @@ from .utilities import (
     naming_slug,
 )
 from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssembly
+from .fastx import analyzeAssembly, simplify_headers
 from .align import align_transcripts, align_proteins
 from .evm import evm_consensus
 from .abinitio import (
@@ -65,10 +65,12 @@ def predict(args):
     logger.info(
         "Loading genome assembly, running QC checks, calculating softmasked regions and assembly gaps"
     )
+    GenomeFasta = os.path.join(misc_dir, "genome.fasta")
+    contig_name_map = simplify_headers(args.fasta, GenomeFasta)
     maskedRegions = os.path.join(misc_dir, "softmasked-regions.bed")
     asmGaps = os.path.join(misc_dir, "assembly-gaps.bed")
     stats, bad_names, nuc_errors, contigs = analyzeAssembly(
-        args.fasta,
+        GenomeFasta,
         maskedRegions,
         asmGaps,
         header_max=args.header_length,
@@ -97,7 +99,7 @@ def predict(args):
     TranGenes = os.path.join(misc_dir, "predictions.gapmm2-gene.gff3")
     if args.transcripts and not checkfile(TranAlign):
         align_transcripts(
-            args.fasta,
+            GenomeFasta,
             args.transcripts,
             TranAlign,
             TranGenes,
@@ -113,7 +115,7 @@ def predict(args):
     ProtGenes = os.path.join(misc_dir, "predictions.miniprot-gene.gff3")
     if args.proteins and not checkfile(ProtAlign):
         align_proteins(
-            args.fasta,
+            GenomeFasta,
             args.proteins,
             ProtAlign,
             ProtGenes,
@@ -253,7 +255,7 @@ def predict(args):
         )
         for ap in abinitio_preds:
             ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
-            gene_models = gff2dict(ap, args.fasta)
+            gene_models = gff2dict(ap, GenomeFasta)
             _dict2proteins(gene_models, output=ProtPreds)
             if checkfile(ProtPreds):
                 d, m, stats, cfg = runbusco(
@@ -307,7 +309,7 @@ def predict(args):
             t_aligns.append(TranAlign)
         if args.consensus == "evm":
             _ = evm_consensus(
-                args.fasta,
+                GenomeFasta,
                 abinitio_preds,
                 p_aligns,
                 t_aligns,
@@ -319,7 +321,7 @@ def predict(args):
             )
         elif args.consensus == "gfftk":
             _ = generate_consensus(
-                args.fasta,
+                GenomeFasta,
                 abinitio_preds,
                 p_aligns,
                 t_aligns,
@@ -334,7 +336,7 @@ def predict(args):
     trna_predictions = os.path.join(misc_dir, "tRNA.predictions.gff3")
     if not checkfile(trna_predictions):
         logger.info("Predicting tRNA genes")
-        run_trnascan(args.fasta, trna_predictions, cpus=args.cpus, log=logger)
+        run_trnascan(GenomeFasta, trna_predictions, cpus=args.cpus, log=logger)
     else:
         logger.info("Existing tRNA predictions found, will re-use and continue")
 
@@ -347,7 +349,11 @@ def predict(args):
         f"Merging all gene models, sorting, and renaming using locus_tag={args.name}"
     )
     consensus_models = merge_rename_models(
-        [Consensus, trna_predictions], args.fasta, finalGFF3, locus_tag=args.name
+        [Consensus, trna_predictions],
+        GenomeFasta,
+        finalGFF3,
+        locus_tag=args.name,
+        contig_map=contig_name_map,
     )
     # generate renaming output files
     shutil.copyfile(args.fasta, finalFA)
@@ -399,7 +405,7 @@ def predict(args):
     finishLogging(log, vars(sys.modules[__name__])["__name__"])
 
 
-def merge_rename_models(gffList, genome, output, locus_tag="FUN_"):
+def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}):
     def _sortDict(d):
         return (d[1]["contig"], d[1]["location"][0])
 
@@ -421,6 +427,8 @@ def merge_rename_models(gffList, genome, output, locus_tag="FUN_"):
         for i in range(0, len(v["ids"])):
             newIds.append("{}-T{}".format(locusTag, i + 1))
         renamedGenes[locusTag]["ids"] = newIds
+        # map back contig names if present
+        renamedGenes[locusTag]["contig"] = contig_map.get(v["contig"], v["contig"])
         counter += 1
     dict2gff3(renamedGenes, output=output, source="funannotate2")
     return renamedGenes
