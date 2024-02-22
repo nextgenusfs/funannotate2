@@ -215,11 +215,18 @@ def predict(args):
                 "\n - ".join(abinitio_preds)
             )
         )
+    # ensure we get files in same order
+    abinitio_preds = sorted(abinitio_preds)
 
     # dynamically figure out the weights to use based on training test scores
     # or we could test again here with busco?
     # busco with a higher level taxonomic group
     taxonomy = lookup_taxonomy(args.species)
+    if taxonomy is False:  # then offline mode, pull from training data if possible
+        logger.warning(
+            "Unable to access JGI taxonomy lookup, reverting to taxonomy from training data"
+        )
+        taxonomy = params["taxonomy"]
     busco_tax = choose_best_busco_species(
         {"superkingdom": taxonomy["superkingdom"], "kingdom": taxonomy["kingdom"]}
     )
@@ -251,7 +258,7 @@ def predict(args):
     else:
         abinitio_scores = {}
         logger.info(
-            f"Measuring assembly completeness with buscolite for all ab initio predictions"
+            "Measuring assembly completeness with buscolite for all ab initio predictions"
         )
         for ap in abinitio_preds:
             ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
@@ -275,7 +282,7 @@ def predict(args):
             ab_initio_tool = os.path.basename(ap).split(".")[1]
             if ab_initio_tool == "augustus-hiq":  # add these just augustus
                 ab_initio_tool = "augustus"
-            if not ab_initio_tool in abinitio_scores:
+            if ab_initio_tool not in abinitio_scores:
                 abinitio_scores[ab_initio_tool] = {"busco": cov}
             else:
                 abinitio_scores[ab_initio_tool]["busco"] += cov
@@ -327,7 +334,12 @@ def predict(args):
                 t_aligns,
                 weightings,
                 Consensus,
+                repeats=maskedRegions,
+                tiebreakers="weights",
                 log=logger.info,
+                debug=True,
+                max_intron=args.max_intron,
+                evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
             )
     else:
         logger.info("Existing consensus predictions found, will re-use and continue")

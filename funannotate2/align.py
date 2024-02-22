@@ -11,14 +11,19 @@ def split_evidence_and_genes(gff, fasta, evidence, genes, gff_format="alignment"
     # function to take a GFF3 file, parse, validate, and split
     aligns = gff2dict(gff, fasta, gff_format=gff_format)
     g = {}
+    gseen = set()
     for k, v in aligns.items():
         if "mRNA" in v["type"]:
             if (
                 False in v["partialStart"]
                 and False in v["partialStop"]
-                and v["pseudo"] == False
+                and v["pseudo"] is False
             ):
-                g[k] = v
+                # we don't want multiple of the same gene model
+                unique_str = f"{v['contig']}_{v['strand']}_{v['location'][0]}_{v['location'][1]}_{len(v['CDS'][0])}"
+                if unique_str not in gseen:
+                    g[k] = v
+                    gseen.add(unique_str)
     # now we can write these to files
     if gff_format == "miniprot":
         new_source = "miniprot-gene"
