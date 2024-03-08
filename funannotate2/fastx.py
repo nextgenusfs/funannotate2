@@ -1,6 +1,7 @@
 import pyfastx
 from natsort import natsorted
 import os
+import math
 import concurrent.futures
 from .utilities import runProcessJob
 import multiprocessing
@@ -25,6 +26,30 @@ def fasta2dict(fasta_file):
     for title, seq in pyfastx.Fasta(fasta_file, build_index=False):
         fa[title] = seq
     return fa
+
+
+def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
+    # list to sotre the output files
+    files = []
+    # check if output exists
+    if not os.path.isdir(outputdir):
+        os.makedirs(outputdir)
+    fa = pyfastx.Fasta(fasta_file)
+    n_per_chunk = math.ceil(len(fa) / chunks)
+    # built the idx ranges to split
+    steps = []
+    for i, x in enumerate(range(0, len(fa), n_per_chunk)):
+        steps.append((i, x, x + n_per_chunk))
+    for step in steps:
+        outname = os.path.join(outputdir, f"{prefix}{step[0]+1}{suffix}")
+        files.append(outname)
+        with open(outname, "w") as outfile:
+            for idx in range(step[1], step[2]):
+                try:
+                    outfile.write(fa[idx].raw)
+                except IndexError:
+                    continue
+    return files
 
 
 def simplify_headers(inputfile, outputfile, base="contig_"):

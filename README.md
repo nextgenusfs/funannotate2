@@ -9,8 +9,8 @@
 
 Setting up a conda environment with these packages is necessary, then it can be installed with pip.
 
-```bash
-mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond blast trnascan-se table2asn
+```shell
+mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn
 conda activate funannotate2
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
 ```
@@ -22,7 +22,7 @@ To install release versions use the pip package manager, like so:
 python -m pip install funannotate2
 ```
 
-To install the most updated code in master you can run:
+To install the most up to date code from this repo, you can run:
 ```
-python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
+python -m pip install git+https://github.com/nextgenusfs/funannotate2.git --upgrade --force --no-deps
 ```

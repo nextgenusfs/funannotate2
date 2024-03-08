@@ -516,7 +516,7 @@ def calculate_weights(scores, cli_weights):
             weights[k] = usr_weights.get(k)
         else:
             if (
-                not "train" in v
+                "train" not in v
             ):  # these are either user entered or from gapmm2/miniprot
                 weights[k] = 1
             else:
@@ -538,7 +538,7 @@ def calculate_weights(scores, cli_weights):
     weights["augustus-hiq"] = weights["augustus"] + 2
     # add any other usr_weights
     for k, v in usr_weights.items():
-        if not k in weights:
+        if k not in weights:
             weights[k] = v
     # now we want a list with tool:weight annotations
     weight_list = []
