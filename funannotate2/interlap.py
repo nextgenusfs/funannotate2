@@ -1,95 +1,3 @@
-"""
-`InterLap` does fast interval overlap testing with a simple python data
-structure.
-
-It works well on the types of querying done in genomic datasets where we have
-10's of thousands of intervals and we check for overlap millions of times. It
-is very simple and has no dependencies.
-
-It takes tuples or lists where the first 2 elements are start, end and the
-remaining elements can be anything.
-
->>> from interlap import InterLap
->>> inter = InterLap()
-
-Here create 10K random intervals:
-
->>> import random
->>> sites = random.sample(range(22, 100000000, 12), 50000)
->>> ranges = [(i, i + random.randint(2000, 20000)) for i in sites]
-
-Add them to the interval tree (this takes < 0.5 seconds):
-
->>> inter.update(ranges)
-
-We can also add one at a time:
-
->>> inter.add((20, 22, {'info': 'hi'}))
-
-Now do overlap testing:
-
->>> [20, 21] in inter
-True
-
->>> next(inter.find((21, 21)))
-(20, 22, {'info': 'hi'})
-
->>> inter.add((2, 3, {'info': 'hello'}))
-
-*NOTE*: below shows how edge-cases are handled.
-
->>> list(inter.find((2, 2)))
-[(2, 3, {'info': 'hello'})]
->>> list(inter.find((3, 3)))
-[(2, 3, {'info': 'hello'})]
-
-Test every item in the InterLap. These 50K queries take < 0.5 seconds:
-
->>> for s, e in ranges:
-...     assert (s, e) in inter
-
->>> for i, se in enumerate(inter):
-...     if i > 10: break
-...     assert se[0] < se[1]
-...
-
->>> list(inter.closest((2, 2)))
-[(2, 3, {'info': 'hello'})]
-
->>> list(inter.closest((2, 21)))
-[(2, 3, {'info': 'hello'}), (20, 22, {'info': 'hi'})]
-
->>> list(inter.closest((2, 21)))
-[(2, 3, {'info': 'hello'}), (20, 22, {'info': 'hi'})]
-
->>> list(inter.closest((11, 12)))
-[(2, 3, {'info': 'hello'}), (20, 22, {'info': 'hi'})]
-
->>> for i in range(10):
-...     inter.add((20, 21))
->>> len(list(inter.closest((10, 13))))
-12
-
->>> for i in range(10):
-...     inter.add((18, 21))
->>> len(list(inter.closest((10, 13))))
-10
-
->>> for i in range(10):
-...     inter.add((5, 5))
->>> len(list(inter.closest((10, 13))))
-20
-
->>> for i in range(10):
-...     inter.add((3, 5))
->>> len(list(inter.closest((10, 13))))
-30
-
->>> inter.add((9, 9))
->>> list(inter.closest((10, 13)))
-[(9, 9)]
-
-"""
 from itertools import groupby
 from operator import itemgetter
 
@@ -130,7 +38,6 @@ def binsearch_right_end(intervals, x, lo, hi):
 
 
 class InterLap(object):
-
     """Create an Interlap object. (See module docstring)."""
 
     def __init__(self, ranges=()):
