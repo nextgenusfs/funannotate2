@@ -103,9 +103,6 @@ except NameError:
     int_types = (int,)
 
 
-######################################
-
-
 def binsearch_left_start(intervals, x, lo, hi):
     while lo < hi:
         mid = (lo + hi) // 2
