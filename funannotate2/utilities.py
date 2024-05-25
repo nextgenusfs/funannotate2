@@ -14,6 +14,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 import requests
+import urllib3
 import errno
 from urllib.request import urlopen
 import socket
@@ -92,12 +93,13 @@ def lookup_taxonomy(name):
         returns False if not a valid name else returns dictionary of taxonomic levels/names
 
     """
-
+    requests.packages.urllib3.disable_warnings()
+    requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS += ":HIGH:!DH:!aNULL"
     if " " in name:
         name = name.replace(" ", "_")
     url = "https://taxonomy.jgi-psf.org/stax/name/"
     try:
-        resp = requests.get(url + name)
+        resp = requests.get(url + name, verify=False)
         if 500 <= resp.status_code <= 599:
             return resp.status_code
         result = resp.json()[name]
