@@ -97,7 +97,7 @@ def lookup_taxonomy(name):
         name = name.replace(" ", "_")
     url = "https://taxonomy.jgi.doe.gov/stax/name/"
     try:
-        resp = requests.get(url + name)
+        resp = requests.get(url + name, verify=False)
         if 500 <= resp.status_code <= 599:
             return resp.status_code
         result = resp.json()[name]
