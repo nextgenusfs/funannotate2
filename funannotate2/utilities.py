@@ -21,6 +21,9 @@ import random
 import json
 from .config import augustus_species, busco_taxonomy
 
+# disable insecure warning
+requests.packages.urllib3.disable_warnings()
+
 
 def execute(cmd, cwd="."):
     DEVNULL = open(os.devnull, "w")
