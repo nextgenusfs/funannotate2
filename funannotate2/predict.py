@@ -16,9 +16,10 @@ from .utilities import (
     download,
     runSubprocess,
     naming_slug,
+    find_files,
 )
 from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssembly, simplify_headers
+from .fastx import analyzeAssembly, simplify_headers, mergefasta
 from .align import align_transcripts, align_proteins
 from .evm import evm_consensus
 from .abinitio import (
@@ -38,6 +39,50 @@ from buscolite.busco import runbusco
 
 
 def predict(args):
+    # parse the inputs, need to do this here
+    params = None
+    if args.input_dir:  # then can parse some stuff
+        if not args.params:
+            param_files = find_files(
+                os.path.join(args.input_dir, "train_results"), ".params.json"
+            )
+            if len(param_files) == 1:
+                args.params = os.path.abspath(param_files[0])
+                with open(args.params, "r") as infile:
+                    params = json.load(infile)
+        if not args.species:  # load from params file
+            args.species = params.get("species")
+        if not args.out:
+            args.out = args.input_dir
+        if not args.fasta:
+            fasta_files = find_files(
+                os.path.join(args.input_dir, "train_results"),
+                (".fna", ".fa", ".fasta", ".fna.gz", ".fa.gz", ".fasta.gz"),
+            )
+            if len(fasta_files) == 1:
+                args.fasta = os.path.abspath(fasta_files[0])
+    # now check arguments
+    if not args.out:
+        sys.stderr.write(
+            "ERROR: -o,--out parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
+        )
+        raise SystemExit(1)
+    if not args.fasta:
+        sys.stderr.write(
+            "ERROR: -f,--fasta parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
+        )
+        raise SystemExit(1)
+    if not args.species:
+        sys.stderr.write(
+            "ERROR: -s,--species parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
+        )
+        raise SystemExit(1)
+    if not args.params:
+        sys.stderr.write(
+            "ERROR: -p,--params parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
+        )
+        raise SystemExit(1)
+
     # create output directories
     misc_dir, res_dir, log_dir = create_directories(args.out, base="predict")
 
@@ -46,13 +91,20 @@ def predict(args):
     log = logger.info
     system_info(log)
 
+    # output parsed options
+    if args.input_dir:  # alert user to parsed input data
+        logger.info(
+            f'Parsed data from --input-dir {args.input_dir}\n  --fasta {args.fasta}\n  --species "{args.species}"\n  --params {args.params}\n  --out {args.out}'
+        )
+
     # check dependencies, log to logfile
-    if os.path.isfile(args.params):
-        with open(args.params, "r") as infile:
-            params = json.load(infile)
-    else:
-        # here need to load/check if in database
-        pass
+    if params is None:
+        if os.path.isfile(args.params):
+            with open(args.params, "r") as infile:
+                params = json.load(infile)
+        else:
+            # here need to load/check if in database
+            pass
     logger.info(
         f'Loaded training params for {params["name"]}: {list(params["abinitio"].keys())}'
     )
@@ -97,10 +149,16 @@ def predict(args):
     # align transcripts if passed
     TranAlign = os.path.join(misc_dir, "transcript-alignments.gff3")
     TranGenes = os.path.join(misc_dir, "predictions.gapmm2-gene.gff3")
-    if args.transcripts and not checkfile(TranAlign):
+    Transcripts = os.path.join(misc_dir, "transcripts.to.align.fasta")
+    if args.transcripts and not checkfile(Transcripts):
+        n_transcripts, tot_transcripts = mergefasta(args.transcripts, Transcripts)
+        logger.info(
+            f'Parsed {n_transcripts} [out of {tot_transcripts}] transcripts to align for evidence, derived from:\n{"/n".join(args.transcripts)}'
+        )
+    if checkfile(Transcripts) and not checkfile(TranAlign):
         align_transcripts(
             GenomeFasta,
-            args.transcripts,
+            Transcripts,
             TranAlign,
             TranGenes,
             cpus=args.cpus,
@@ -113,10 +171,27 @@ def predict(args):
     # align proteins if passed
     ProtAlign = os.path.join(misc_dir, "protein-alignments.gff3")
     ProtGenes = os.path.join(misc_dir, "predictions.miniprot-gene.gff3")
-    if args.proteins and not checkfile(ProtAlign):
+    Proteins = os.path.join(misc_dir, "proteins.to.align.fasta")
+    # use funannotate db as default else add to
+    uniprot_db = os.path.abspath(
+        os.path.join(env.get("FUNANNOTATE2_DB"), "uniprot_sprot.fasta")
+    )
+    # get full paths to inputs
+    if args.proteins:
+        args.proteins = [os.path.abspath(x) for x in args.proteins]
+    else:
+        args.proteins = []
+    if checkfile(uniprot_db) and uniprot_db not in args.proteins:
+        args.proteins.append(uniprot_db)
+    # merge and dereplicate
+    n_prots, tot_prots = mergefasta(args.proteins, Proteins)
+    logger.info(
+        f'Parsed {n_prots} [out of {tot_prots}] proteins to align for evidence, derived from:\n{"/n".join(args.proteins)}'
+    )
+    if checkfile(Proteins) and not checkfile(ProtAlign):
         align_proteins(
             GenomeFasta,
-            args.proteins,
+            Proteins,
             ProtAlign,
             ProtGenes,
             cpus=args.cpus,
@@ -230,20 +305,20 @@ def predict(args):
     busco_tax = choose_best_busco_species(
         {"superkingdom": taxonomy["superkingdom"], "kingdom": taxonomy["kingdom"]}
     )
-    busco_model_path = os.path.join(env["FUNANNOTATE_DB"], f"{busco_tax}_odb10")
+    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_tax}_odb10")
     if not os.path.isdir(busco_model_path):
         download_urls = load_json(
             os.path.join(os.path.dirname(__file__), "downloads.json")
         )
         busco_url = download_urls["busco"][busco_tax][0]
-        busco_tgz = os.path.join(env["FUNANNOTATE_DB"], os.path.basename(busco_url))
+        busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
         logger.info(f"Downloading {busco_tax}_odb10 model from {busco_url}")
         download(busco_url, busco_tgz, wget=False)
         if os.path.isfile(busco_tgz):
             runSubprocess(
                 ["tar", "-zxf", os.path.basename(busco_tgz)],
                 logger,
-                cwd=env["FUNANNOTATE_DB"],
+                cwd=env["FUNANNOTATE2_DB"],
             )
             if os.path.isdir(busco_model_path):
                 os.remove(busco_tgz)

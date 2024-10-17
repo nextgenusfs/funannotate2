@@ -6,26 +6,27 @@ import argparse
 from .__version__ import __version__
 from .help_formatter import MyParser, MyHelpFormatter
 
-# from .annotate import annotate
-# from .sort import sort
+from .annotate import annotate
+
 # from .update import update
 from .train import train
 from .predict import predict
 from .clean import clean
+from .install import install
 
 
 def main():
     args = parse_args(sys.argv[1:])
-    if args.subparser_name == "clean":
+    if args.subparser_name == "install":
+        install(args)
+    elif args.subparser_name == "clean":
         clean(args)
     elif args.subparser_name == "predict":
         predict(args)
-    # elif args.subparser_name == 'sort':
-    #    sort(args)
     elif args.subparser_name == "train":
         train(args)
-    # elif args.subparser_name == 'annotate':
-    #    annotate(args)
+    elif args.subparser_name == "annotate":
+        annotate(args)
     # elif args.subparser_name == 'update':
     #    update(args)
 
@@ -37,11 +38,11 @@ def parse_args(args):
     )
     subparsers = parser.add_subparsers(title="Commands", dest="subparser_name")
     # add subtools here
+    install_subparser(subparsers)
     clean_subparser(subparsers)
     train_subparser(subparsers)
     predict_subparser(subparsers)
-    # sort_subparser(subparsers)
-    # annotate_subparser(subparsers)
+    annotate_subparser(subparsers)
     # update_subparser(subparsers)
 
     help_args = parser.add_argument_group("Help")
@@ -69,6 +70,71 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
+def install_subparser(subparsers):
+    group = subparsers.add_parser(
+        "install",
+        description="Install funannotate2 database files, $FUNANNOTATE2_DB env variable is required to be set.|n",
+        help="Install funannotate2 database files.",
+        formatter_class=MyHelpFormatter,
+        add_help=False,
+    )
+    required_args = group.add_argument_group("Required arguments")
+    required_args.add_argument(
+        "-d",
+        "--db",
+        required=True,
+        nargs="+",
+        choices=[
+            "all",
+            "merops",
+            "uniprot",
+            "dbCAN",
+            "pfam",
+            "go",
+            "mibig",
+            "interpro",
+            "gene2product",
+        ],
+        help="Databases to install [all,merops,uniprot,dbCAN,pfam,go,mibig,interpro,gene2product]",
+        metavar="",
+    )
+    optional_args = group.add_argument_group("Optional arguments")
+    optional_args.add_argument(
+        "-w",
+        "--wget",
+        action="store_true",
+        help="Use wget for downloading",
+    )
+    optional_args.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force re-download/re-install of all databases",
+    )
+    optional_args.add_argument(
+        "-u",
+        "--update",
+        action="store_true",
+        help="Update databases if change detected",
+    )
+    other_args = group.add_argument_group("Other arguments")
+    other_args.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
+    other_args.add_argument(
+        "--version",
+        action="version",
+        version="{} v{}".format(
+            os.path.basename(os.path.dirname(os.path.realpath(__file__))), __version__
+        ),
+        help="show program's version number and exit",
+    )
+
+
 def predict_subparser(subparsers):
     group = subparsers.add_parser(
         "predict",
@@ -80,28 +146,36 @@ def predict_subparser(subparsers):
     )
     required_args = group.add_argument_group("Required arguments")
     required_args.add_argument(
+        "-i",
+        "--input-dir",
+        required=False,
+        dest="input_dir",
+        help="funannotate2 output directory",
+        metavar="",
+    )
+    required_args.add_argument(
         "-f",
         "--fasta",
-        required=True,
+        required=False,
         help="genome in FASTA format (softmasked repeats)",
         metavar="",
     )
     required_args.add_argument(
-        "-o", "--out", required=True, help="Output folder name", metavar=""
+        "-o", "--out", required=False, help="Output folder name", metavar=""
     )
     required_args.add_argument(
         "-p",
         "--params",
         "--pretrained",
         dest="params",
-        required=True,
+        required=False,
         help="Params.json or pretrained species slug. `funannotate2 info` to see pretrained species",
         metavar="",
     )
     required_args.add_argument(
         "-s",
         "--species",
-        required=True,
+        required=False,
         help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
         metavar="",
     )
@@ -136,6 +210,7 @@ def predict_subparser(subparsers):
         "--proteins",
         required=False,
         help="Proteins to use for evidence",
+        nargs="+",
         metavar="",
     )
     optional_args.add_argument(
@@ -143,6 +218,7 @@ def predict_subparser(subparsers):
         "--transcripts",
         required=False,
         help="Transcripts to use for evidence",
+        nargs="+",
         metavar="",
     )
     optional_args.add_argument(
@@ -191,11 +267,12 @@ def predict_subparser(subparsers):
         "-pt",
         "--pretrained-species",
         dest="pretrained_species",
+        required=False,
         help="Use pretrained parameters for prediction, ie values in funannotate2 species",
         metavar="",
     )
     optional_args.add_argument(
-        "-t", "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
+        "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
     )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
@@ -338,6 +415,75 @@ def clean_subparser(subparsers):
     )
     optional_args.add_argument("--debug", action="store_true", help="Debug the output")
 
+    other_args = group.add_argument_group("Other arguments")
+    other_args.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
+    other_args.add_argument(
+        "--version",
+        action="version",
+        version="{} v{}".format(
+            os.path.basename(os.path.dirname(os.path.realpath(__file__))), __version__
+        ),
+        help="show program's version number and exit",
+    )
+
+
+def annotate_subparser(subparsers):
+    group = subparsers.add_parser(
+        "annotate",
+        description="Add functional annotate to gene models|n",
+        help="Add functional annotation to gene models.",
+        formatter_class=MyHelpFormatter,
+        add_help=False,
+    )
+    required_args = group.add_argument_group("Required arguments")
+    required_args.add_argument(
+        "-i",
+        "--input-dir",
+        required=False,
+        dest="input_dir",
+        help="funannotate2 output directory",
+        metavar="",
+    )
+    required_args.add_argument(
+        "-f", "--fasta", required=False, help="genome in FASTA format", metavar=""
+    )
+    required_args.add_argument(
+        "-t",
+        "--tbl",
+        required=False,
+        help="genome annotation in TBL format",
+        metavar="",
+    )
+    required_args.add_argument(
+        "-g",
+        "--gff3",
+        required=False,
+        help="genome annotation in GFF3 format",
+        metavar="",
+    )
+    required_args.add_argument(
+        "-o", "--out", required=False, help="Output folder name", metavar=""
+    )
+    optional_args = group.add_argument_group("Optional arguments")
+    optional_args.add_argument(
+        "-s",
+        "--species",
+        help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
+        metavar="",
+    )
+    optional_args.add_argument("--strain", help="Strain/isolate name", metavar="")
+    optional_args.add_argument(
+        "--cpus", default=2, type=int, help="Number of CPUs to use", metavar=""
+    )
+    optional_args.add_argument(
+        "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",

@@ -1,149 +1,162 @@
 import sys
 import datetime
 import random
-import warnings
-from Bio import BiopythonWarning
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-from Bio.SeqFeature import SeqFeature, FeatureLocation, CompoundLocation
 from gfftk.gff import gff2dict
 from gfftk.fasta import fasta2dict
+import gb_io
 
 
-def gff3_to_gb(fasta, gff3, gb, offset=600, train_test=False, log=sys.stderr.write):
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=BiopythonWarning)
-
-        # write genbank output for augustus training
-        # the augustus script is not accurate, results in bad models...
-        Seqs = fasta2dict(fasta)
-        if isinstance(gff3, str):
-            Genes = gff2dict(gff3, fasta, logger=log)
-        elif isinstance(gff3, dict):
-            Genes = gff3
-        # augustus format is non-standard, its each gene as separate record with +/- offset
-        records = []
-        for k, v in Genes.items():
-            loff = offset
-            roff = offset
-            if (
-                "mRNA" in v["type"]
-                and len(v["CDS"][0]) > 0
-                and v["protein"][0].startswith("M")
-                and v["protein"][0].endswith("*")
-            ):
-                start_pos = min(v["location"]) - loff
-                if start_pos <= 0:
-                    start_pos = 1
-                    start_idx = 0
-                    loff = min(v["location"])
-                else:
-                    start_idx = start_pos - 1
-                end_pos = max(v["location"]) + roff
-                if end_pos > len(Seqs[v["contig"]]):
-                    end_pos = len(Seqs[v["contig"]])
-                sequence = Seqs[v["contig"]][start_idx:end_pos]
-                if v["strand"] == "+":
-                    strand = 1
-                else:
-                    strand = -1
-                gene_feat = SeqFeature(
-                    FeatureLocation(
-                        start=min(v["location"]) - start_pos,
-                        end=max(v["location"]) - start_pos + 1,
-                        strand=strand,
-                    ),
-                    type="gene",
-                    qualifiers={"locus_tag": k},
-                )
-                if len(v["mRNA"][0]) > 1:
-                    mrna_list = [
-                        FeatureLocation(
-                            x[0] - start_pos,
-                            x[1] - start_pos + 1,
-                            strand=strand,
-                        )
-                        for x in v["mRNA"][0]
-                    ]
-                    mrna_feat = SeqFeature(
-                        CompoundLocation(mrna_list),
-                        type="mRNA",
-                        qualifiers={"gene": v["ids"][0], "locus_tag": k},
-                    )
-                else:
-                    mrna_feat = SeqFeature(
-                        FeatureLocation(
-                            start=v["mRNA"][0][0][0] - start_pos,
-                            end=v["mRNA"][0][0][1] - start_pos + 1,
-                            strand=strand,
-                        ),
-                        type="mRNA",
-                        qualifiers={"gene": v["ids"][0], "locus_tag": k},
-                    )
-                if len(v["CDS"][0]) > 1:
-                    cds_list = [
-                        FeatureLocation(
-                            x[0] - start_pos, x[1] - start_pos + 1, strand=strand
-                        )
-                        for x in v["CDS"][0]
-                    ]
-                    cds_feat = SeqFeature(
-                        CompoundLocation(cds_list),
-                        type="CDS",
-                        qualifiers={
-                            "gene": v["ids"][0],
-                            "locus_tag": k,
-                            "translation": v["protein"][0],
-                            "codon_start": v["codon_start"][0],
-                        },
-                    )
-                else:
-                    cds_feat = SeqFeature(
-                        FeatureLocation(
-                            start=v["CDS"][0][0][0] - start_pos,
-                            end=v["CDS"][0][0][1] - start_pos + 1,
-                            strand=strand,
-                        ),
-                        type="CDS",
-                        qualifiers={
-                            "gene": v["ids"][0],
-                            "locus_tag": k,
-                            "translation": v["protein"][0],
-                            "codon_start": v["codon_start"][0],
-                        },
-                    )
-                record = SeqRecord(
-                    Seq(sequence),
-                    id=f"{v['contig']}_{start_pos}-{end_pos}",
-                    annotations={
-                        "molecule_type": "DNA",
-                        "date": datetime.datetime.now().strftime("%d-%b-%Y"),
-                    },
-                )
-                record.features.append(
-                    SeqFeature(FeatureLocation(start=0, end=len(record)), type="source")
-                )
-                record.features.append(gene_feat)
-                record.features.append(mrna_feat)
-                record.features.append(cds_feat)
-                records.append(record)
-        if train_test:
-            test_out = f"{gb}.test"
-            train_out = f"{gb}.train"
-            random.shuffle(records)
-            n_recs = int((len(records) + 1) * 0.20)
-            if n_recs > 200:
-                n_recs = 200
-            train_data = records[n_recs:]
-            test_data = records[:n_recs]
-            with open(test_out, "w") as testout:
-                SeqIO.write(test_data, testout, "genbank")
-            with open(train_out, "w") as trainout:
-                SeqIO.write(train_data, trainout, "genbank")
-        with open(gb, "w") as outfile:
-            SeqIO.write(records, outfile, "genbank")
-        if train_test:
-            return len(records), n_recs
+def gff3_to_gbio(
+    fasta, gff3, gb, lowercase=False, offset=600, train_test=False, log=sys.stderr.write
+):
+    def _fetch_coords(v, i=0, start_pos=0, feature="gene"):
+        if feature == "gene":
+            coords = gb_io.Range(
+                min(v["location"]) - start_pos,
+                max(v["location"]) - start_pos + 1,
+            )
+            if v["strand"] == "-":
+                return gb_io.Complement(coords)
+            else:
+                return coords
         else:
-            return len(records), len(records)
+            if feature == "CDS":
+                if len(v["CDS"][i]) > 1:
+                    coords = gb_io.Join(
+                        [
+                            gb_io.Range(x[0] - start_pos, x[1] - start_pos + 1)
+                            for x in sorted(v["CDS"][i])
+                        ]
+                    )
+                else:
+                    coords = gb_io.Range(
+                        v["CDS"][i][0][0] - start_pos,
+                        v["CDS"][i][0][1] - start_pos + 1,
+                    )
+                if v["strand"] == "-":
+                    return gb_io.Complement(coords)
+                else:
+                    return coords
+            else:
+                if len(v["mRNA"][i]) > 1:
+                    coords = gb_io.Join(
+                        [
+                            gb_io.Range(x[0] - start_pos, x[1] - start_pos + 1)
+                            for x in sorted(v["mRNA"][i])
+                        ]
+                    )
+                else:
+                    coords = gb_io.Range(
+                        v["mRNA"][i][0][0] - start_pos,
+                        v["mRNA"][i][0][1] - start_pos + 1,
+                    )
+                if v["strand"] == "-":
+                    return gb_io.Complement(coords)
+                else:
+                    return coords
+
+    Seqs = fasta2dict(fasta, full_header=True)
+    if isinstance(gff3, str):
+        Genes = gff2dict(gff3, fasta, logger=log)
+    elif isinstance(gff3, dict):
+        Genes = gff3
+    records = []
+    for k, v in Genes.items():
+        loff = offset
+        roff = offset
+        if (
+            "mRNA" in v["type"]
+            and len(v["CDS"][0]) > 0
+            and v["protein"][0].startswith("M")
+            and v["protein"][0].endswith("*")
+        ):
+            start_pos = min(v["location"]) - loff
+            if start_pos <= 0:
+                start_pos = 1
+                start_idx = 0
+                loff = min(v["location"])
+            else:
+                start_idx = start_pos - 1
+            end_pos = max(v["location"]) + roff
+            if end_pos > len(Seqs[v["contig"]]):
+                end_pos = len(Seqs[v["contig"]])
+            sequence = Seqs[v["contig"]][start_idx:end_pos]
+            # now collect features
+            rec_features = [
+                gb_io.Feature(
+                    "source",
+                    gb_io.Range(0, len(sequence)),
+                    qualifiers=[
+                        gb_io.Qualifier("mol_type", value="genomic DNA"),
+                    ],
+                ),
+            ]
+            # gene feature
+            rec_features.append(
+                gb_io.Feature(
+                    "gene",
+                    _fetch_coords(v, start_pos=start_pos, feature="gene"),
+                    qualifiers=[gb_io.Qualifier("locus_tag", value=k)],
+                )
+            )
+            # transcript feature
+            rec_features.append(
+                gb_io.Feature(
+                    "mRNA",
+                    _fetch_coords(v, start_pos=start_pos, feature="mRNA"),
+                    qualifiers=[
+                        gb_io.Qualifier("gene", value=v["ids"][0]),
+                        gb_io.Qualifier("locus_tag", value=k),
+                    ],
+                )
+            )
+            # coding sequence feature
+            rec_features.append(
+                gb_io.Feature(
+                    "CDS",
+                    _fetch_coords(v, start_pos=start_pos, feature="CDS"),
+                    qualifiers=[
+                        gb_io.Qualifier("gene", value=v["ids"][0]),
+                        gb_io.Qualifier("locus_tag", value=k),
+                        gb_io.Qualifier("translation", value=v["protein"][0]),
+                        gb_io.Qualifier("codon_start", value=str(v["codon_start"][0])),
+                    ],
+                )
+            )
+            if lowercase:
+                sequence = sequence.lower()
+            records.append(
+                gb_io.Record(
+                    sequence=str.encode(sequence),
+                    circular=False,
+                    molecule_type="DNA",
+                    keywords=".",
+                    definition=".",
+                    accession=f"{v['contig']}_{start_pos}-{end_pos}",
+                    name=f"{v['contig']}_{start_pos}-{end_pos}",
+                    version=f"{v['contig']}_{start_pos}-{end_pos}",
+                    length=len(sequence),
+                    date=datetime.date.today(),
+                    features=rec_features,
+                )
+            )
+    if train_test:
+        test_out = f"{gb}.test"
+        train_out = f"{gb}.train"
+        random.shuffle(records)
+        n_recs = int((len(records) + 1) * 0.20)
+        if n_recs > 200:
+            n_recs = 200
+        train_data = records[n_recs:]
+        test_data = records[:n_recs]
+        with open(test_out, "wb") as testout:
+            gb_io.dump(test_data, testout, escape_locus=False, truncate_locus=False)
+        with open(train_out, "wb") as trainout:
+            gb_io.dump(train_data, trainout, escape_locus=False, truncate_locus=False)
+
+    with open(gb, "wb") as outfile:
+        gb_io.dump(records, outfile, escape_locus=False, truncate_locus=False)
+    if train_test:
+        return len(records), n_recs
+    else:
+        return len(records), len(records)

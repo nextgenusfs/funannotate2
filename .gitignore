@@ -1,4 +1,5 @@
 .DS_Store
 build/*
 funannotate2.egg-info/*
+funannotate2/__pycache*
 tests/*

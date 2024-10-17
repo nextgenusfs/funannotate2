@@ -259,6 +259,14 @@ def create_directories(outdir, base="predict"):
     )
 
 
+def find_files(directory, suffix):
+    hits = []
+    for f in os.listdir(directory):
+        if f.endswith(suffix):
+            hits.append(os.path.join(directory, f))
+    return hits
+
+
 def checkfile(input):
     if input and os.path.isfile(input):
         filesize = os.stat(input).st_size

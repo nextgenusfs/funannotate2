@@ -4,14 +4,17 @@ import os
 env = {
     "AUGUSTUS_CONFIG": False,
     "AUGUSTUS_BASE": False,
-    "FUNANNOTATE_DB": False,
+    "FUNANNOTATE2_DB": False,
 }
 
-if "FUNANNOTATE_DB" in os.environ:
-    env["FUNANNOTATE_DB"] = os.environ["FUNANNOTATE_DB"]
+if "FUNANNOTATE2_DB" in os.environ:
+    env["FUNANNOTATE2_DB"] = os.environ["FUNANNOTATE2_DB"]
 
 if "AUGUSTUS_CONFIG_PATH" in os.environ:
     env["AUGUSTUS_CONFIG"] = os.environ["AUGUSTUS_CONFIG_PATH"]
+
+if "AUGUSTUS_CONFIG" in os.environ:
+    env["AUGUSTUS_CONFIG"] = os.environ["AUGUSTUS_CONFIG"]
 
 if env["AUGUSTUS_CONFIG"]:
     if os.path.isdir(os.path.join(os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts")):

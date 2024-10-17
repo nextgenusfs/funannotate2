@@ -4,6 +4,7 @@ import json
 import datetime
 import getpass
 import random
+import shutil
 from collections import defaultdict, OrderedDict
 from natsort import natsorted
 from buscolite.busco import runbusco
@@ -42,6 +43,9 @@ def train(args):
     system_info(log)
 
     # load genome and do some QC checks
+    # for downstream processing lets output the original genome to train_results
+    original_genome = os.path.join(res_dir, os.path.basename(args.fasta))
+    shutil.copyfile(args.fasta, original_genome)
     # set max header high as going to simplify below if no other issues
     logger.info("Loading genome assembly and running QC checks")
     stats, bad_names, nuc_errors = analyzeAssemblySimple(
@@ -77,7 +81,7 @@ def train(args):
 
     # choose best busco species
     busco_species = choose_best_busco_species(taxonomy)
-    busco_model_path = os.path.join(env["FUNANNOTATE_DB"], f"{busco_species}_odb10")
+    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb10")
 
     # run buscolite on genome to get training set
     filt_train_models = os.path.join(misc_dir, "training-models.final.gff3")
@@ -94,7 +98,7 @@ def train(args):
                     )
                     busco_url = download_urls["busco"][busco_species][0]
                     busco_tgz = os.path.join(
-                        env["FUNANNOTATE_DB"], os.path.basename(busco_url)
+                        env["FUNANNOTATE2_DB"], os.path.basename(busco_url)
                     )
                     logger.info(
                         f"Downloading {busco_species}_odb10 model from {busco_url}"
@@ -104,7 +108,7 @@ def train(args):
                         runSubprocess(
                             ["tar", "-zxf", os.path.basename(busco_tgz)],
                             logger,
-                            cwd=env["FUNANNOTATE_DB"],
+                            cwd=env["FUNANNOTATE2_DB"],
                         )
                         if os.path.isdir(busco_model_path):
                             os.remove(busco_tgz)
@@ -156,7 +160,7 @@ def train(args):
     dict2gff3(train_models, filt_train_models_final)
 
     # run augustus training functions
-    logger.info(f"Training augustus using training set")
+    logger.info("Training augustus using training set")
     augustus_train = train_augustus(
         GenomeFasta,
         train_models,
@@ -169,14 +173,14 @@ def train(args):
     augustus_train["training_set"] = filt_train_models_final
 
     # run snap training functions
-    logger.info(f"Training snap using training set")
+    logger.info("Training snap using training set")
     snap_train = train_snap(
         GenomeFasta, train_models, test_models, folder=misc_dir, log=logger
     )
     snap_train["training_set"] = filt_train_models_final
 
     # run glimmerHMM training functions
-    logger.info(f"Training glimmerHMM using training set")
+    logger.info("Training glimmerHMM using training set")
     glimm_train = train_glimmerhmm(
         GenomeFasta,
         train_models,
@@ -196,7 +200,7 @@ def train(args):
 
     # check if genemark is installed, if so then run self training
     if which_path("gmes_petap.pl") and which_path("gmhmme3"):
-        logger.info(f"Training GeneMark-ES using self-training")
+        logger.info("Training GeneMark-ES using self-training")
         fungus_flag = False
         if taxonomy["kingdom"] == "Fungi":
             fungus_flag = True

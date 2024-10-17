@@ -28,8 +28,24 @@ def fasta2dict(fasta_file):
     return fa
 
 
+def mergefasta(fasta_files, outfile):
+    # take a list of fasta files, dereplicate, merge
+    seen = set()
+    n = 0
+    o = 0
+    with open(outfile, "w") as output:
+        for fa in fasta_files:
+            for title, seq in pyfastx.Fasta(fa, build_index=False):
+                n += 1
+                if seq not in seen:
+                    output.write(f">{title}\n{seq}\n")
+                    seen.add(seq)
+                    o += 1
+    return o, n
+
+
 def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
-    # list to sotre the output files
+    # list to store the output files
     files = []
     # check if output exists
     if not os.path.isdir(outputdir):

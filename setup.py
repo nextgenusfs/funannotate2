@@ -11,7 +11,7 @@ DESCRIPTION = "Funannotate2: eukarytoic genome annotation pipeline"
 URL = "https://github.com/nextgenusfs/funannotate"
 EMAIL = "nextgenusfs@gmail.com"
 AUTHOR = "Jon Palmer"
-REQUIRES_PYTHON = ">=3.6.0"
+REQUIRES_PYTHON = ">=3.7.0"
 VERSION = None
 
 # What packages are required for this module to be executed?
@@ -22,10 +22,11 @@ REQUIRED = [
     "gfftk",
     "buscolite",
     "gapmm2",
-    "pyhmmer",
+    "pyhmmer>=0.10.15",
     "pyfastx>=2.0.0",
-    "biopython",
     "requests",
+    "gb-io>=0.3.2",
+    "json-repair",
 ]
 
 # What packages are optional?

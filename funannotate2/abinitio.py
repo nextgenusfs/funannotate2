@@ -20,13 +20,13 @@ from .utilities import (
     execute,
 )
 from .config import env
-from .genbank import gff3_to_gb
+from .genbank import gff3_to_gbio
+from .interlap import InterLap
 import subprocess
 import pyfastx
 import types
 import time
 import numpy as np
-from interlap import InterLap
 import json
 
 
@@ -1038,7 +1038,7 @@ def rangify_genome(genome, overlap=20000):
                     end = int(start + chunks + overlap)
                 if end > len(seq):
                     end = len(seq)
-                if not title in ranges:
+                if title not in ranges:
                     ranges[title] = [(start, end)]
                 else:
                     ranges[title].append((start, end))
@@ -1144,7 +1144,11 @@ def train_augustus(
     train_start = time.time()
     # for augustus training needs to be in genbank format
     trainingset = os.path.join(tmpdir, "augustus.training.gb")
-    total, _ = gff3_to_gb(genome, train_gff, trainingset, train_test=False, offset=1000)
+
+    # test gb_io
+    gb_total, _ = gff3_to_gbio(
+        genome, train_gff, trainingset, train_test=False, offset=1000, lowercase=True
+    )
 
     # copy over augustus training files/dirs you'll need
     shutil.copytree(
@@ -1396,7 +1400,7 @@ def prot_alignments_to_hints(file):
     # now lets sort through and write hints file
     Output = {}
     for k, v in natsorted(list(Genes.items())):
-        if not v["contig"] in Output:
+        if v["contig"] not in Output:
             Output[v["contig"]] = []
         if v["strand"] == "+":
             sortedCDS = sorted(v["loc"], key=lambda tup: tup[0])
@@ -1551,7 +1555,7 @@ def dict2hints(input):
     sortedGenes = OrderedDict(sGenes)
     Output = {}
     for k, v in list(sortedGenes.items()):
-        if not v["contig"] in Output:
+        if v["contig"] not in Output:
             Output[v["contig"]] = []
         sortedExons = sorted(v["mRNA"], key=lambda tup: tup[0])
         introns = introns_from_exons(sortedExons)
@@ -1816,7 +1820,7 @@ def test_training(
                                 if x.startswith("Parent="):
                                     gID = x.split("=")[-1]
                             if gID:
-                                if not cols[0] in preds:
+                                if cols[0] not in preds:
                                     preds[cols[0]] = {
                                         gID: {
                                             "coords": [(start, end)],
@@ -1824,7 +1828,7 @@ def test_training(
                                         }
                                     }
                                 else:
-                                    if not gID in preds[cols[0]]:
+                                    if gID not in preds[cols[0]]:
                                         preds[cols[0]][gID] = {
                                             "coords": [(start, end)],
                                             "strand": strand,
@@ -1857,7 +1861,7 @@ def test_training(
                         start = int(start)
                         end = int(end)
                         phase = "?"
-                        if not contig in preds:
+                        if contig not in preds:
                             preds[contig] = {
                                 ID: {
                                     "coords": [(start, end)],
@@ -1865,7 +1869,7 @@ def test_training(
                                 }
                             }
                         else:
-                            if not ID in preds[contig]:
+                            if ID not in preds[contig]:
                                 preds[contig][ID] = {
                                     "coords": [(start, end)],
                                     "strand": strand,
@@ -1898,7 +1902,7 @@ def test_training(
                                 if x.startswith("Parent="):
                                     gID = x.split("=")[-1]
                             if gID:
-                                if not cols[0] in preds:
+                                if cols[0] not in preds:
                                     preds[cols[0]] = {
                                         gID: {
                                             "coords": [(start, end)],
@@ -1906,7 +1910,7 @@ def test_training(
                                         }
                                     }
                                 else:
-                                    if not gID in preds[cols[0]]:
+                                    if gID not in preds[cols[0]]:
                                         preds[cols[0]][gID] = {
                                             "coords": [(start, end)],
                                             "strand": strand,
@@ -1951,7 +1955,7 @@ def test_training(
                                     if x.startswith("gene_id"):
                                         gID = x.split()[-1].replace('"', "")
                                 if gID:
-                                    if not cols[0] in preds:
+                                    if cols[0] not in preds:
                                         preds[cols[0]] = {
                                             gID: {
                                                 "coords": [(start, end)],
@@ -1959,7 +1963,7 @@ def test_training(
                                             }
                                         }
                                     else:
-                                        if not gID in preds[cols[0]]:
+                                        if gID not in preds[cols[0]]:
                                             preds[cols[0]][gID] = {
                                                 "coords": [(start, end)],
                                                 "strand": strand,
