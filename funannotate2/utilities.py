@@ -359,7 +359,10 @@ def runSubprocess(
         if process_result.stderr:
             logname(process.stderr)
 
-    logfile.debug(" ".join(cmd))
+    try:
+        logfile.debug(" ".join(cmd))
+    except AttributeError:
+        pass
     with process_handle(stdout) as p_out, process_handle(
         stderr
     ) as p_error, process_handle(stdin, mode="r") as p_in:

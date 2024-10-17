@@ -21,7 +21,6 @@ def install(args):
     logger = startLogging()
     log = logger.info
     system_info(log)
-    print(args)
 
     # now get databases, etc
     if not os.path.isdir(env["FUNANNOTATE2_DB"]):
@@ -56,12 +55,15 @@ def install(args):
             requests.get(
                 "https://raw.githubusercontent.com/nextgenusfs/funannotate2/master/funannotate2/downloads.json"
             ).text
-        )
+        )["downloads"]
     except:  # noqa: E722
         logger.error(
             "Unable to download links from GitHub, using local copy from funannotate2"
         )
-        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))
+        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))[
+            "downloads"
+        ]
+    logger.info(json.dumps(DBURL, indent=2))
 
     # pull the database JSON file
     # if text file with DB info is in database folder, parse into Dictionary
