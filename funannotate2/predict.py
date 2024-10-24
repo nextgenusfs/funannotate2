@@ -19,8 +19,8 @@ from .utilities import (
     find_files,
 )
 from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssembly, simplify_headers, mergefasta
-from .align import align_transcripts, align_proteins
+from .fastx import analyzeAssembly, simplify_headers_drop, mergefasta, annotate_fasta
+from .align import align_transcripts, align_proteins, align_mito
 from .evm import evm_consensus
 from .abinitio import (
     run_snap,
@@ -115,10 +115,22 @@ def predict(args):
 
     # load genome and do some QC checks
     logger.info(
-        "Loading genome assembly, running QC checks, calculating softmasked regions and assembly gaps"
+        "Loading genome assembly, running QC checks, searching for mitochondrial contigs, calculating softmasked regions and assembly gaps"
     )
+    mito_contigs, _ = align_mito(args.fasta, cpus=args.cpus)
+    if mito_contigs is None:
+        logger.warning(
+            "Mitochondrial refseq database is not installed, unable to filter contigs"
+        )
+    if mito_contigs:
+        logger.info(
+            f"Separating {len(mito_contigs)} mitochondrial contig(s) from the nuclear genome, will recombine at the end of predict\n{mito_contigs}"
+        )
     GenomeFasta = os.path.join(misc_dir, "genome.fasta")
-    contig_name_map = simplify_headers(args.fasta, GenomeFasta)
+    GenomeMito = os.path.join(misc_dir, "genome.mito.fasta")
+    contig_name_map = simplify_headers_drop(
+        args.fasta, GenomeFasta, GenomeMito, drop=list(mito_contigs.keys())
+    )
     maskedRegions = os.path.join(misc_dir, "softmasked-regions.bed")
     asmGaps = os.path.join(misc_dir, "assembly-gaps.bed")
     stats, bad_names, nuc_errors, contigs = analyzeAssembly(
@@ -443,7 +455,11 @@ def predict(args):
         contig_map=contig_name_map,
     )
     # generate renaming output files
-    shutil.copyfile(args.fasta, finalFA)
+    # if there are mitoContigs, add them back but annotate the contig header
+    if mito_contigs:
+        annotate_fasta(args.fasta, finalFA, ids=list(mito_contigs.keys()))
+    else:
+        shutil.copyfile(args.fasta, finalFA)
     logger.info("Converting to GenBank format")
     gff2tbl(finalGFF3, args.fasta, output=finalTBL, table=1)
     tbl2gbff(

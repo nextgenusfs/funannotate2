@@ -25,6 +25,23 @@ from .config import augustus_species, busco_taxonomy
 requests.packages.urllib3.disable_warnings()
 
 
+def merge_coordinates(intervals):
+    if not intervals:
+        return []
+    # Sort the intervals based on the starting points
+    intervals.sort(key=lambda x: x[0])
+    merged_intervals = [intervals[0]]
+    for current in intervals[1:]:
+        last_merged = merged_intervals[-1]
+        # If the current interval overlaps with the last merged interval, merge them
+        if current[0] <= last_merged[1]:
+            last_merged[1] = max(last_merged[1], current[1])
+        else:
+            # Otherwise, add the current interval to the merged list
+            merged_intervals.append(current)
+    return merged_intervals
+
+
 def execute(cmd, cwd="."):
     DEVNULL = open(os.devnull, "w")
     popen = subprocess.Popen(

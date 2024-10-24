@@ -94,8 +94,9 @@ def install_subparser(subparsers):
             "mibig",
             "interpro",
             "gene2product",
+            "mito",
         ],
-        help="Databases to install [all,merops,uniprot,dbCAN,pfam,go,mibig,interpro,gene2product]",
+        help="Databases to install [all,merops,uniprot,dbCAN,pfam,go,mibig,interpro,gene2product,mito]",
         metavar="",
     )
     optional_args = group.add_argument_group("Optional arguments")
@@ -251,7 +252,7 @@ def predict_subparser(subparsers):
         "-l",
         "--locus-tag",
         dest="name",
-        default="FUN_",
+        default="FUN2_",
         help="Locus tag for genes, perhaps assigned by NCBI, eg. VC83",
         metavar="",
     )

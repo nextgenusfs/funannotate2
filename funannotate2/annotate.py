@@ -4,7 +4,7 @@ import json
 import shutil
 import time
 from natsort import natsorted
-from .utilities import create_directories, create_tmpdir, find_files
+from .utilities import create_directories, create_tmpdir, find_files, checkfile
 from .log import startLogging, system_info, finishLogging
 from .fastx import fasta2chunks
 from .search import (
@@ -15,6 +15,9 @@ from .search import (
     swissprot_blast,
     swissprot2tsv,
     pfam2tsv,
+    merops_blast,
+    merops2tsv,
+    parse_annotations,
 )
 from .config import env
 from gfftk.gff import gff2dict, dict2gff3
@@ -87,7 +90,7 @@ def annotate(args):
     tmp_dir = create_tmpdir(args.tmpdir, base="annotate")
     logger.info(f"temporary files located in: {tmp_dir}")
 
-    # we need to get the protein sequences
+    # we need to get the protein sequences and gene models in Genes object
     if args.tbl:
         Genes, parse_errors = tbl2dict(args.tbl, args.fasta)
         if len(parse_errors) > 1:
@@ -101,6 +104,7 @@ def annotate(args):
     _dict2proteins(Genes, output=Proteins, strip_stop=True)
 
     # split input protein files for parallel processing steps
+    """
     if args.cpus < 2:
         cpu_count = 2
     else:
@@ -115,51 +119,95 @@ def annotate(args):
     logger.info(
         f"Gene models were split into {len(prot_files)} chunk(s) for parallel processing."
     )
+    """
 
     # for pyhmmer load query sequences into digitized list
     # will not use chunked because pyhmmer is plenty fast and parallized natively
     digital_seqs = digitize_sequences(Proteins)
 
     # run Pfam mapping
-    logger.info("Annotating proteome with pyhmmer against the Pfam-A database")
-    start = time.time()
-    pfam = pfam_search(digital_seqs, cpus=args.cpus)
-    end = time.time()
-    logger.info(
-        f"Pfam-A search resulted in {len(pfam)} hits and finished in {round(end-start, 2)} seconds"
-    )
     pfam_all = os.path.join(misc_dir, "pfam.results.json")
     pfam_annots = os.path.join(misc_dir, "annotations.pfam.tsv")
-    pfam2tsv(pfam, pfam_all, pfam_annots)
+    if not checkfile(pfam_annots):
+        logger.info("Annotating proteome with pyhmmer against the Pfam-A database")
+        start = time.time()
+        pfam = pfam_search(digital_seqs, cpus=args.cpus)
+        end = time.time()
+        logger.info(
+            f"Pfam-A search resulted in {len(pfam)} hits and finished in {round(end-start, 2)} seconds"
+        )
+        pfam_dict = pfam2tsv(pfam, pfam_all, pfam_annots)
+    else:
+        pfam_dict = parse_annotations(pfam_annots)
+        logger.info(
+            f"Existing Pfam-A results found, loaded annotations for {len(pfam_dict)} gene models"
+        )
 
     # now lets try dbCAN with same method
-    logger.info("Annotating proteome with pyhmmer against the dbCAN (CAZyme) database")
-    start = time.time()
-    dbcan = dbcan_search(digital_seqs, cpus=args.cpus)
-    end = time.time()
-    logger.info(
-        f"dbCAN search resulted in {len(dbcan)} hits and finished in {round(end-start, 2)} seconds"
-    )
     dbcan_all = os.path.join(misc_dir, "dbcan.results.json")
     dbcan_annots = os.path.join(misc_dir, "annotations.dbcan.tsv")
-    dbcan2tsv(dbcan, dbcan_all, dbcan_annots)
+    if not checkfile(dbcan_annots):
+        logger.info(
+            "Annotating proteome with pyhmmer against the dbCAN (CAZyme) database"
+        )
+        start = time.time()
+        dbcan = dbcan_search(digital_seqs, cpus=args.cpus)
+        end = time.time()
+        logger.info(
+            f"dbCAN search resulted in {len(dbcan)} hits and finished in {round(end-start, 2)} seconds"
+        )
+        dbcan_dict = dbcan2tsv(dbcan, dbcan_all, dbcan_annots)
+    else:
+        dbcan_dict = parse_annotations(dbcan_annots)
+        logger.info(
+            f"Existing dbCAN results found, loaded annotations for {len(dbcan_dict)} gene models"
+        )
 
     # diamond based routines below, also no need to run on the split prots as it parallizes properly
     # now can map to UniProtKB/Swiss-Prot
-    logger.info(
-        "Annotating proteome with diamond against the UniProtKB/Swiss-Prot database"
-    )
-    start = time.time()
-    swiss = swissprot_blast(Proteins, cpus=args.cpus)
-    end = time.time()
-    logger.info(
-        f"UniProtKB/Swiss-Prot search resulted in {len(swiss)} hits and finished in {round(end-start, 2)} seconds"
-    )
     swiss_all = os.path.join(misc_dir, "uniprot-swissprot.results.json")
     swiss_annots = os.path.join(misc_dir, "annotations.uniprot-swissprot.tsv")
-    swissprot2tsv(swiss, swiss_all, swiss_annots)
+    if not checkfile(swiss_annots):
+        logger.info(
+            "Annotating proteome with diamond against the UniProtKB/Swiss-Prot database"
+        )
+        start = time.time()
+        swiss = swissprot_blast(Proteins, cpus=args.cpus)
+        end = time.time()
+        logger.info(
+            f"UniProtKB/Swiss-Prot search resulted in {len(swiss)} hits and finished in {round(end-start, 2)} seconds"
+        )
+        swiss_dict = swissprot2tsv(swiss, swiss_all, swiss_annots)
+    else:
+        swiss_dict = parse_annotations(swiss_annots)
+        logger.info(
+            f"Existing UniProtKB/Swiss-Prot results found, loaded annotations for {len(swiss_dict)} gene models"
+        )
+
+    # for k, v in swiss_dict.items():
+    #    print(k, v)
 
     # merops
+    merops_all = os.path.join(misc_dir, "merops.results.json")
+    merops_annots = os.path.join(misc_dir, "annotations.merops.tsv")
+    if not checkfile(merops_annots):
+        logger.info(
+            "Annotating proteome with diamond against the MEROPS protease database"
+        )
+        start = time.time()
+        merops = merops_blast(Proteins, cpus=args.cpus)
+        end = time.time()
+        logger.info(
+            f"MEROPS search resulted in {len(merops)} hits and finished in {round(end-start, 2)} seconds"
+        )
+        merops_dict = merops2tsv(merops, merops_all, merops_annots)
+    else:
+        merops_dict = parse_annotations(merops_annots)
+        logger.info(
+            f"Existing MEROPS results found, loaded annotations for {len(merops_dict)} gene models"
+        )
+
+    # merge annotations
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])

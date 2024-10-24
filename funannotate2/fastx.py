@@ -44,6 +44,16 @@ def mergefasta(fasta_files, outfile):
     return o, n
 
 
+def annotate_fasta(
+    fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"
+):
+    with open(outfile, "w") as output:
+        for title, seq in pyfastx.Fasta(fasta_file, build_index=False):
+            if title in ids:
+                title = f"{title} {annotation}"
+            output.write(f">{title}\n{softwrap(seq)}\n")
+
+
 def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
     # list to store the output files
     files = []
@@ -68,13 +78,29 @@ def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
     return files
 
 
-def simplify_headers(inputfile, outputfile, base="contig_"):
+def simplify_headers(inputfile, outputfile, base="contig_", mito=[]):
     # will keep the same order of contigs, just simplify the headers
     names = {}
     with open(outputfile, "w") as outfile:
         for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
             names[f"{base}{i+1}"] = title
             outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
+    return names
+
+
+def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]):
+    # will keep the same order of contigs, just simplify the headers
+    names = {}
+    with open(keepfile, "w") as outfile:
+        with open(dropfile, "w") as dropout:
+            for i, (title, seq) in enumerate(
+                pyfastx.Fasta(inputfile, build_index=False)
+            ):
+                if title in drop:
+                    dropout.write(f">{title}\n{softwrap(seq)}\n")
+                else:
+                    names[f"{base}{i+1}"] = title
+                    outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
     return names
 
 

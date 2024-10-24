@@ -4,7 +4,8 @@ import uuid
 import os
 from gfftk.gff import gff2dict, dict2gff3, dict2gff3alignments
 from gapmm2.align import splice_aligner, paf2gff3
-from .utilities import runSubprocess
+from .utilities import runSubprocess, execute, checkfile, merge_coordinates
+from .config import env
 
 
 def split_evidence_and_genes(gff, fasta, evidence, genes, gff_format="alignment"):
@@ -99,3 +100,51 @@ def align_proteins(
     )
     log.info(f"Generated {n_aligns} alignments: {n_genes} were valid gene models")
     os.remove(mini_tmp)
+
+
+def align_mito(query, cpus=1, min_cov=0.5, min_qual=50):
+    # align genome against refseq mitochondrial database to find putative mitochondrial contigs
+    d = {}
+    f = {}
+    mito_db = os.path.join(env["FUNANNOTATE2_DB"], "mito.mmi")
+    cmd = [
+        "minimap2",
+        "-t",
+        str(cpus),
+        os.path.abspath(mito_db),
+        os.path.abspath(query),
+    ]
+    if checkfile(mito_db):
+        for line in execute(cmd):
+            line = line.strip()
+            data = line.split("\t")
+            if int(data[11]) >= min_qual:
+                if data[0] not in d:
+                    d[data[0]] = {
+                        "length": int(data[1]),
+                        "alignments": {data[5]: [(int(data[2]), int(data[3]))]},
+                    }
+                else:
+                    if data[5] not in d[data[0]]["alignments"]:
+                        d[data[0]]["alignments"][data[5]] = [
+                            (int(data[2]), int(data[3]))
+                        ]
+                    else:
+                        d[data[0]]["alignments"][data[5]].append(
+                            (int(data[2]), int(data[3]))
+                        )
+        # now we can go through each data set and calc coverage
+        for contig, results in d.items():
+            r = {}
+            for hit, coords in results["alignments"].items():
+                align_cov = 0
+                for i in merge_coordinates(coords):
+                    align_cov += i[1] - i[0]
+                pct_cov = align_cov / results["length"]
+                if pct_cov >= min_cov:
+                    r[hit] = pct_cov
+            if r:
+                f[contig] = r
+    else:
+        f = None
+    return f, d

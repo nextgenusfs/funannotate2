@@ -129,6 +129,7 @@ def pfam_search(sequences, cpus=0):
 
 
 def pfam2tsv(results, output, annots):
+    a = {}
     # write the f2 tsv hmm output file as well as the "result"
     with open(output, "w") as outfile:
         json.dump(results, outfile, indent=2)
@@ -136,6 +137,8 @@ def pfam2tsv(results, output, annots):
         for result in natsorted(results, key=lambda x: x["id"]):
             # output the family
             annot.write(f"{result['id']}\tdb_xref\tPFAM:{result['accession']}\n")
+            a = add2dict(a, result["id"], "db_xref", f"PFAM:{result['accession']}")
+    return a
 
 
 def dbcan_search(sequences, cpus=0, evalue=1e-15):
@@ -166,6 +169,7 @@ def dbcan_search(sequences, cpus=0, evalue=1e-15):
 
 
 def dbcan2tsv(results, output, annots):
+    a = {}
     # write the f2 tsv hmm output file as well as the "result"
     with open(output, "w") as outfile:
         json.dump(results, outfile, indent=2)
@@ -176,7 +180,10 @@ def dbcan2tsv(results, output, annots):
                 hit = result["name"].split("_")[0]
             else:
                 hit = result["name"]
+            hit = hit.replace(".hmm", "")
             annot.write(f"{result['id']}\tnote\tCAZy:{hit}\n")
+            a = add2dict(a, result["id"], "note", f"CAZy:{hit}")
+    return a
 
 
 def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir="/tmp"):
@@ -222,6 +229,41 @@ def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir="/tm
     if os.path.isfile(tmpfile):
         os.remove(tmpfile)
     return results
+
+
+def merops_blast(query, evalue=1e-5, cpus=1, max_target_seqs=1):
+    merops_db = os.path.join(env.get("FUNANNOTATE2_DB"), "merops.dmnd")
+    results = None
+    if checkfile(merops_db):
+        results = []
+        raw_results = diamond_blast(
+            merops_db, query, cpus=cpus, evalue=evalue, max_target_seqs=max_target_seqs
+        )
+        for res in raw_results:
+            coverage = (res["length"] / res["qlen"]) * 100
+            res["cov"] = coverage
+            mer_id, mer_family = res["stitle"].split()
+            res["family"] = mer_family
+            results.append(res)
+    return results
+
+
+def merops2tsv(results, output, annots):
+    a = {}
+    with open(output, "w") as outfile:
+        json.dump(results, outfile, indent=2)
+    with open(annots, "w") as annot:
+        for result in results:
+            annot.write(
+                f"{result['qseqid']}\tnote\tMEROPS:{result['sseqid']} {result['family']}\n"
+            )
+            a = add2dict(
+                a,
+                result["qseqid"],
+                "note",
+                f"MEROPS:{result['sseqid']} {result['family']}",
+            )
+    return a
 
 
 def swissprot_blast(
@@ -278,6 +320,8 @@ def parse_swissprot_headers(header):
 
 
 def swissprot2tsv(results, output, annots):
+    # return a dictionary of results
+    a = {}
     with open(output, "w") as outfile:
         json.dump(results, outfile, indent=2)
     with open(annots, "w") as annot:
@@ -285,6 +329,64 @@ def swissprot2tsv(results, output, annots):
             annot.write(
                 f"{result['query']}\tdb_xref\tUniProtKB/Swiss-Prot:{result['accession']}\n"
             )
+        # add db_xref
+        a = add2dict(
+            a, result["query"], "db_xref", f"UniProtKB/Swiss-Prot:{result['accession']}"
+        )
+        # see if gene name is valid
+        if swissprot_valid_gene(result["GN"]):
+            # try to fix description
+            print(result)
+            product = swissprot_clean_product(results["description"])
+            a = add2dict(a, result["query"], "name", result["GN"])
+            a = add2dict(a, result["query"], "product", product)
+    return a
+
+
+def parse_annotations(tsv):
+    # parse a three column annotation file into a dictionary
+    a = {}
+    with open(tsv, "r") as infile:
+        for line in infile:
+            line = line.rstrip()
+            gene, db, value = line.split("\t")
+            a = add2dict(a, gene, db, value)
+    return a
+
+
+def add2dict(adict, gene, key, value):
+    if gene not in adict:
+        adict[gene] = {key: [value]}
+    else:
+        if key in adict[gene]:
+            adict[gene][key].append(value)
+        else:
+            adict[gene][key] = [value]
+    return adict
+
+
+def swissprot_valid_gene(name):
+    if (
+        "_" not in name
+        and " " not in name
+        and "." not in name
+        and number_present(name)
+        and len(name) > 2
+        and not morethanXnumbers(name, 3)
+    ):
+        return True
+    else:
+        return False
+
+
+def swissprot_clean_product(description):
+    # need to do some filtering here of certain words
+    bad_words = ["(Fragment)", "homolog", "homolog,", "AltName:"]
+    # turn string into array, splitting on spaces
+    descript = description.split(" ")
+    final_desc = [x for x in descript if x not in bad_words]
+    final_desc = " ".join(final_desc)
+    return final_desc
 
 
 def number_present(s):

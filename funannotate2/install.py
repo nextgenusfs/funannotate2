@@ -11,7 +11,7 @@ from urllib.request import urlopen
 import xml.etree.cElementTree as cElementTree
 from .log import startLogging, system_info, finishLogging
 from .config import env
-from .utilities import download, load_json, runSubprocess, checkfile
+from .utilities import download, load_json, checkfile
 from .fastx import countfasta
 
 
@@ -43,6 +43,7 @@ def install(args):
             "mibig",
             "interpro",
             "gene2product",
+            "mito",
         ]
     else:
         db2install = args.db
@@ -90,12 +91,38 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("uniprot"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("uniprot-release"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'UniProtKB checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in UniProtKB/Swiss-Prot database")
             # if its empty then need to run it
             if not data:
                 data = uniprotDB(wget=args.wget)
                 dbinfo["uniprot"] = data
+
+        elif x == "mito":
+            data = {}
+            if "mito" in dbinfo:
+                data = dbinfo.get("mito")
+            if args.force is True:
+                data = {}
+            elif args.update is True and "md5" in data:
+                check = remote_md5_updated(DBURL.get("mito-release"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'UniProtKB checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
+                    data = {}
+                else:
+                    logger.info("No change detected in UniProtKB/Swiss-Prot database")
+            # if its empty then need to run it
+            if not data:
+                data = mitoDB(wget=args.wget)
+                dbinfo["mito"] = data
 
         elif x == "merops":
             data = {}
@@ -104,8 +131,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("merops"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("merops"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'MEROPS checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in MEROPS protease database")
             # if its empty then need to run it
             if not data:
                 data = meropsDB(wget=args.wget)
@@ -118,8 +151,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("dbCAN"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("dbCAN"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'dbCAN checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in dbCAN database")
             # if its empty then need to run it
             if not data:
                 data = dbCANDB(wget=args.wget)
@@ -132,8 +171,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("pfam"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("pfam-log"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'Pfam-A checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in Pfam-A database")
             # if its empty then need to run it
             if not data:
                 data = pfamDB(wget=args.wget)
@@ -146,8 +191,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("go"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("go"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'GO-OBO checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in Gene Ontology database")
             # if its empty then need to run it
             if not data:
                 data = goDB(wget=args.wget)
@@ -160,8 +211,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("interpro"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("interpro-tsv"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'InterPro checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in InterPro database")
             # if its empty then need to run it
             if not data:
                 data = interproDB(wget=args.wget)
@@ -174,8 +231,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("mibig"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("mibig"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'MiBig checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in MiBiG database")
             # if its empty then need to run it
             if not data:
                 data = mibigDB(wget=args.wget)
@@ -188,8 +251,14 @@ def install(args):
             if args.force is True:
                 data = {}
             elif args.update is True and "md5" in data:
-                if remote_md5_updated(DBURL.get("gene2product"), data["md5"]):
+                check = remote_md5_updated(DBURL.get("gene2product"), data["md5"])
+                if check is not False:
+                    logger.info(
+                        f'Gene2Product checksum suggests an update: existing={data["md5"]} remote={check}'
+                    )
                     data = {}
+                else:
+                    logger.info("No change detected in Gene2Product database")
             # if its empty then need to run it
             if not data:
                 data = curatedDB(wget=args.wget)
@@ -232,7 +301,7 @@ def remote_md5_updated(url, md5):
     if newmd5 == md5:
         return False
     else:
-        return True
+        return newmd5
 
 
 def meropsDB(wget=False):
@@ -243,10 +312,10 @@ def meropsDB(wget=False):
     for x in [fasta, filtered, database]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("merops"))
     # download here
     download(DBURL.get("merops"), fasta, wget=wget)
-    # calc md5 checksum of raw input/download
-    md5 = calcmd5(fasta)
     # reformat fasta headers
     with open(filtered, "w") as filtout:
         with io.open(fasta, encoding="utf8", errors="ignore") as infile:
@@ -260,7 +329,8 @@ def meropsDB(wget=False):
                     filtout.write(line)
     cmd = ["diamond", "makedb", "--in", "merops.formatted.fa", "--db", "merops"]
     logger.info(f"Building diamond database: {' '.join(cmd)}")
-    runSubprocess(cmd, os.path.join(env["FUNANNOTATE2_DB"]), logger)
+    subprocess.call(cmd, cwd=os.path.join(env["FUNANNOTATE2_DB"]))
+    # runSubprocess(cmd, os.path.join(env['FUNANNOTATE2_DB']), logger)
     num_records = countfasta(filtered)
     return {
         "type": "diamond",
@@ -281,13 +351,14 @@ def uniprotDB(wget=False):
     for x in [fasta, fasta + ".gz", versionfile, database]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("uniprot-release"))
     download(DBURL.get("uniprot"), fasta + ".gz", wget=wget)
     download(DBURL.get("uniprot-release"), versionfile, wget=wget)
     subprocess.call(
         ["gunzip", "-f", "uniprot_sprot.fasta.gz"],
         cwd=os.path.join(env["FUNANNOTATE2_DB"]),
     )
-    md5 = calcmd5(versionfile)
     unidate = ""
     univers = ""
     with io.open(versionfile, encoding="utf8", errors="ignore") as infile:
@@ -301,7 +372,7 @@ def uniprotDB(wget=False):
     # build diamond database
     cmd = ["diamond", "makedb", "--in", "uniprot_sprot.fasta", "--db", "uniprot"]
     logger.info(f"Building diamond database: {' '.join(cmd)}")
-    runSubprocess(cmd, os.path.join(env["FUNANNOTATE2_DB"]), logger)
+    subprocess.call(cmd, cwd=os.path.join(env["FUNANNOTATE2_DB"]))
     num_records = countfasta(fasta)
     return {
         "type": "diamond",
@@ -318,45 +389,25 @@ def dbCANDB(wget=False):
     familyinfo = os.path.join(env["FUNANNOTATE2_DB"], "dbCAN-fam-HMMs.txt")
     versionfile = os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.changelog.txt")
     logger.info("Downloading dbCAN database")
-    # delete existint
-    for x in [
-        os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp"),
-        hmm,
-        familyinfo,
-        versionfile,
-    ]:
-        if checkfile(x):
-            os.remove(x)
+    # delete existintg
+    for f in os.listdir(env["FUNANNOTATE2_DB"]):
+        if f.startswith("dbCAN."):
+            os.remove(os.path.join(env["FUNANNOTATE2_DB"], f))
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("dbCAN"))
     # download data
-    download(
-        DBURL.get("dbCAN"), os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp"), wget=wget
-    )
+    download(DBURL.get("dbCAN"), hmm, wget=wget)
     download(DBURL.get("dbCAN-tsv"), familyinfo, wget=wget)
     download(DBURL.get("dbCAN-log"), versionfile, wget=wget)
-    md5 = calcmd5(os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp"))
-    num_records = 0
     dbdate = ""
     dbvers = ""
-    with open(hmm, "w") as out:
-        with io.open(
-            os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp"),
-            encoding="utf8",
-            errors="ignore",
-        ) as input:
-            for line in input:
-                if line.startswith("NAME"):
-                    num_records += 1
-                    line = line.replace(".hmm\n", "\n")
-                out.write(line)
     with io.open(versionfile, encoding="utf8", errors="ignore") as infile:
         head = [next(infile) for x in range(2)]
     dbdate = head[1].replace("# ", "").rstrip()
     dbvers = head[0].split(" ")[-1].rstrip()
     dbdate = datetime.datetime.strptime(dbdate, "%m/%d/%Y").strftime("%Y-%m-%d")
     logger.info("Creating dbCAN HMM database and pressing with pyhmmer")
-    pyhmmer.hmmer.hmmpress(pyhmmer.plan7.HMMFile(hmm), hmm)
-    if checkfile(os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp")):
-        os.remove(os.path.join(env["FUNANNOTATE2_DB"], "dbCAN.tmp"))
+    num_records = pyhmmer.hmmer.hmmpress(pyhmmer.plan7.HMMFile(hmm), hmm)
     return {
         "type": "hmmer3",
         "db": hmm,
@@ -372,17 +423,12 @@ def pfamDB(wget=False):
     familyinfo = os.path.join(env["FUNANNOTATE2_DB"], "Pfam-A.clans.tsv")
     versionfile = os.path.join(env["FUNANNOTATE2_DB"], "Pfam.version")
     # delete previous if exists
-    for x in [
-        hmm,
-        hmm + ".gz",
-        familyinfo,
-        familyinfo + ".gz",
-        versionfile,
-        versionfile + ".gz",
-    ]:
-        if checkfile(x):
-            os.remove(x)
+    for f in os.listdir(env["FUNANNOTATE2_DB"]):
+        if f.startswith("Pfam"):
+            os.remove(os.path.join(env["FUNANNOTATE2_DB"], f))
     logger.info("Downloading Pfam database")
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("pfam-log"))
     download(DBURL.get("pfam"), hmm + ".gz", wget=wget)
     download(DBURL.get("pfam-tsv"), familyinfo + ".gz", wget=wget)
     download(DBURL.get("pfam-log"), versionfile + ".gz", wget=wget)
@@ -393,7 +439,6 @@ def pfamDB(wget=False):
         ["gunzip", "-f", "Pfam-A.clans.tsv.gz"],
         cwd=os.path.join(env["FUNANNOTATE2_DB"]),
     )
-    md5 = calcmd5(versionfile + ".gz")
     subprocess.call(
         ["gunzip", "-f", "Pfam.version.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"])
     )
@@ -409,7 +454,8 @@ def pfamDB(wget=False):
             if line.startswith("Date"):
                 pfamdate = line.split(": ")[-1].rstrip()
     logger.info("Creating Pfam HMM database and pressing with pyhmmer")
-    pyhmmer.hmmer.hmmpress(pyhmmer.plan7.HMMFile(hmm), hmm)
+    actual_recs = pyhmmer.hmmer.hmmpress(pyhmmer.plan7.HMMFile(hmm), hmm)
+    assert actual_recs == num_records
     return {
         "type": "hmmer3",
         "db": hmm,
@@ -426,8 +472,9 @@ def goDB(wget=False):
     for x in [goOBO]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("go"))
     download(DBURL.get("go"), goOBO, wget=wget)
-    md5 = calcmd5(goOBO)
     num_records = 0
     version = ""
     with io.open(goOBO, encoding="utf8", errors="ignore") as infile:
@@ -453,16 +500,49 @@ def mibigDB(wget=False):
     for x in [fasta, database]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("mibig"))
     download(DBURL.get("mibig"), fasta, wget=wget)
-    md5 = calcmd5(fasta)
     version = os.path.basename(DBURL.get("mibig")).split("_")[-1].replace(".fasta", "")
     cmd = ["diamond", "makedb", "--in", "mibig.fa", "--db", "mibig"]
     logger.info(f"Building diamond database: {' '.join(cmd)}")
-    runSubprocess(cmd, os.path.join(env["FUNANNOTATE2_DB"]), logger)
+    subprocess.call(cmd, cwd=os.path.join(env["FUNANNOTATE2_DB"]))
+    # runSubprocess(cmd, os.path.join(env['FUNANNOTATE2_DB']), logger)
     num_records = countfasta(fasta)
     return {
         "type": "diamond",
         "db": database,
+        "version": version,
+        "date": today,
+        "n_records": num_records,
+        "md5": md5,
+    }
+
+
+def mitoDB(wget=False):
+    mitoFA = os.path.join(env["FUNANNOTATE2_DB"], "mito.refseq.fasta")
+    mitoMMI = os.path.join(env["FUNANNOTATE2_DB"], "mito.mmi")
+    mitoREF = os.path.join(env["FUNANNOTATE2_DB"], "mito.refseq.version")
+    logger.info("Downloading NCBI RefSeq mitochondrial genomes")
+    for x in [mitoFA, mitoMMI, mitoREF]:
+        if checkfile(x):
+            os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("mito-release"))
+    download(DBURL.get("mito"), mitoFA, wget=wget)
+    download(DBURL.get("mito-release"), mitoREF, wget=wget)
+    with io.open(mitoREF, encoding="utf8", errors="ignore") as infile:
+        version = infile.readline().strip()
+    # now create mmi database
+    cmd = ["minimap2", "-x", "asm20", "-d", mitoMMI, mitoFA]
+    subprocess.call(cmd, cwd=os.path.join(env["FUNANNOTATE2_DB"]))
+    num_records = countfasta(mitoFA)
+    # we can delete the fasta as not needed
+    if checkfile(mitoFA):
+        os.remove(mitoFA)
+    return {
+        "type": "minimap2",
+        "db": mitoMMI,
         "version": version,
         "date": today,
         "n_records": num_records,
@@ -477,9 +557,10 @@ def interproDB(wget=False):
     for x in [iprXML, iprTSV, iprXML + ".gz"]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("interpro-tsv"))
     download(DBURL.get("interpro"), iprXML + ".gz", wget=wget)
     download(DBURL.get("interpro-tsv"), iprTSV, wget=wget)
-    md5 = calcmd5(iprXML + ".gz")
     subprocess.call(
         ["gunzip", "-f", "interpro.xml.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"])
     )
@@ -513,8 +594,9 @@ def curatedDB(wget=False):
     for x in [curatedFile]:
         if checkfile(x):
             os.remove(x)
+    # get md5 remote to store so update works properly
+    md5 = calcmd5remote(DBURL.get("gene2product"))
     download(DBURL.get("gene2product"), curatedFile, wget=wget)
-    md5 = calcmd5(curatedFile)
     num_records = 0
     curdate = ""
     version = ""
