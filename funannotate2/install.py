@@ -16,6 +16,21 @@ from .fastx import countfasta
 
 
 def install(args):
+    """
+    Install databases based on user input and update options.
+
+    This function initializes logging and retrieves database download links. It checks
+    for existing databases and updates them if necessary, based on user-specified options
+    such as force installation or update checks. The function supports installing various
+    databases like UniProt, MEROPS, dbCAN, Pfam, and others, and logs the installation
+    process and results.
+
+    Parameters:
+    - args: Command-line arguments provided by the user.
+
+    Returns:
+    - None
+    """
     # start logger
     global logger
     logger = startLogging()
@@ -276,6 +291,18 @@ def install(args):
 
 
 def calcmd5(file):
+    """
+    Calculate the MD5 hash value of a file.
+
+    This function reads the contents of a specified file in binary mode and calculates
+    its MD5 hash value. The hash is returned as a hexadecimal string.
+
+    Parameters:
+    - file (str): The path to the file to calculate the MD5 hash for.
+
+    Returns:
+    - str: The MD5 hash value of the file.
+    """
     md5local = None
     with open(file, "rb") as infile:
         data = infile.read()

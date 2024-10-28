@@ -67,6 +67,20 @@ class FileFormatter(logging.Formatter):
 
 
 def startLogging(logfile=False):
+    """
+    Start logging with a custom formatter and optional file handler.
+
+    This function initializes logging with a custom formatter for console output.
+    If a logfile path is provided, it also sets up a file handler to log messages
+    to the specified file. The logger captures memory allocation snapshots using
+    `tracemalloc` for debugging purposes.
+
+    Parameters:
+    - logfile (str, optional): Path to a log file. If provided, logs will be written to this file.
+
+    Returns:
+    - logging.Logger: Configured logger object for logging.
+    """
     tracemalloc.start()
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
@@ -86,6 +100,18 @@ def startLogging(logfile=False):
 
 
 def system_info(log):
+    """
+    Log system information including Python version and versions of funannotate2, gfftk, and buscolite.
+
+    This function logs the current Python version along with the versions of the funannotate2,
+    gfftk, and buscolite packages. It uses the provided logging function to output the information.
+
+    Parameters:
+    - log (function): A logging function to output the system information.
+
+    Returns:
+    - None
+    """
     log(
         "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}".format(
             platform.python_version(),
@@ -97,6 +123,20 @@ def system_info(log):
 
 
 def finishLogging(log, module):
+    """
+    Stop memory tracing, calculate peak memory usage, and log the module's completion.
+
+    This function stops the memory tracing initiated by `tracemalloc`, calculates the peak
+    memory usage during the module's execution, and logs this information using the provided
+    logging function.
+
+    Parameters:
+    - log (function): A function used for logging messages.
+    - module (str): The name of the module that has finished execution.
+
+    Returns:
+    - None
+    """
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     log(

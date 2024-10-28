@@ -9,6 +9,24 @@ import gb_io
 def gff3_to_gbio(
     fasta, gff3, gb, lowercase=False, offset=600, train_test=False, log=sys.stderr.write
 ):
+    """
+    Convert GFF3 annotation to GenBank format.
+
+    This function reads a FASTA file and a GFF3 file (or dictionary), extracts gene features, and converts them into GenBank format. It supports optional lowercase conversion of sequences and splitting data into training and testing sets.
+
+    Args:
+        fasta (str): Path to the FASTA file.
+        gff3 (str or dict): Path to the GFF3 file or a GFF3 dictionary.
+        gb (str): Path to the output GenBank file.
+        lowercase (bool, optional): Whether to convert the sequence to lowercase. Defaults to False.
+        offset (int, optional): Offset value for sequence positioning. Defaults to 600.
+        train_test (bool, optional): Whether to split the data into training and testing sets. Defaults to False.
+        log (function, optional): Logger function. Defaults to sys.stderr.write.
+
+    Returns:
+        tuple: Number of total records and number of records in the test set if train_test is True, otherwise returns the number of total records twice.
+    """
+
     def _fetch_coords(v, i=0, start_pos=0, feature="gene"):
         if feature == "gene":
             coords = gb_io.Range(

@@ -26,6 +26,22 @@ requests.packages.urllib3.disable_warnings()
 
 
 def merge_coordinates(intervals):
+    """
+    Merge overlapping intervals from a list of intervals.
+
+    This function takes a list of intervals, each represented as a list of two integers [start, end],
+    and merges all overlapping intervals. The resulting list contains non-overlapping intervals sorted
+    by their starting points.
+
+    Parameters:
+    - intervals (List[List[int]]): A list of intervals to be merged.
+
+    Returns:
+    - List[List[int]]: A list of merged intervals.
+
+    Example:
+    merge_coordinates([[1, 3], [2, 6], [8, 10], [15, 18]]) -> [[1, 6], [8, 10], [15, 18]]
+    """
     if not intervals:
         return []
     # Sort the intervals based on the starting points
@@ -43,6 +59,23 @@ def merge_coordinates(intervals):
 
 
 def execute(cmd, cwd="."):
+    """
+    Execute a shell command and yield its output line by line.
+
+    This function runs a specified command in the shell within a given working directory.
+    It yields each line of the command's standard output as it becomes available. If the
+    command exits with a non-zero status, a `subprocess.CalledProcessError` is raised.
+
+    Parameters:
+    - cmd (str): The command to be executed.
+    - cwd (str, optional): The working directory where the command will be executed (default is the current directory).
+
+    Yields:
+    - str: Each line of output from the executed command.
+
+    Raises:
+    - subprocess.CalledProcessError: If the command exits with a non-zero status.
+    """
     DEVNULL = open(os.devnull, "w")
     popen = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, universal_newlines=True, stderr=DEVNULL, cwd=cwd
@@ -56,6 +89,21 @@ def execute(cmd, cwd="."):
 
 
 def naming_slug(species, strain, lowercase=False):
+    """
+    Generate a slug for a species and strain combination.
+
+    This function creates a slug by combining the species and strain names. The species name
+    is formatted by replacing spaces with underscores. The slug can be converted to lowercase
+    if specified. If a strain is provided, it is appended to the species with underscores.
+
+    Parameters:
+    - species (str): The name of the species.
+    - strain (str): The name of the strain.
+    - lowercase (bool, optional): Whether to convert the slug to lowercase (default is False).
+
+    Returns:
+    - str: The generated slug combining species and strain.
+    """
     combo = species.replace(" ", "_")
     if lowercase:
         combo = combo.lower()
@@ -69,12 +117,39 @@ def naming_slug(species, strain, lowercase=False):
 
 
 def load_json(filename):
+    """
+    Load JSON data from a file.
+
+    This function opens a specified JSON file, reads its contents, and returns the data
+    as a dictionary.
+
+    Parameters:
+    - filename (str): The path to the JSON file.
+
+    Returns:
+    - dict: The JSON data loaded from the file.
+    """
     with open(filename, "r") as f:
         data = json.load(f)
     return data
 
 
 def download(url, name, wget=False):
+    """
+    Download a file from a given URL.
+
+    This function downloads a file from the specified URL and saves it with the given name.
+    It can use either the `wget` command-line tool or Python's `urllib` for downloading,
+    depending on the `wget` flag.
+
+    Parameters:
+    - url (str): The URL of the file to download.
+    - name (str): The name to save the downloaded file as.
+    - wget (bool, optional): Flag to use `wget` for downloading (default is False).
+
+    Returns:
+    None
+    """
     if wget:
         # download with wget
         cmd = ["wget", "-O", name, "--no-check-certificate", "-t", "2", "-c", url]
@@ -99,20 +174,19 @@ def download(url, name, wget=False):
 
 def lookup_taxonomy(name):
     """
-    Fetch taxonomy dictionary given an organism species name
+    Fetch taxonomy information for a given organism species name.
 
-    Parameters
-    ----------
-    name : str
-        name of organism to fetch, ie 'Aspergillus nidulans'
+    This function retrieves a taxonomy dictionary for a specified organism by querying
+    an external taxonomy service. If the species name is valid, it returns a dictionary
+    containing taxonomic levels and names. If the name is invalid or an error occurs,
+    it returns False.
 
-    Returns
-    -------
-    response : dict
-        returns False if not a valid name else returns dictionary of taxonomic levels/names
+    Parameters:
+    - name (str): The name of the organism to fetch, e.g., 'Aspergillus nidulans'.
 
+    Returns:
+    - dict: A dictionary of taxonomic levels and names, or False if the name is invalid.
     """
-
     if " " in name:
         name = name.replace(" ", "_")
     url = "https://taxonomy.jgi.doe.gov/stax/name/"
@@ -147,6 +221,21 @@ def lookup_taxonomy(name):
 def pretty_taxonomy(
     obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]
 ):
+    """
+    Extract specified taxonomy levels from a taxonomy object.
+
+    This function traverses a taxonomy object and extracts the values for the specified
+    taxonomy levels. It returns a list of these values in the order provided by the levels
+    parameter.
+
+    Parameters:
+    - obj (dict): The taxonomy object to extract levels from.
+    - levels (list, optional): A list of taxonomy levels to extract. Defaults to
+      ["superkingdom", "kingdom", "phylum", "order", "class", "family"].
+
+    Returns:
+    - list: A list of taxonomy levels extracted from the object.
+    """
     # traverse taxonomy object and return list of taxonomy
     tax = []
     for t in levels:
@@ -164,6 +253,20 @@ def choose_best_busco_species(query_tax):
 
 
 def best_taxonomy(query, ref):
+    """
+    Find the best matching taxonomy in a reference dictionary based on a query taxonomy.
+
+    This function compares the query taxonomy with reference taxonomies and returns the key
+    of the taxonomy that best matches the query. It evaluates matches based on the number of
+    matching taxonomy levels and selects the one with the minimal difference in remaining levels.
+
+    Parameters:
+    - query (dict): The query taxonomy object to compare.
+    - ref (dict): The reference taxonomy dictionary to search for matches.
+
+    Returns:
+    - str or list: The key of the best matching taxonomy in the reference dictionary, or an empty list if no match is found.
+    """
     query_list = pretty_taxonomy(
         query,
         levels=[
@@ -219,6 +322,19 @@ def best_taxonomy(query, ref):
 
 
 def which_path(file_name):
+    """
+    Find the full path of a file by searching through the directories in the system's PATH environment variable.
+
+    This function iterates over each directory listed in the system's PATH environment variable,
+    checking if the specified file exists and is executable. If found, it returns the full path
+    to the file; otherwise, it returns None.
+
+    Parameters:
+    - file_name (str): The name of the file to search for.
+
+    Returns:
+    - str or None: The full path of the file if found and executable, otherwise None.
+    """
     for path in os.environ["PATH"].split(os.pathsep):
         full_path = os.path.join(path, file_name)
         if os.path.exists(full_path) and os.access(full_path, os.X_OK):
@@ -227,6 +343,20 @@ def which_path(file_name):
 
 
 def human_readable_size(size, decimal_places=2):
+    """
+    Convert a size in bytes to a human-readable string representation.
+
+    This function takes a size in bytes and converts it to a more human-readable format,
+    using units such as B, KiB, MiB, GiB, TiB, and PiB. The size is formatted to the specified
+    number of decimal places.
+
+    Parameters:
+    - size (float): The size in bytes to convert.
+    - decimal_places (int, optional): The number of decimal places to include in the output (default is 2).
+
+    Returns:
+    - str: A string representing the size in a human-readable format with the appropriate unit.
+    """
     for unit in ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]:
         if size < 1024.0 or unit == "PiB":
             break
@@ -235,6 +365,22 @@ def human_readable_size(size, decimal_places=2):
 
 
 def create_tmpdir(outdir, base="predict"):
+    """
+    Create a temporary directory for storing files.
+
+    This function generates a temporary directory with a unique name based on the provided
+    base name and a UUID. If an output directory is specified, the temporary directory is
+    created within it. If the output directory is "/tmp", a subdirectory is created; otherwise,
+    the specified directory is used directly. If no output directory is provided, the temporary
+    directory is created in the current working directory.
+
+    Parameters:
+    - outdir (str): The output directory path.
+    - base (str, optional): The base name for the temporary directory (default is "predict").
+
+    Returns:
+    - str: The absolute path of the created temporary directory.
+    """
     # create a tmpdir for some files
     tmpdirslug = "{}_{}".format(base, str(uuid.uuid4()))
     if outdir:
@@ -250,6 +396,22 @@ def create_tmpdir(outdir, base="predict"):
 
 
 def create_directories(outdir, base="predict"):
+    """
+    Create necessary directories within the specified 'outdir' path.
+
+    This function sets up a folder structure within the given output directory. If the 'outdir'
+    does not exist, it creates the directory along with subdirectories for miscellaneous files,
+    results, and log files. If 'outdir' already exists, it ensures the subdirectories are present
+    and updates the 'base_results' directory if needed.
+
+    Parameters:
+    - outdir (str): The main directory path where the subdirectories will be created.
+    - base (str, optional): The base name used for creating subdirectories (default is "predict").
+
+    Returns:
+    - tuple: A tuple containing the absolute paths to the created 'base_misc', 'base_results',
+      and 'logfiles' directories.
+    """
     # create folder structure
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
@@ -277,6 +439,19 @@ def create_directories(outdir, base="predict"):
 
 
 def find_files(directory, suffix):
+    """
+    Find files with a specific suffix in the given directory.
+
+    This function searches through the specified directory and collects all files that
+    have the given suffix. It returns a list of the full paths to these files.
+
+    Parameters:
+    - directory (str): The directory path to search for files.
+    - suffix (str): The file suffix to filter files by.
+
+    Returns:
+    - list: A list of file paths that match the specified suffix in the directory.
+    """
     hits = []
     for f in os.listdir(directory):
         if f.endswith(suffix):
@@ -284,14 +459,27 @@ def find_files(directory, suffix):
     return hits
 
 
-def checkfile(input):
-    if input and os.path.isfile(input):
-        filesize = os.stat(input).st_size
+def checkfile(infile):
+    """
+    Check if the input file exists and is not empty.
+
+    This function verifies whether the specified file exists and is not empty. It also checks
+    if the input is a symbolic link. The function returns True if the file exists and is not
+    empty or if it is a symbolic link; otherwise, it returns False.
+
+    Parameters:
+    - input (str): Path to the file to be checked.
+
+    Returns:
+    - bool: True if the file exists and is not empty or is a symbolic link, False otherwise.
+    """
+    if infile and os.path.isfile(infile):
+        filesize = os.stat(infile).st_size
         if int(filesize) < 1:
             return False
         else:
             return True
-    elif input and os.path.islink(input):
+    elif infile and os.path.islink(infile):
         return True
     else:
         return False
@@ -300,14 +488,23 @@ def checkfile(input):
 @contextmanager
 def process_handle(handle, mode="w"):
     """
-    A simple context manager for subprocess.run, yields and closes a file handle if a string is given, otherwise returns
-    one of subprocess.PIPE, subprocess.DEVNULL, or NONE. If handle == "STDOUT", it will return subprocess.STDOUT for
-    for redirecting stderr to stdout.
+    Context manager for handling subprocess I/O streams.
 
-    :param handle: what type of return - True for PIPE, False for DEVNULL, None for None. A string will either return a
-                   file handle to the path specified, or if handle=="STDOUT", subprocess.STDOUT (for redirecting stderr)
-    :param mode: mode to open the file handle, one of "w", "r", "a"
-    :return: PIPE, DEVNULL, STDOUT, NONE, or a file handle
+    This function provides a context manager for managing file handles or standard I/O streams
+    when using `subprocess.run`. It yields and closes a file handle if a string is provided,
+    otherwise it returns one of `subprocess.PIPE`, `subprocess.DEVNULL`, or `None`. If the handle
+    is "STDOUT", it returns `subprocess.STDOUT` for redirecting stderr to stdout.
+
+    Parameters:
+    - handle: Determines the type of return:
+      - True for `subprocess.PIPE`
+      - False for `subprocess.DEVNULL`
+      - None for `None`
+      - str for a file handle to the specified path, or `subprocess.STDOUT` if handle is "STDOUT".
+    - mode (str): The mode to open the file handle, one of "w", "r", "a".
+
+    Returns:
+    - Yields `subprocess.PIPE`, `subprocess.DEVNULL`, `subprocess.STDOUT`, `None`, or a file handle.
     """
     close_on_exit = False  # Do we need to make sure the output is closed correctly?
     if handle is True:  # send to PIPE
@@ -346,27 +543,35 @@ def runSubprocess(
     env=False,
 ):
     """
-    Runs a command using subprocess.run and directs output and stderr. If output or error are captured, they will be
-    written to logfile.debug if the command succeeds, or logfile.error if the command fails.
+    Run a command using subprocess and direct output and stderr.
 
-    :param cmd: command to run
-    :type cmd: list[str] or str
-    :param cwd: string specifying the directory to run the command in
-    :param logfile: logger for debug and error messages
-    :param stdout: determines where to direct stdout. True - stdout will be captured; False - sent to /dev/null;
-                   None - write to stdout; str - write to a file
-    :type stdout: bool, str, or None
-    :param stderr: determines where to direct stderr. True - stderr will be captured; False - sent to /dev/null;
-                   None - write to stderr; str - write to a file, or if the str == "STDOUT", redirect to stdout
-    :type stderr: bool, str, or None
-    :param stdin: if reads input from file str
-    :type stdin: str or None
-    :param only_failed: only write stdout/stderr to the logfile if the command fails (returns a non-zero exit status).
-                       This only effects stdout/stderr if it's being captured (output/error == True)
-    :type only_failed: bool
-    :param raise_not_exit: raise a subprocess.CalledProcessError if the subprocess fails, rather than sys.exit(1).
-                           Default is False
-    :type raise_not_exit: bool
+    This function executes a command using `subprocess.run` or `subprocess.Popen`, directing
+    the standard output and error streams based on the provided parameters. If output or error
+    streams are captured, they are logged to `logfile.debug` if the command succeeds, or
+    `logfile.error` if it fails.
+
+    Parameters:
+    - cmd (list[str] or str): The command to run.
+    - logfile: Logger for debug and error messages.
+    - cwd (str, optional): Directory to run the command in (default is ".").
+    - stdout (bool, str, or None, optional): Determines where to direct stdout:
+      - True: Capture stdout.
+      - False: Send to /dev/null.
+      - None: Write to stdout.
+      - str: Write to a file.
+    - stderr (bool, str, or None, optional): Determines where to direct stderr:
+      - True: Capture stderr.
+      - False: Send to /dev/null.
+      - None: Write to stderr.
+      - str: Write to a file, or if "STDOUT", redirect to stdout.
+    - stdin (str or None, optional): If provided, reads input from the specified file.
+    - only_failed (bool, optional): Only write stdout/stderr to the logfile if the command fails (default is False).
+    - raise_not_exit (bool, optional): Raise a `subprocess.CalledProcessError` if the subprocess fails, rather than exiting (default is False).
+    - env (dict or None, optional): Environment variables to pass to the subprocess.
+
+    Raises:
+    - subprocess.CalledProcessError: If the command fails and `raise_not_exit` is True.
+    - SystemExit: If the command fails and `raise_not_exit` is False.
     """
 
     def logoutput(logname, process_result):
@@ -417,8 +622,22 @@ def runSubprocess(
 
 
 def runThreadJob(func, argList, cpus=2, progress=True):
-    # the command here is the function you want to run
-    # the argList is a list of argument to pass [arg1, arg2, arg3]
+    """
+    Run multiple instances of a function concurrently using a thread pool.
+
+    This function utilizes a thread pool to execute a given function concurrently with
+    multiple sets of arguments. It provides an optional progress indicator to track the
+    completion status of the tasks.
+
+    Parameters:
+    - func (callable): The function to run concurrently.
+    - argList (list): A list of argument tuples to pass to the function.
+    - cpus (int, optional): Number of CPUs to use (default is 2).
+    - progress (bool, optional): Flag to show a progress indicator (default is True).
+
+    Returns:
+    - list: A list of futures representing the result of each function call.
+    """
 
     # simple progress indicator callback function
     def _progress_indicator(future):
@@ -496,6 +715,21 @@ def runThreadJob(func, argList, cpus=2, progress=True):
 
 
 def runProcessJob(function, inputList, cpus=2):
+    """
+    Run multiple instances of a function in parallel using multiprocessing.
+
+    This function utilizes a multiprocessing pool to execute a given function in parallel
+    across multiple CPUs. It processes a list of inputs, where each input is passed as
+    arguments to the function. Results are collected and returned as a list.
+
+    Parameters:
+    - function (function): The function to be executed in parallel.
+    - inputList (list): A list of lists, where each inner list represents an input to the function.
+    - cpus (int, optional): The number of CPUs to be used for parallel processing (default is 2).
+
+    Returns:
+    - list: A list containing the results of each function execution.
+    """
     # inputList here should be a list of lists with each input to function
     def update(res):
         results.append(res)
@@ -642,24 +876,33 @@ def print_table(
     verbosity=1,
 ):
     """
-    Args:
-        table: a list of lists of strings (one row is one list, all rows should be the same length)
-        alignments: a string of L and R, indicating the alignment for each row
-        max_col_width: values longer than this will be wrapped
-        col_separation: the number of spaces between columns
-        indent: the number of spaces between the table and the left side of the terminal
-        row_colour: a dictionary of row indices and their colour names
-        sub_colour: a dictionary of values to colour names for which the text colour will be set
-        row_extra_text: a dictionary of row indices and extra text to display after the row
-        leading_newline: if True, the function will print a blank line above the table
-        subsequent_indent: this string will be added to the start of wrapped text lines
-        return_str: if True, this function will return a string of the table instead of printing it
-        header_format: the formatting (colour, underline, etc) of the header line
-        hide_header: if True, the header is not printed
-        fixed_col_widths: a list to specify exact column widths (automatic if not used)
-        left_align_header: if False, the header will follow the column alignments
-        bottom_align_header: if False, the header will align to the top, like other rows
-        verbosity: the table will only be logged if the logger verbosity is >= this value
+    Print a formatted table with customizable options.
+
+    This function formats and prints a table based on the provided data and options. It supports
+    alignment, column width customization, color formatting, and more. The table can be printed
+    directly or returned as a string.
+
+    Parameters:
+    - table (list of list of str): A list of lists of strings, where each inner list represents a row.
+    - alignments (str, optional): A string of 'L', 'R', or 'C' indicating the alignment for each column.
+    - max_col_width (int, optional): Maximum width for each column; values longer than this will be wrapped (default is 30).
+    - col_separation (int, optional): Number of spaces between columns (default is 3).
+    - indent (int, optional): Number of spaces between the table and the left side of the terminal (default is 2).
+    - row_colour (dict, optional): A dictionary of row indices and their color names.
+    - sub_colour (dict, optional): A dictionary of values to color names for which the text color will be set.
+    - row_extra_text (dict, optional): A dictionary of row indices and extra text to display after the row.
+    - leading_newline (bool, optional): If True, the function will print a blank line above the table (default is False).
+    - subsequent_indent (str, optional): String added to the start of wrapped text lines (default is "").
+    - return_str (bool, optional): If True, the function will return a string of the table instead of printing it (default is False).
+    - header_format (str, optional): The formatting (color, underline, etc.) of the header line (default is "underline").
+    - hide_header (bool, optional): If True, the header is not printed (default is False).
+    - fixed_col_widths (list, optional): A list to specify exact column widths (automatic if not used).
+    - left_align_header (bool, optional): If False, the header will follow the column alignments (default is True).
+    - bottom_align_header (bool, optional): If False, the header will align to the top, like other rows (default is True).
+    - verbosity (int, optional): The table will only be logged if the logger verbosity is >= this value (default is 1).
+
+    Returns:
+    - str or None: Returns the formatted table as a string if `return_str` is True; otherwise, prints the table.
     """
     # this function is written by Ryan Wick in Unicycler code
     # modified to not support colors
@@ -743,6 +986,20 @@ def print_table(
 
 
 def readBlocks(source, pattern):
+    """
+    Read lines from a source and yield blocks of lines that start with a specific pattern.
+
+    This function processes a source line by line, grouping lines into blocks. A new block
+    starts when a line begins with the specified `pattern`. Each block is yielded as a list
+    of lines.
+
+    Parameters:
+    - source (iterable): The source to read lines from.
+    - pattern (str): The pattern that the lines should start with to be considered as a new block.
+
+    Yields:
+    - list: A block of lines that start with the specified pattern.
+    """
     buffer = []
     for line in source:
         try:
@@ -759,6 +1016,21 @@ def readBlocks(source, pattern):
 
 
 def readBlocks2(source, startpattern, endpattern):
+    """
+    Read lines from a source and yield blocks of lines based on start and end patterns.
+
+    This function processes a source line by line, grouping lines into blocks. A new block
+    starts when a line begins with the specified `startpattern` or ends with the `endpattern`.
+    Each block is yielded as a list of lines.
+
+    Parameters:
+    - source (iterable): The source to read line by line.
+    - startpattern (str): The pattern that marks the start of a block.
+    - endpattern (str): The pattern that marks the end of a block.
+
+    Yields:
+    - list: A block of lines that start with the `startpattern` or end with the `endpattern`.
+    """
     buffer = []
     for line in source:
         try:

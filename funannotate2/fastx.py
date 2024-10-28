@@ -8,6 +8,17 @@ import multiprocessing
 
 
 def countfasta(fasta_file):
+    """
+    Count the number of sequences in a FASTA file.
+
+    This function reads a FASTA file using the `pyfastx` library and counts the total number of sequences present.
+
+    Args:
+        fasta_file (str): Path to the input FASTA file.
+
+    Returns:
+        int: Total number of sequences in the FASTA file.
+    """
     count = 0
     for seq in pyfastx.Fasta(fasta_file, build_index=False):
         count += 1
@@ -15,6 +26,18 @@ def countfasta(fasta_file):
 
 
 def softwrap(string, every=80):
+    """
+    Wrap a string to a specified length by inserting newlines at every given interval.
+
+    This function processes the input string and inserts newlines at specified intervals to ensure that each line does not exceed the given length.
+
+    Args:
+        string (str): The input string to be wrapped.
+        every (int, optional): The maximum length of each line before inserting a newline. Defaults to 80.
+
+    Returns:
+        str: The wrapped string with newlines inserted at the specified interval.
+    """
     lines = []
     for i in range(0, len(string), every):
         lines.append(string[i : i + every])
@@ -22,6 +45,17 @@ def softwrap(string, every=80):
 
 
 def fasta2dict(fasta_file):
+    """
+    Extract sequences from a FASTA file and store them in a dictionary.
+
+    This function reads a FASTA file using the `pyfastx` library and creates a dictionary where each key is a sequence title and each value is the corresponding sequence.
+
+    Args:
+        fasta_file (str): The path to the FASTA file.
+
+    Returns:
+        dict: A dictionary where the keys are sequence titles and the values are sequences.
+    """
     fa = {}
     for title, seq in pyfastx.Fasta(fasta_file, build_index=False):
         fa[title] = seq
@@ -29,6 +63,18 @@ def fasta2dict(fasta_file):
 
 
 def mergefasta(fasta_files, outfile):
+    """
+    Merge and dereplicate a list of FASTA files.
+
+    This function processes multiple FASTA files, removes duplicate sequences, and writes the unique sequences to an output file. It keeps track of the total number of sequences and the number of unique sequences.
+
+    Args:
+        fasta_files (list): List of input FASTA files to merge.
+        outfile (str): Output file to write the merged FASTA sequences.
+
+    Returns:
+        tuple: A tuple containing the count of unique sequences and total sequences in the merged output.
+    """
     # take a list of fasta files, dereplicate, merge
     seen = set()
     n = 0
@@ -47,6 +93,22 @@ def mergefasta(fasta_files, outfile):
 def annotate_fasta(
     fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"
 ):
+    """
+    Annotate specific sequences in a FASTA file with custom information.
+
+    This function opens a FASTA file, annotates sequences with custom information based on provided IDs,
+    and writes the annotated sequences to an output file. It uses the `pyfastx` library for reading FASTA files
+    and the `softwrap` function to format the sequences.
+
+    Args:
+        fasta_file (str): Path to the input FASTA file.
+        outfile (str): Path to the output file where annotated sequences will be written.
+        ids (list, optional): List of sequence IDs to be annotated. Defaults to an empty list.
+        annotation (str, optional): Custom annotation to be added to the specified sequences. Defaults to "[mcode=4] [location=mitochondrion]".
+
+    Returns:
+        None
+    """
     with open(outfile, "w") as output:
         for title, seq in pyfastx.Fasta(fasta_file, build_index=False):
             if title in ids:
@@ -55,6 +117,23 @@ def annotate_fasta(
 
 
 def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
+    """
+    Split a FASTA file into chunks and save each chunk as a separate file in the specified output directory.
+
+    This function divides the input FASTA file into a specified number of chunks, writes each chunk to a separate file,
+    and saves these files in the given output directory. It ensures that the output directory exists and uses the
+    `pyfastx` library for efficient FASTA file handling.
+
+    Args:
+        fasta_file (str): Path to the input FASTA file.
+        chunks (int): Number of chunks to split the FASTA file into.
+        outputdir (str): Path to the output directory where the chunked files will be saved.
+        prefix (str, optional): Prefix to be added to the names of the output files. Defaults to "prots_".
+        suffix (str, optional): Suffix to be added to the names of the output files. Defaults to ".fa".
+
+    Returns:
+        list: A list of strings, each representing the path to a saved chunked file.
+    """
     # list to store the output files
     files = []
     # check if output exists
@@ -78,7 +157,20 @@ def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
     return files
 
 
-def simplify_headers(inputfile, outputfile, base="contig_", mito=[]):
+def simplify_headers(inputfile, outputfile, base="contig_"):
+    """
+    Simplify the headers of contigs in the input FASTA file and write the simplified sequences to an output file.
+
+    This function reads the input FASTA file, simplifies the headers by assigning new names based on the specified base and order, and writes the simplified sequences to the output file. It maintains the original order of contigs.
+
+    Args:
+        inputfile (str): Path to the input FASTA file.
+        outputfile (str): Path to the output file where the simplified sequences will be written.
+        base (str, optional): Base name for the simplified contigs. Defaults to "contig_".
+
+    Returns:
+        dict: A dictionary mapping the new simplified contig names to the original headers.
+    """
     # will keep the same order of contigs, just simplify the headers
     names = {}
     with open(outputfile, "w") as outfile:
@@ -89,6 +181,22 @@ def simplify_headers(inputfile, outputfile, base="contig_", mito=[]):
 
 
 def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]):
+    """
+    Simplify headers of contigs in the input FASTA file while maintaining order.
+
+    This function simplifies the headers of contigs in the input FASTA file by replacing them with a base string followed by a numerical index.
+    Headers specified in the 'drop' list are written to the 'dropfile' with wrapped sequences, while the simplified headers and sequences are written to the 'keepfile'.
+
+    Args:
+        inputfile (str): Path to the input FASTA file.
+        keepfile (str): Path to the output file to store simplified headers and sequences of contigs to be kept.
+        dropfile (str): Path to the output file to store headers and sequences of contigs to be dropped.
+        base (str, optional): Base string to be used for simplifying headers. Defaults to "contig_".
+        drop (list, optional): List of headers to be dropped. Defaults to an empty list.
+
+    Returns:
+        dict: A dictionary mapping simplified headers to original headers.
+    """
     # will keep the same order of contigs, just simplify the headers
     names = {}
     with open(keepfile, "w") as outfile:
@@ -105,6 +213,17 @@ def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]
 
 
 def list2groups(L):
+    """
+    Identify groups of continuous numbers in a list.
+
+    This function processes a list of numbers and identifies groups of consecutive numbers. It yields a tuple representing the start and end of each group.
+
+    Args:
+        L (list): A list of numbers.
+
+    Yields:
+        tuple: A tuple representing the start and end of each group of continuous numbers.
+    """
     # via https://stackoverflow.com/questions/2154249/identify-groups-of-continuous-numbers-in-a-list
     if len(L) < 1:
         return
@@ -119,6 +238,21 @@ def list2groups(L):
 
 
 def contig_analysis(title, seq):
+    """
+    Perform analysis on a DNA sequence to identify masked regions and gaps.
+
+    This function examines a DNA sequence to find regions where nucleotides are masked (lowercase) and where gaps (N/n) occur. It uses the `list2groups` function to group consecutive indices of masked regions and gaps.
+
+    Args:
+        title (str): The title of the DNA sequence.
+        seq (str): The DNA sequence to analyze.
+
+    Returns:
+        tuple: A tuple containing:
+            - str: The title of the sequence.
+            - list: Grouped indices of masked regions.
+            - list: Grouped indices of gaps.
+    """
     masked = []
     gaps = []
     for i, nuc in enumerate(seq):
@@ -140,6 +274,26 @@ def analyzeAssembly(
     split=False,
     cpus=1,
 ):
+    """
+    Analyze the assembly of a genome to identify masked regions and gaps.
+
+    This function processes the genome assembly to detect masked regions and gaps. It utilizes multiprocessing to analyze each contig efficiently and provides statistics on the assembly quality.
+
+    Args:
+        input (str): Path to the input genome assembly file.
+        masked_output (str): Path to save the softmasked regions output file.
+        gaps_output (str): Path to save the assembly gaps output file.
+        header_max (int, optional): Maximum length of contig headers. Defaults to 16.
+        split (bool, optional): Whether to split contigs into separate files. Defaults to False.
+        cpus (int, optional): Number of CPUs to use for multiprocessing. Defaults to 1.
+
+    Returns:
+        tuple: A tuple containing:
+            - dict: Statistics including number of contigs, assembly size, softmasked percentage, gaps percentage, N50, N90, L50, L90, and average contig length.
+            - list: Contig names with headers exceeding the maximum length.
+            - list: Errors encountered during analysis.
+            - list: Paths to split contig files if split is enabled.
+    """
     # local mp functions
     results = []
 
@@ -241,6 +395,21 @@ def analyzeAssembly(
 
 
 def analyzeAssemblySimple(input, header_max=16):
+    """
+    Analyze the assembly for basic statistics and quality control.
+
+    This function evaluates a genome assembly file to gather basic statistics and identify potential issues. It checks for contig headers exceeding a specified length and identifies any non-standard nucleotide bases.
+
+    Args:
+        input (str): Path to the input assembly file.
+        header_max (int, optional): Maximum length of contig headers. Defaults to 16.
+
+    Returns:
+        tuple: A tuple containing:
+            - dict: Statistics including the number of contigs, total size, N50, N90, L50, L90, and average length.
+            - list: Contig names exceeding the header length limit.
+            - list: Base errors with counts.
+    """
     # set character string
     IUPAC = {"A", "C", "G", "T", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N"}
 

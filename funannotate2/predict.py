@@ -39,6 +39,21 @@ from buscolite.busco import runbusco
 
 
 def predict(args):
+    """
+    Predict gene annotations based on the provided input directory and parameters.
+
+    This function parses the inputs, including parameter files and FASTA files, to predict
+    gene annotations. It extracts species information from the parameters file and sets the
+    output directory accordingly. The function performs various checks and processes, such as
+    loading genome data, aligning transcripts and proteins, running ab initio predictions,
+    calculating weights, and generating consensus predictions.
+
+    Parameters:
+    - args (argparse.Namespace): Parsed command-line arguments.
+
+    Returns:
+    - None
+    """
     # parse the inputs, need to do this here
     params = None
     if args.input_dir:  # then can parse some stuff
@@ -509,6 +524,25 @@ def predict(args):
 
 
 def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}):
+    """
+    Merge and rename gene models from multiple GFF files.
+
+    This function processes a list of GFF files, merging gene models and renaming them
+    with a specified locus tag. The gene models are sorted by contig and location, and
+    the renamed models are saved in GFF3 format. Optionally, contig names can be mapped
+    using a provided dictionary.
+
+    Parameters:
+    - gffList (list): List of GFF files to merge gene models from.
+    - genome (str): Path to the genome file.
+    - output (str): Path to save the merged and renamed gene models in GFF3 format.
+    - locus_tag (str, optional): Prefix for the locus tag (default is "FUN_").
+    - contig_map (dict, optional): Dictionary mapping contig names (default is {}).
+
+    Returns:
+    - dict: Dictionary containing the merged and renamed gene models.
+    """
+
     def _sortDict(d):
         return (d[1]["contig"], d[1]["location"][0])
 
@@ -538,6 +572,22 @@ def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}
 
 
 def abinitio_wrapper(contig, params, logger):
+    """
+    Run ab initio predictions for a given contig based on the specified parameters.
+
+    This function executes various ab initio gene prediction tools (SNAP, GlimmerHMM, GeneMark, and Augustus)
+    on the provided contig file. It checks for the presence of each tool in the parameters and runs the
+    corresponding prediction, saving the output in GFF3 format. Augustus predictions can optionally use
+    hints if a hints file is available.
+
+    Parameters:
+    - contig (str): Path to the contig file.
+    - params (dict): Dictionary containing ab initio prediction parameters.
+    - logger: Logger object for logging messages.
+
+    Returns:
+    - None
+    """
     # run ab initio predictions now
     if "snap" in params["abinitio"]:
         run_snap(
@@ -588,9 +638,22 @@ def abinitio_wrapper(contig, params, logger):
 
 
 def calculate_weights(scores, cli_weights):
-    # calculate scores for consensus prediction
-    # user defined weights take precedence
-    # generally we will work off of augustus data here
+    """
+    Calculate weights for consensus prediction based on input scores and user-defined weights.
+
+    This function computes weights for various prediction tools by comparing their scores
+    against a reference (typically Augustus). User-defined weights take precedence over
+    calculated weights. The function evaluates differences in BUSCO scores, average AED,
+    and exon sensitivity to determine the weight for each tool. It also adjusts weights
+    for "augustus-hiq" and incorporates any additional user-defined weights.
+
+    Parameters:
+    - scores (dict): A dictionary containing scores for different prediction tools.
+    - cli_weights (list): A list of user-defined weights in the format "tool:weight".
+
+    Returns:
+    - list: A list of strings representing tool-weight pairs in the format "tool:weight".
+    """
     weights = {}
     # first cli_weights is a list
     usr_weights = {}

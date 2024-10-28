@@ -32,6 +32,20 @@ from .abinitio import train_snap, train_augustus, train_glimmerhmm, train_genema
 
 
 def train(args):
+    """
+    Train ab initio gene prediction tools using a provided training set or generate one using BUSCO analysis.
+
+    This function sets up the environment for training gene prediction tools such as Augustus, SNAP, and GlimmerHMM.
+    It begins by creating necessary directories and setting up logging. The genome is loaded, and quality checks are performed.
+    If a training set is not provided, BUSCO analysis is run to generate one. The training set is filtered and split into
+    test and train sets. The function then executes training routines for each tool and saves the results in a JSON file.
+
+    Parameters:
+    - args (argparse.Namespace): Command-line arguments passed to the function.
+
+    Returns:
+    None
+    """
     # This function is a wrapper for training augustus, snap, glimmerhmm, etc. If a training set is not passed
     # then it will run buscolite to generate a training set. Training set in GFF3 format will then be used to run
     # the training functions located in abinitio.py, ie train_snap(), train_augustus(), train_glimmerhmm(), etc.
@@ -251,6 +265,26 @@ def buscolite(
     log=sys.stderr.write,
     summary=False,
 ):
+    """
+    Run BUSCO analysis on a genome using the specified lineage.
+
+    This function performs a BUSCO analysis on the provided genome file using the specified
+    lineage. It writes the results to an output file and optionally generates a summary file.
+
+    Parameters:
+    - genome (str): Path to the input genome file.
+    - lineage (str): BUSCO lineage to use for analysis.
+    - output (str): Path to the output file to write the results.
+    - species (str, optional): Species to use for analysis (default is "anidulans").
+    - cpus (int, optional): Number of CPUs to use for analysis (default is 1).
+    - flanks (int, optional): Offset value for flanking regions (default is 2000).
+    - mode (str, optional): Analysis mode (default is "genome").
+    - log (function, optional): Logger function (default is sys.stderr.write).
+    - summary (bool, optional): Whether to generate a summary file (default is False).
+
+    Returns:
+    None
+    """
     d, m, stats, cfg = runbusco(
         genome,
         lineage,
@@ -278,6 +312,25 @@ def buscolite(
 
 
 def getTrainResults(input):
+    """
+    Parse training results from the input file and extract specific metrics.
+
+    This function reads a file containing training results and extracts specific values
+    from lines starting with "nucleotide level", "exon level", and "gene level". It returns
+    these values as a tuple of floats.
+
+    Parameters:
+    - input (str): Path to the input file containing training results.
+
+    Returns:
+    - tuple: A tuple containing the extracted float values:
+      - Nucleotide level value at index 1
+      - Nucleotide level value at index 2
+      - Exon level value at index 6
+      - Exon level value at index 7
+      - Gene level value at index 6
+      - Gene level value at index 7
+    """
     with open(input, "r") as train:
         for line in train:
             try:
@@ -305,6 +358,21 @@ def getTrainResults(input):
 
 
 def count_multi_CDS_genes(input):
+    """
+    Count genes with more than one CDS in a funannotate annotation dictionary.
+
+    This function iterates over a dictionary of funannotate annotations and counts the number
+    of genes that have more than one coding sequence (CDS). It returns the total number of genes
+    and the number of genes with multiple CDS.
+
+    Parameters:
+    - input (dict): A dictionary containing funannotate annotations.
+
+    Returns:
+    - tuple: A tuple containing:
+      - int: Total number of genes.
+      - int: Number of genes with more than one CDS.
+    """
     # take funannotate annotation dictionary and return number of genes with more than one CDS
     counter = 0
     keepers = []
@@ -316,8 +384,21 @@ def count_multi_CDS_genes(input):
 
 def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
     """
-    function to take a GFF3 file and filter the gene models so they complete, non-overalpping,
-    and also sort the models by number of exons, the more the better.
+    Filter and sort gene models from a GFF3 file based on completeness, non-overlapping nature, and number of exons.
+
+    This function processes gene models from a GFF3 file, ensuring they are complete and non-overlapping.
+    It sorts the models by the number of exons, preferring those with more exons. The function also
+    performs a pairwise DIAMOND search to ensure gene model uniqueness and returns a dictionary of
+    filtered and sorted gene models.
+
+    Parameters:
+    - genome (str): Path to the genome file in FASTA format.
+    - train_dict (dict): A dictionary containing gene models from a GFF3 file.
+    - tmpdir (str, optional): Temporary directory for intermediate files (default is "/tmp").
+    - flank_length (int, optional): Length of flanking regions to include (default is 1000).
+
+    Returns:
+    - dict: A dictionary of filtered and sorted gene models ready for training.
     """
 
     def _sortDict(d):
@@ -474,6 +555,22 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
 
 
 def trainmodels2dict(genome, models, flank_length=1000):
+    """
+    Parse existing gene models and return a modified dictionary with flanking sequences.
+
+    This function processes gene models from a GFF3 file and a genome FASTA file. It extracts
+    sequences with specified flanking regions for each gene model, ensuring they are not pseudogenes
+    or non-coding RNAs. The function returns a dictionary with the modified gene models, including
+    the extracted sequences and coordinates.
+
+    Parameters:
+    - genome (str): Path to the input genome file in FASTA format.
+    - models (str): Path to the input gene models file in GFF3 format.
+    - flank_length (int, optional): Length of flanking sequences to include (default is 1000).
+
+    Returns:
+    - dict: A dictionary containing modified gene models with flanking sequences and coordinates.
+    """
     # existing models parse and return the modified dictionary
     fa = fasta2dict(genome)
     Genes = gff2dict(models, genome)

@@ -42,6 +42,22 @@ class reversor:
 
 
 def run_trnascan(genome, predictions, cpus=1, folder="/tmp", log=sys.stderr.write):
+    """
+    Run tRNAscan-SE to predict tRNA genes in a genome and convert the results to GFF3 format.
+
+    This function processes the genome file to predict tRNA genes, filters predictions based on length, and writes the results in GFF3 format.
+
+    Args:
+        genome (str): Path to the input genome file.
+        predictions (str): Path to save the predicted tRNA genes in GFF3 format.
+        cpus (int, optional): Number of CPUs to use for prediction. Defaults to 1.
+        folder (str, optional): Temporary folder to store intermediate files. Defaults to '/tmp'.
+        log (function, optional): Logger function for debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        int: Returns 0 if successful.
+    """
+
     def _trnaraw2gff3(raw, gff3):
         """
         Sequence   		tRNA   	Bounds 	tRNA	Anti	Intron Bounds	Inf
@@ -182,6 +198,26 @@ def train_glimmerhmm(
     asm_size=None,
     log=sys.stderr.write,
 ):
+    """
+    Train a GlimmerHMM model using the provided genome and training data, and optimize parameters through grid search.
+
+    This function prepares the training data, runs the initial training, and performs parameter optimization to improve model accuracy.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_gff (str or dict): Training data in GFF format or a dictionary.
+        test_models (dict): Dictionary of test models.
+        species (str, optional): Species name. Defaults to None.
+        minintron (int, optional): Minimum intron size. Defaults to 10.
+        maxintron (int, optional): Maximum intron size. Defaults to 3000.
+        folder (str, optional): Directory to store temporary files. Defaults to "/tmp".
+        asm_size (float, optional): Assembly size for parameter calculation. Defaults to None.
+        log (function, optional): Logger for messages. Defaults to sys.stderr.write.
+
+    Returns:
+        dict: A dictionary containing the training results and the location of the trained model.
+    """
+
     def _dict2glimmer(input, exon_out, fasta_out):
         # take funannotate dictionary convert to glimmer training format
         with open(fasta_out, "w") as fastaout:
@@ -431,6 +467,23 @@ def train_glimmerhmm(
 def run_glimmerhmm(
     genome, train_data, predictions, folder="/tmp", log=sys.stderr.write
 ):
+    """
+    Run GlimmerHMM on the input genome to predict genes and output the results in GFF3 format.
+
+    This function executes GlimmerHMM using the specified genome and training data, processes the raw output,
+    and converts it to a GFF3 format file containing gene predictions.
+
+    Args:
+        genome (str): Path to the input genome file.
+        train_data (str): Path to the training data file for GlimmerHMM.
+        predictions (str): Path to save the predicted gene annotations in GFF3 format.
+        folder (str, optional): Temporary folder to store intermediate files. Defaults to "/tmp".
+        log (function, optional): Logger function to write debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        int: Returns 0 if successful.
+    """
+
     def _glimmer2gff3(input, output):
         """
         scaffold_39     GlimmerHMM      mRNA    23692   25015   .       +       .       ID=scaffold_39.path1.gene12;Name=scaffold_39.path1.gene12
@@ -600,6 +653,24 @@ def train_genemark(
     cpus=1,
     log=sys.stderr.write,
 ):
+    """
+    Train a GeneMark model using a self-training approach.
+
+    This function sets up a training directory, runs GeneMark training, and evaluates the model using test data.
+    It supports fungal genomes and utilizes multiple CPUs for faster processing.
+
+    Args:
+        genome (str): Path to the genome file for training.
+        train_gff (str): Path to the training GFF file.
+        test_models (dict): Dictionary containing test models for evaluation.
+        fungus (bool, optional): Indicates if the genome belongs to a fungus. Defaults to False.
+        folder (str, optional): Directory path for storing temporary files. Defaults to "/tmp".
+        cpus (int, optional): Number of CPUs to use for training. Defaults to 1.
+        log (function, optional): Logger for writing debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        dict: A dictionary with the location of the trained GeneMark model and training results.
+    """
     # self training with genemark
     # generate training directory ontop of the dir that is passed
     tmpdir = os.path.join(folder, "genemark")
@@ -649,6 +720,22 @@ def train_genemark(
 
 
 def run_genemark(genome, train_data, predictions, folder="/tmp", log=sys.stderr.write):
+    """
+    Run GeneMark to predict genes in a genome using specified training data and save the predictions to a file.
+
+    This function executes GeneMark on the provided genome and training data, processes the output,
+    and converts it to GFF3 format for gene annotations.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_data (str): Path to the training data file.
+        predictions (str): Path to save the predicted gene annotations.
+        folder (str, optional): Directory to store temporary files. Defaults to "/tmp".
+        log (function, optional): Logger function to write debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        None
+    """
     # run genemark, note gmhmme3 only works on a single contig
     # and need to have both genome and training file in working directory
     tmpout = os.path.basename(predictions) + ".gtf"
@@ -689,6 +776,25 @@ def train_snap(
     folder="/tmp",
     log=sys.stderr.write,
 ):
+    """
+    Train a SNAP model using the provided genome and gene models for training.
+
+    This function prepares the training data, converts it to ZFF format, and runs SNAP training. It evaluates the model using test data and logs the results.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_gff (str or dict): Path to the GFF file containing gene models for training or a dictionary of gene models.
+        test_models (dict): Dictionary of test gene models.
+        species (str, optional): Species name. Defaults to None.
+        minintron (int, optional): Minimum intron length. Defaults to 10.
+        maxintron (int, optional): Maximum intron length. Defaults to 3000.
+        folder (str, optional): Folder path for temporary files. Defaults to "/tmp".
+        log (function, optional): Logger for debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        dict: A dictionary containing the location of the trained model and training results.
+    """
+
     def _dict2zff(scaffoldDict, GeneDict, output):
         # take funannotate dictionary convert to zff training format
         with open(output, "w") as outfile:
@@ -808,6 +914,23 @@ def train_snap(
 
 
 def run_snap(genome, train_data, predictions, folder="/tmp", log=sys.stderr.write):
+    """
+    Run SNAP prediction on a genome using training data and save the predictions in GFF3 format.
+
+    This function executes SNAP on the provided genome and training data, processes the raw output,
+    and converts it to GFF3 format for gene annotations.
+
+    Args:
+        genome (str): Path to the input genome file.
+        train_data (str): Path to the training data file.
+        predictions (str): Path to save the predicted annotations in GFF3 format.
+        folder (str, optional): Directory to store temporary files. Defaults to '/tmp'.
+        log (function, optional): Logger function for debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        int: Statistics about the predicted genes.
+    """
+
     def _rawgff2gff3(input, fasta, output):
         """
         Scaffold_14	SNAP	Einit	804252	804255	7.048	-	.	Scaffold_14-snap.140
@@ -930,6 +1053,23 @@ def run_augustus(
     hints=False,
     config_path=False,
 ):
+    """
+    Run Augustus gene prediction tool on the specified genome using the provided training data.
+
+    This function executes Augustus with the specified parameters, processes the output, and saves the gene predictions in GFF3 format.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_data (str): Species-specific training data for Augustus.
+        predictions (str): Path to store the predicted annotations in GFF3 format.
+        folder (str, optional): Temporary folder to use for running Augustus. Defaults to '/tmp'.
+        log (function, optional): Logger function for writing debug and error messages. Defaults to sys.stderr.write.
+        hints (str, optional): Path to hints file for Augustus. Defaults to False.
+        config_path (str, optional): Path to Augustus configuration file. Defaults to False.
+
+    Returns:
+        int: Returns 0 if successful.
+    """
     # function to run augustus, can be slow if pass entire genome here
     cmd = [
         "augustus",
@@ -962,6 +1102,24 @@ def run_augustus_join(
     hints=False,
     config_path=False,
 ):
+    """
+    Run Augustus to predict genes on a genome using specified training data and hints, then join predictions.
+
+    This function executes Augustus on the provided genome, processes the output in chunks to improve performance,
+    joins the predictions, and parses the final output.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_data (str): Species-specific training data for Augustus.
+        predictions (str): Path to store the predicted annotations in GFF3 format.
+        folder (str, optional): Temporary folder to use for running Augustus. Defaults to '/tmp'.
+        log (function, optional): Logger function for writing debug and error messages. Defaults to sys.stderr.write.
+        hints (str, optional): Path to hints file for Augustus. Defaults to False.
+        config_path (str, optional): Path to Augustus configuration file. Defaults to False.
+
+    Returns:
+        int: Returns 0 if successful.
+    """
     # need to find the join_genes script
     JOINPREDS = which_path("join_aug_pred.pl")
 
@@ -1020,6 +1178,19 @@ def run_augustus_join(
 
 
 def rangify_genome(genome, overlap=20000):
+    """
+    Generate ranges for a given genome by breaking large contigs into chunks with optional overlap.
+
+    This function processes the genome file, dividing large contigs into smaller chunks to improve processing speed,
+    particularly for tools like Augustus that are slow with large contigs.
+
+    Args:
+        genome (str): Path to the genome file in FASTA format.
+        overlap (int, optional): Overlap size between chunks. Defaults to 20000.
+
+    Returns:
+        dict: A dictionary containing ranges for each contig in the genome.
+    """
     # augustus is really slow if given large contigs, break these up into chunks seems faster
     # this function will return dictionary of ranges
     ranges = {}
@@ -1046,6 +1217,19 @@ def rangify_genome(genome, overlap=20000):
 
 
 def parse_augustus_gff3(aug, hiq_support=90):
+    """
+    Parse an Augustus GFF3 file to filter gene predictions with supporting evidence.
+
+    This function processes an Augustus GFF3 file, identifies gene predictions with transcript support,
+    and rewrites the GFF3 file with updated fields based on the level of support.
+
+    Args:
+        aug (str): Path to the Augustus GFF3 file.
+        hiq_support (int, optional): Minimum percentage of transcript support for high-quality predictions. Defaults to 90.
+
+    Returns:
+        None
+    """
     # this will look for gene predictions that have supporting evidence
     # will also re-write GFF3 properly
     bak = f"{aug}.bak"
@@ -1110,6 +1294,25 @@ def train_augustus(
     n_train=150,
     cpus=1,
 ):
+    """
+    Train an Augustus model using the provided genome and training data.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_gff (str): Path to the training GFF file.
+        test_models (dict): Dictionary of test models.
+        species (str, optional): Species name for training. Defaults to None.
+        minintron (int, optional): Minimum intron length. Defaults to 10.
+        maxintron (int, optional): Maximum intron length. Defaults to 3000.
+        folder (str, optional): Folder path for temporary files. Defaults to "/tmp".
+        log (function, optional): Logging function. Defaults to sys.stderr.write.
+        optimize (bool or str, optional): Flag to optimize training. Defaults to False.
+        n_train (int, optional): Number of training instances. Defaults to 150.
+        cpus (int, optional): Number of CPUs to use. Defaults to 1.
+
+    Returns:
+        dict: Dictionary containing the location of the trained model, species name, and training results.
+    """
     # get augustus training scripts
     OPTIMIZE = which_path("optimize_augustus.pl")
     NEW_SPECIES = which_path("new_species.pl")
@@ -1276,6 +1479,21 @@ def train_augustus(
 
 
 def test_augustus_predictions(config_dir, species, trainingset, output):
+    """
+    Test Augustus predictions against a reference set and output the comparison results.
+
+    This function compares the predicted gene models from Augustus with a reference set of gene models,
+    evaluates the accuracy, and writes the results to an output file.
+
+    Args:
+        predictions (str): Path to the file containing Augustus predictions in GFF3 format.
+        reference (str): Path to the reference gene models file in GFF3 format.
+        output (str): Path to save the comparison results.
+        log (function, optional): Logger function for writing debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        None
+    """
     aug_cmd = [
         "augustus",
         f"--AUGUSTUS_CONFIG_PATH={config_dir}",
@@ -1309,6 +1527,21 @@ def test_augustus_predictions(config_dir, species, trainingset, output):
 
 
 def getTrainResults(input):
+    """
+    Read a file containing training results and extract specific values related to nucleotide, exon, and gene levels.
+
+    This function processes the input file to find lines starting with "nucleotide level", "exon level", and "gene level",
+    extracts relevant values from these lines, and returns them as a tuple of floats.
+
+    Args:
+        input (str): Path to the file containing training results.
+
+    Returns:
+        tuple: A tuple containing six float values:
+            - Two values from the nucleotide level line.
+            - Two values from the exon level line.
+            - Two values from the gene level line.
+    """
     with open(input, "r") as train:
         for line in train:
             try:
@@ -1336,6 +1569,18 @@ def getTrainResults(input):
 
 
 def prot_alignments_to_hints(file):
+    """
+    Extract information from a GFF3 exonerate file to generate hints for gene prediction.
+
+    This function processes the input file to create a contig-keyed dictionary with specific formatting rules,
+    mimicking the exonerate2hints conversion. It adjusts CDS parts and introns to generate structured hints.
+
+    Args:
+        file (str): Path to the GFF3 exonerate file.
+
+    Returns:
+        dict: A dictionary where keys are contigs and values are lists of formatted hint lines.
+    """
     # mimic exonerate2hints from GFF3 exonerate file
     # CDSpart +/- 15 bp to each match
     # intron as is
@@ -1473,8 +1718,18 @@ def prot_alignments_to_hints(file):
 
 def alignments2dict(input, Genes):
     """
-    function to take a transcript_alignments file and create dictionary
-    structure for each alignment
+    Parse a transcript_alignments file and create a dictionary structure for each alignment.
+
+    This function reads a transcript_alignments file, processes each line to extract relevant information,
+    and populates a dictionary with alignment details such as mRNA coordinates, strand, percent identity,
+    and additional attributes.
+
+    Args:
+        input (str): Path to the transcript_alignments file.
+        Genes (dict): Dictionary to store the gene information.
+
+    Returns:
+        dict: Updated Genes dictionary with alignment information.
     """
     with open(input, "r") as infile:
         for line in infile:
@@ -1530,6 +1785,18 @@ def alignments2dict(input, Genes):
 
 
 def introns_from_exons(input):
+    """
+    Generate a list of introns based on a list of exons.
+
+    This function processes a list of exon tuples, where each tuple contains the start and end positions of an exon,
+    and calculates the intron positions between consecutive exons.
+
+    Args:
+        input (list): A list of tuples representing exons, where each tuple contains the start and end positions of an exon.
+
+    Returns:
+        list: A list of tuples representing introns, where each tuple contains the start and end positions of an intron.
+    """
     introns = []
     if len(input) > 1:
         for x, y in enumerate(input):
@@ -1541,11 +1808,19 @@ def introns_from_exons(input):
 
 
 def dict2hints(input):
-    from collections import OrderedDict
+    """
+    Generate an Augustus hints file from a simple alignments dictionary.
 
+    This function takes a dictionary containing alignment information, sorts the annotations by contig and start location,
+    and generates hints for Augustus by processing exons and introns.
+
+    Args:
+        input (dict): A dictionary containing alignment information.
+
+    Returns:
+        dict: A dictionary representing the Augustus hints file, where keys are contigs and values are lists of hint lines.
     """
-    function to take simple alignments dictionary and ouput augustus hints file
-    """
+    from collections import OrderedDict
 
     def _sortDict(d):
         return (d[1]["contig"], d[1]["location"][0])
@@ -1607,6 +1882,22 @@ def dict2hints(input):
 
 
 def evidence2hints(prot, tran, all_contigs, outdir):
+    """
+    Generate hints files for Augustus based on protein and transcript alignments for each contig.
+
+    This function processes protein and transcript alignment files to create hints for gene prediction.
+    It combines and sorts the hints for each contig and writes them to separate files, utilizing the
+    Augustus script `join_mult_hints.pl` to merge the hints.
+
+    Args:
+        prot (str): Path to the protein alignments file.
+        tran (str): Path to the transcript alignments file.
+        all_contigs (list): List of paths to all contig FASTA files.
+        outdir (str): Path to the output directory to store the hints files.
+
+    Returns:
+        None
+    """
     # get augustus script
     JOINHINTS = which_path("join_mult_hints.pl")
     if not JOINHINTS:
@@ -1654,7 +1945,12 @@ def evidence2hints(prot, tran, all_contigs, outdir):
 
 def calculate_similarity(query, reference):
     """
-    function to calcuate annotation edit distance between two coordinates
+    Calculate annotation edit distance (AED) and other metrics between two sets of coordinates.
+
+    This function computes the AED, sensitivity, and precision at both nucleotide and exon levels
+    by comparing query and reference coordinate sets. It evaluates true positives, false negatives,
+    and false positives to derive these metrics.
+
     AED = 1 - (SN + SP / 2)
     SN = fraction of ref predicted
     SP = fraction query overlapping the ref
@@ -1667,13 +1963,17 @@ def calculate_similarity(query, reference):
     FN = false negatives: reference bases/features which are missing in the query bases/features
     FP = false positives: query bases/features which are missing in the reference bases/features
 
-    from https://github.com/gkbrk/gffcompare/blob/master/gffcompare/gffcompare.py
+    Args:
+        query (list of tuples): List of tuples representing query coordinates.
+        reference (list of tuples): List of tuples representing reference coordinates.
 
-    :param query: list of tuples
-    :param reference: list of tuples
-    :return: AED, SN, SP, exon_perf
-
-    exon_perf = list of booleans, True if exon is perfect match, False if not
+    Returns:
+        tuple: A tuple containing the following metrics:
+            - AED (float): Annotation Edit Distance.
+            - nuc_sense (float): Nucleotide level sensitivity.
+            - nuc_prec (float): Nucleotide level precision.
+            - exon_sense (float): Exon level sensitivity.
+            - exon_prec (float): Exon level precision.
     """
 
     def _length(listTup):
@@ -1782,6 +2082,22 @@ def test_training(
     aug_config_dir=".",
     log=sys.stderr.write,
 ):
+    """
+    Test the model with training data that it has never seen before.
+
+    This function evaluates the performance of a gene prediction model using unseen training data. It writes the model test DNA, runs the test on the test contigs using the specified tool, and calculates various metrics such as Annotation Edit Distance (AED), sensitivity, and precision at nucleotide and exon levels.
+
+    Args:
+        train_data (str): Path to the training data file.
+        test_models (dict): Dictionary containing test models with their respective training DNA and coordinates.
+        tmpdir (str): Path to the temporary directory for storing intermediate files.
+        tool (str, optional): The gene prediction tool to use. Options are "glimmerhmm", "snap", "augustus", or "genemark". Defaults to "glimmerhmm".
+        aug_config_dir (str, optional): Path to the Augustus configuration directory. Defaults to ".".
+        log (function, optional): Logger function for writing debug and error messages. Defaults to sys.stderr.write.
+
+    Returns:
+        dict: A dictionary containing the evaluation results, including AED, nucleotide sensitivity, nucleotide precision, exon sensitivity, exon precision, gene sensitivity, and gene precision.
+    """
     # goal here is to test the model with training data (its never seen before)
     # now we want to test the training, first write the model test dna out
     if not os.path.isdir(os.path.join(tmpdir, "test")):

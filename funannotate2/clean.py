@@ -10,6 +10,20 @@ from .utilities import runThreadJob
 
 
 def is_duplicated(data, index, tmpdir, min_pident, min_cov):
+    """
+    Check if the sequence at the given index is duplicated in larger contigs.
+
+    Args:
+        data (list): List of dictionaries containing sequence information.
+        index (int): Index of the sequence to check for duplication.
+        tmpdir (str): Temporary directory path for storing intermediate files.
+        min_pident (float): Minimum percentage identity for a match to be considered duplicated.
+        min_cov (float): Minimum coverage percentage for a match to be considered duplicated.
+
+    Returns:
+        tuple: A tuple containing the header of the sequence, duplication status, percentage identity,
+               coverage percentage, and length of the sequence.
+    """
     result = False
     pident = 0
     coverage = 0
@@ -32,6 +46,16 @@ def is_duplicated(data, index, tmpdir, min_pident, min_cov):
 
 
 def load_genome(fafile):
+    """
+    Parse the genome from the specified FASTA file and calculate the N50 value.
+
+    Args:
+        fafile (str): Path to the input FASTA file.
+
+    Returns:
+        tuple: A tuple containing a list of dictionaries with headers, lengths, sequences, and statuses sorted by length,
+               and the N50 value calculated based on the genome lengths.
+    """
     # parse genome, sort by shortest to longest length
     data = []
     for r in mp.fastx_read(fafile, read_comment=False):
@@ -53,6 +77,16 @@ def load_genome(fafile):
 
 
 def clean(args):
+    """
+    Process the input arguments, load the genome from a FASTA file, filter contigs based on length,
+    check for duplication, rename contigs if specified, and write the filtered contigs to an output file.
+
+    Args:
+        args (argparse.Namespace): The parsed command-line arguments.
+
+    Returns:
+        None
+    """
     logger = startLogging(logfile=args.logfile)
     log = logger.info
     system_info(log)

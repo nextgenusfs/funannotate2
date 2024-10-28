@@ -9,6 +9,23 @@ from .config import env
 
 
 def split_evidence_and_genes(gff, fasta, evidence, genes, gff_format="alignment"):
+    """
+    Parse, validate, and split a GFF3 file into gene models and alignments.
+
+    This function processes a GFF3 file to extract gene models and alignments, filters gene models based on specific criteria, and writes the results to separate files. It ensures that the evidence is in an EVM-compatible format and handles different output formats based on the input GFF format.
+
+    Args:
+        gff (str): Path to the input GFF3 file.
+        fasta (str): Path to the corresponding FASTA file.
+        evidence (str): Output file path for the evidence alignments.
+        genes (str): Output file path for the gene models.
+        gff_format (str, optional): Format of the input GFF file. Defaults to "alignment".
+
+    Returns:
+        tuple: A tuple containing:
+            - int: The count of total alignments.
+            - int: The count of unique gene models.
+    """
     # function to take a GFF3 file, parse, validate, and split
     aligns = gff2dict(gff, fasta, gff_format=gff_format)
     g = {}
@@ -50,6 +67,22 @@ def align_transcripts(
     log=sys.stderr.write,
     tmpdir="/tmp",
 ):
+    """
+    Run spliced transcript alignment using gapmm2 (mm2 + edlib refinement).
+
+    Aligns transcript evidence to the genome assembly with gapmm2, generates an EVM compatible GFF alignment file,
+    parses data, and extracts full-length gene models.
+
+    Args:
+        fasta (str): Path to the FASTA file of the genome assembly.
+        transcripts (str): Path to the transcript evidence file.
+        evidence (str): Path to store the aligned evidence in GFF3 format.
+        genes (str): Path to store the extracted full-length gene models in GFF3 format.
+        cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
+        max_intron (int, optional): Maximum intron length allowed. Defaults to 3000.
+        log (function, optional): Logging function. Defaults to sys.stderr.write.
+        tmpdir (str, optional): Temporary directory path. Defaults to "/tmp".
+    """
     # function to run spliced transcript alignment using gapmm2 (mm2 + edlib refinement)
     # generate an EVM compatible GFF alignment file, parse data and pull out any full length gene models
     log.info("Aligning transcript evidence to the genome assembly with gapmm2")
@@ -76,6 +109,24 @@ def align_proteins(
     log=sys.stderr.write,
     tmpdir="/tmp",
 ):
+    """
+    Align protein evidence to the genome assembly using miniprot.
+
+    This function generates evidence alignments and parses full-length models from the alignment results.
+
+    Args:
+        fasta (str): Path to the genome assembly FASTA file.
+        proteins (str): Path to the protein evidence file.
+        evidence (str): Output file path for the evidence alignments.
+        genes (str): Output file path for the valid gene models.
+        cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
+        max_intron (int, optional): Maximum intron length for alignment. Defaults to 3000.
+        log (function, optional): Logger function for info and error messages. Defaults to sys.stderr.write.
+        tmpdir (str, optional): Temporary directory path for storing intermediate files. Defaults to "/tmp".
+
+    Returns:
+        None
+    """
     # function to align protein evidence to genome with miniprot
     # generate evidence alignments and then parse any full length models
     mini_tmp = os.path.join(tmpdir, f"{uuid.uuid1()}.miniprot.out")
@@ -92,7 +143,11 @@ def align_proteins(
         os.path.abspath(fasta),
         os.path.abspath(proteins),
     ]
-    runSubprocess(cmd, log, stdout=mini_tmp)
+    try:
+        runSubprocess(cmd, log, stdout=mini_tmp)
+    except Exception as e:
+        log.error(f"Error occurred during `runSubprocess`: {e}")
+        os.remove(mini_tmp)
     # miniprot uses non-standard gff, so load with gfftk parse
     # now we need to parse this evidence GFF3 file and look for full length
     n_aligns, n_genes = split_evidence_and_genes(
@@ -103,6 +158,22 @@ def align_proteins(
 
 
 def align_mito(query, cpus=1, min_cov=0.5, min_qual=50):
+    """
+    Align a query genome against the RefSeq mitochondrial database to identify putative mitochondrial contigs.
+
+    This function uses `minimap2` to perform the alignment and processes the results to calculate coverage.
+
+    Args:
+        query (str): Path to the query genome file.
+        cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
+        min_cov (float, optional): Minimum coverage threshold for alignment. Defaults to 0.5.
+        min_qual (int, optional): Minimum alignment quality score. Defaults to 50.
+
+    Returns:
+        tuple: A tuple containing two dictionaries:
+            - The first dictionary contains contigs with sufficient coverage.
+            - The second dictionary contains all alignment details.
+    """
     # align genome against refseq mitochondrial database to find putative mitochondrial contigs
     d = {}
     f = {}
