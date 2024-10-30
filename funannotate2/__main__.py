@@ -13,6 +13,7 @@ from .train import train
 from .predict import predict
 from .clean import clean
 from .install import install
+from .database import species
 
 
 def main():
@@ -27,6 +28,8 @@ def main():
         train(args)
     elif args.subparser_name == "annotate":
         annotate(args)
+    elif args.subparser_name == "species":
+        species(args)
     # elif args.subparser_name == 'update':
     #    update(args)
 
@@ -43,6 +46,7 @@ def parse_args(args):
     train_subparser(subparsers)
     predict_subparser(subparsers)
     annotate_subparser(subparsers)
+    species_subparser(subparsers)
     # update_subparser(subparsers)
 
     help_args = parser.add_argument_group("Help")
@@ -473,17 +477,69 @@ def annotate_subparser(subparsers):
     )
     optional_args = group.add_argument_group("Optional arguments")
     optional_args.add_argument(
+        "-a",
+        "--annotations",
+        nargs="+",
+        help="Annotations files, 3 column TSV [transcript-id, feature, data]",
+        metavar="",
+    )
+    optional_args.add_argument(
         "-s",
         "--species",
         help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
         metavar="",
     )
-    optional_args.add_argument("--strain", help="Strain/isolate name", metavar="")
+    optional_args.add_argument(
+        "-st", "--strain", help="Strain/isolate name", metavar=""
+    )
     optional_args.add_argument(
         "--cpus", default=2, type=int, help="Number of CPUs to use", metavar=""
     )
     optional_args.add_argument(
         "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
+    )
+    other_args = group.add_argument_group("Other arguments")
+    other_args.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
+    other_args.add_argument(
+        "--version",
+        action="version",
+        version="{} v{}".format(
+            os.path.basename(os.path.dirname(os.path.realpath(__file__))), __version__
+        ),
+        help="show program's version number and exit",
+    )
+
+
+def species_subparser(subparsers):
+    group = subparsers.add_parser(
+        "species",
+        description="View/Manage trained species in database|n",
+        help="View and manage species in F2 database.",
+        formatter_class=MyHelpFormatter,
+        add_help=False,
+    )
+    optional_args = group.add_argument_group("Optional arguments")
+    optional_args.add_argument(
+        "-l",
+        "--load",
+        help="Load a new species with a *.params.json file",
+    )
+    optional_args.add_argument(
+        "-d",
+        "--delete",
+        help="Delete a species from database",
+    )
+    optional_args.add_argument(
+        "-f",
+        "--format",
+        default="table",
+        help="Format to show existing species in",
     )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(

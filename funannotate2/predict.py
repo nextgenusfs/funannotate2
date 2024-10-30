@@ -19,8 +19,15 @@ from .utilities import (
     find_files,
 )
 from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssembly, simplify_headers_drop, mergefasta, annotate_fasta
+from .fastx import (
+    analyzeAssembly,
+    simplify_headers_drop,
+    mergefasta,
+    annotate_fasta,
+    softmask_fasta,
+)
 from .align import align_transcripts, align_proteins, align_mito
+from .database import fetch_pretrained_species
 from .evm import evm_consensus
 from .abinitio import (
     run_snap,
@@ -76,6 +83,17 @@ def predict(args):
             )
             if len(fasta_files) == 1:
                 args.fasta = os.path.abspath(fasta_files[0])
+    # check if pre-trained is passed, if so then overwrite any auto globbed data
+    if args.pretrained_species:
+        all_pretrained = fetch_pretrained_species()
+        if args.pretrained_species not in all_pretrained:
+            sys.stderr.write(
+                "ERROR: --pretrained-species is not in the database. To see valid species: funannotate2 species"
+            )
+            raise SystemExit(1)
+        else:
+            params = all_pretrained.get(args.pretrained_species)
+
     # now check arguments
     if not args.out:
         sys.stderr.write(
@@ -93,10 +111,11 @@ def predict(args):
         )
         raise SystemExit(1)
     if not args.params:
-        sys.stderr.write(
-            "ERROR: -p,--params parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
-        )
-        raise SystemExit(1)
+        if params is None:
+            sys.stderr.write(
+                "ERROR: -p,--params parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
+            )
+            raise SystemExit(1)
 
     # create output directories
     misc_dir, res_dir, log_dir = create_directories(args.out, base="predict")
@@ -117,9 +136,6 @@ def predict(args):
         if os.path.isfile(args.params):
             with open(args.params, "r") as infile:
                 params = json.load(infile)
-        else:
-            # here need to load/check if in database
-            pass
     logger.info(
         f'Loaded training params for {params["name"]}: {list(params["abinitio"].keys())}'
     )
@@ -170,6 +186,22 @@ def predict(args):
             f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}"
         )
         raise SystemExit(1)
+
+    # if no softmasking done, interject and do it with pytantan
+    if float(stats["softmasked"].strip("%")) == 0:
+        logger.warning(
+            "Genome assembly is not softmasked, running pytantan to quickly softmask repeats"
+        )
+        os.rename(GenomeFasta, GenomeFasta + ".original")
+        softmask_fasta(GenomeFasta + ".original", GenomeFasta)
+        stats, bad_names, nuc_errors, contigs = analyzeAssembly(
+            GenomeFasta,
+            maskedRegions,
+            asmGaps,
+            header_max=args.header_length,
+            split=tmp_dir,
+            cpus=args.cpus,
+        )
 
     logger.info(f"Genome stats:\n{json.dumps(stats, indent=2)}")
 
@@ -459,6 +491,9 @@ def predict(args):
     finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
     finalTBL = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.tbl")
     finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
+    finalSummary = os.path.join(
+        res_dir, f"{naming_slug(args.species, args.strain)}.summary.json"
+    )
     logger.info(
         f"Merging all gene models, sorting, and renaming using locus_tag={args.name}"
     )
@@ -518,6 +553,22 @@ def predict(args):
             (stats["total"] / float(stats["total"])),
         )
     )
+
+    # write a summary json file that can be used downstream
+    summary = {
+        "genome": args.fasta,
+        "taxonomy": taxonomy,
+        "species": args.species,
+        "strain": args.strain,
+        "prediction-params": args.params
+        if args.params is not None
+        else args.pretrained_species,
+        "busco-models": busco_model_path,
+        "busco-completeness": stats,
+        "stats": consensus_stats,
+    }
+    with open(finalSummary, "w") as jsonout:
+        json.dump(summary, jsonout, indent=2)
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])

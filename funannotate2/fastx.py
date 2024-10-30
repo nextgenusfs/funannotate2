@@ -2,9 +2,55 @@ import pyfastx
 from natsort import natsorted
 import os
 import math
-import concurrent.futures
-from .utilities import runProcessJob
 import multiprocessing
+from pytantan.lib import RepeatFinder, default_scoring_matrix
+
+
+def softmask_fasta(
+    fasta_file,
+    softmasked,
+    repeat_start=0.005,
+    repeat_end=0.05,
+    decay=0.9,
+    mask=None,
+    threshold=0.5,
+    protein=False,
+    match_score=None,
+    mismatch_cost=None,
+):
+    """
+    Softmask a FASTA file by masking repeats based on specified parameters.
+
+    This function reads a FASTA file, identifies repeat sequences using the specified parameters, and writes the softmasked sequences to an output file. The repeats are masked using a specified character or left unchanged if no mask is provided.
+
+    Args:
+        fasta_file (str): The input FASTA file to be softmasked.
+        softmasked (str): The output file to write the softmasked sequences.
+        repeat_start (float, optional): The start threshold for identifying repeats. Defaults to 0.005.
+        repeat_end (float, optional): The end threshold for identifying repeats. Defaults to 0.05.
+        decay (float, optional): The decay factor for repeat identification. Defaults to 0.9.
+        mask (str, optional): The mask character to use. Defaults to None.
+        threshold (float, optional): The threshold for masking repeats. Defaults to 0.5.
+        protein (bool, optional): Flag indicating if protein sequences are used. Defaults to False.
+        match_score (int, optional): The score for a match in the scoring matrix. Defaults to None.
+        mismatch_cost (int, optional): The cost for a mismatch in the scoring matrix. Defaults to None.
+
+    Returns:
+        None
+    """
+    # set default scoring matrix
+    matrix = default_scoring_matrix(protein, match_score, mismatch_cost)
+    repeat_finder = RepeatFinder(
+        matrix,
+        repeat_start=repeat_start,
+        repeat_end=repeat_end,
+        decay=decay,
+        protein=protein,
+    )
+    with open(softmasked, "w") as outfile:
+        for title, seq in pyfastx.Fasta(fasta_file, build_index=False, full_name=True):
+            masked = repeat_finder.mask_repeats(seq, threshold=threshold, mask=mask)
+            outfile.write(f">{title}\n{softwrap(masked)}\n")
 
 
 def countfasta(fasta_file):
@@ -347,9 +393,9 @@ def analyzeAssembly(
     asmgaps = {}
     for r in results:
         title, masked, gaps = r
-        maskLen += len(masked)
+        maskLen += sum([x[1] - x[0] for x in masked])
         softmasked[title] = masked
-        gapLen += len(gaps)
+        gapLen += sum([y[1] - y[0] for y in gaps])
         asmgaps[title] = gaps
 
     # calc combined

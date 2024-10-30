@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+title: 'funannotate2: eukaryotic genome annotation'
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - family-names: Palmer
+    given-names: Jonathan Mark
+    email: nextgenusfs@gmail.com
+    orcid: 'https://orcid.org/0000-0003-0929-3658'
+    affiliation: Independent Researcher
+repository-code: 'https://github.com/nextgenusfs/funannotate2'
+keywords:
+  - gene prediction
+  - eukaryote
+  - functional annotation
+  - consensus gene models
+license: BSD-2-Clause
+version: 24.10.29
+date-released: '2024-10-29'

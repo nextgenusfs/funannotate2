@@ -247,7 +247,7 @@ def train(args):
         outfile.write(json.dumps(tdata, indent=2, default=str))
     logger.info(f"Ab initio training finished: {params_json}")
     logger.info(
-        f"The params.json file can be passed to funannotate2 predict or installed globally with funannotate2 install"
+        "The params.json file can be passed to funannotate2 predict or installed globally with funannotate2 species"
     )
 
     # finish
@@ -311,7 +311,7 @@ def buscolite(
             summary_writer(d, m, [], cfg, mode=mode)
 
 
-def getTrainResults(input):
+def getTrainResults(infile):
     """
     Parse training results from the input file and extract specific metrics.
 
@@ -320,7 +320,7 @@ def getTrainResults(input):
     these values as a tuple of floats.
 
     Parameters:
-    - input (str): Path to the input file containing training results.
+    - infile (str): Path to the input file containing training results.
 
     Returns:
     - tuple: A tuple containing the extracted float values:
@@ -331,7 +331,7 @@ def getTrainResults(input):
       - Gene level value at index 6
       - Gene level value at index 7
     """
-    with open(input, "r") as train:
+    with open(infile, "r") as train:
         for line in train:
             try:
                 line = line.decode("utf-8")
@@ -357,7 +357,7 @@ def getTrainResults(input):
         )
 
 
-def count_multi_CDS_genes(input):
+def count_multi_CDS_genes(indict):
     """
     Count genes with more than one CDS in a funannotate annotation dictionary.
 
@@ -366,7 +366,7 @@ def count_multi_CDS_genes(input):
     and the number of genes with multiple CDS.
 
     Parameters:
-    - input (dict): A dictionary containing funannotate annotations.
+    - indict (dict): A dictionary containing funannotate annotations.
 
     Returns:
     - tuple: A tuple containing:
@@ -375,11 +375,10 @@ def count_multi_CDS_genes(input):
     """
     # take funannotate annotation dictionary and return number of genes with more than one CDS
     counter = 0
-    keepers = []
-    for k, v in natsorted(list(input.items())):
+    for k, v in natsorted(list(indict.items())):
         if len(v["CDS"][0]) > 1:
             counter += 1
-    return len(input), counter
+    return len(indict), counter
 
 
 def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
@@ -492,10 +491,10 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
         if hit[0] in blastignore or hit[2] in blastignore:
             continue
         if int(hit[1]) >= int(hit[3]):
-            if not hit[2] in blastignore:
+            if hit[2] not in blastignore:
                 blastignore.append(hit[2])
         else:
-            if not hit[0] in blastignore:
+            if hit[0] not in blastignore:
                 blastignore.append(hit[0])
     logger.debug("{:,} models fail blast identity threshold".format(len(blastignore)))
 
@@ -508,10 +507,10 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                 sortedHits = sorted(hits, key=lambda x: int(x[4]), reverse=True)
                 validHits = []
                 for y in sortedHits:
-                    if not y[3] in blastignore and y[3] != k:
+                    if y[3] not in blastignore and y[3] != k:
                         validHits.append(y)
                 if len(validHits) > 0:
-                    if not validHits[0][3] in GenesPass:
+                    if validHits[0][3] not in GenesPass:
                         GenesPass[validHits[0][3]] = train_dict.get(validHits[0][3])
                 else:
                     GenesPass[k] = v

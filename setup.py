@@ -19,14 +19,15 @@ REQUIRED = [
     "natsort",
     "numpy",
     "mappy",
-    "gfftk",
-    "buscolite",
+    "gfftk>=24.10.29",
+    "buscolite>=24.7.29",
     "gapmm2",
     "pyhmmer>=0.10.15",
     "pyfastx>=2.0.0",
     "requests",
     "gb-io>=0.3.2",
     "json-repair",
+    "pytantan",
 ]
 
 # What packages are optional?

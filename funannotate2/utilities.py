@@ -730,6 +730,7 @@ def runProcessJob(function, inputList, cpus=2):
     Returns:
     - list: A list containing the results of each function execution.
     """
+
     # inputList here should be a list of lists with each input to function
     def update(res):
         results.append(res)

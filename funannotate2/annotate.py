@@ -4,7 +4,17 @@ import json
 import shutil
 import time
 from natsort import natsorted
-from .utilities import create_directories, create_tmpdir, find_files, checkfile
+from collections import OrderedDict
+from .utilities import (
+    create_directories,
+    create_tmpdir,
+    find_files,
+    checkfile,
+    load_json,
+    choose_best_busco_species,
+    lookup_taxonomy,
+    naming_slug,
+)
 from .log import startLogging, system_info, finishLogging
 from .fastx import fasta2chunks
 from .search import (
@@ -18,17 +28,24 @@ from .search import (
     merops_blast,
     merops2tsv,
     parse_annotations,
+    busco_search,
+    busco2tsv,
 )
 from .config import env
 from gfftk.gff import gff2dict, dict2gff3
 from gfftk.stats import annotation_stats
-from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
-from gfftk.genbank import tbl2dict
-from buscolite.busco import runbusco
+from gfftk.convert import _dict2proteins
+from gfftk.genbank import tbl2dict, dict2tbl, table2asn
+from gfftk.fasta import fasta2lengths
+
+
+def _sortDict(d):
+    return (d[1]["location"][0], d[1]["location"][1])
 
 
 def annotate(args):
     # parse the input and get files that you need
+    taxonomy = None
     if args.input_dir:
         if os.path.isdir(args.input_dir):
             if not args.fasta:
@@ -51,6 +68,15 @@ def annotate(args):
                     args.gff3 = os.path.abspath(gff_files[0])
             if not args.out:
                 args.out = args.input_dir
+            if not args.species:
+                summaryjson = find_files(
+                    os.path.join(args.input_dir, "predict_results"), "summary.json"
+                )
+                if len(summaryjson) == 1:
+                    predict_json = load_json(summaryjson[0])
+                    args.species = predict_json["species"]
+                    taxonomy = predict_json["taxonomy"]
+                    args.strain = predict_json["strain"]
         else:
             sys.stderr.write("ERROR: -i,--input-dir is not a directory\n")
             raise SystemExit(1)
@@ -184,9 +210,6 @@ def annotate(args):
             f"Existing UniProtKB/Swiss-Prot results found, loaded annotations for {len(swiss_dict)} gene models"
         )
 
-    # for k, v in swiss_dict.items():
-    #    print(k, v)
-
     # merops
     merops_all = os.path.join(misc_dir, "merops.results.json")
     merops_annots = os.path.join(misc_dir, "annotations.merops.tsv")
@@ -207,7 +230,145 @@ def annotate(args):
             f"Existing MEROPS results found, loaded annotations for {len(merops_dict)} gene models"
         )
 
-    # merge annotations
+    # busco proteome analysis
+    busco_all = os.path.join(misc_dir, "busco.results.json")
+    busco_annots = os.path.join(misc_dir, "annotations.busco.tsv")
+    if not checkfile(busco_annots):
+        if not taxonomy:
+            # get taxonomy information
+            taxonomy = lookup_taxonomy(args.species)
+
+        # choose best busco species
+        busco_species = choose_best_busco_species(taxonomy)
+        busco_model_path = os.path.join(
+            env["FUNANNOTATE2_DB"], f"{busco_species}_odb10"
+        )
+
+        # run busco proteome screen
+        logger.info(
+            f"BUSCOlite [conserved ortholog] search using {busco_species} models"
+        )
+        start = time.time()
+        busco_results = busco_search(
+            Proteins, busco_model_path, cpus=args.cpus, logger=logger
+        )
+        end = time.time()
+        busco_dict = busco2tsv(busco_results, busco_model_path, busco_all, busco_annots)
+        logger.info(
+            f"BUSCOlite search resulted in {len(busco_dict)} hits and finished in {round(end-start, 2)} seconds"
+        )
+    else:
+        busco_dict = parse_annotations(busco_annots)
+        logger.info(
+            f"Existing BUSCOlite results found, loaded annotations for {len(busco_dict)} gene models"
+        )
+
+    # load any annotations from cli and merge rest of annotations
+    all_annotations = [pfam_dict, dbcan_dict, swiss_dict, merops_dict, busco_dict]
+    if args.annotations:
+        for annotfile in args.annotations:
+            a = parse_annotations(annotfile)
+            logger.info(f"Loaded {len(a)} annotations from {annotfile}")
+            all_annotations.append(a)
+
+    # merge annotations into the gene/funannotate dictionary
+    merged = {}
+    sources = {}
+    for annot in all_annotations:
+        for g, f in annot.items():
+            if g not in merged:
+                merged[g] = f
+                for key, value in f.items():
+                    if key not in sources:
+                        sources[key] = 1
+                    else:
+                        sources[key] += 1
+            else:
+                for key, value in f.items():
+                    if key not in merged[g]:
+                        merged[g][key] = value
+                    else:
+                        merged[g][key] += value
+                    if key not in sources:
+                        sources[key] = 1
+                    else:
+                        sources[key] += 1
+    logger.info(f"Found functional annotation for {len(merged)} gene models")
+    logger.info(f"Annotation sources: {sources}")
+
+    # now loop through the annotation object and add functional annotation
+    Annotation = {}
+    for k, v in Genes.items():
+        n = v.copy()
+        for i, x in enumerate(n["ids"]):
+            if x in merged:  # then functional annotation to add
+                fa = merged.get(x)
+                if "product" in fa:
+                    n["product"][i] = fa["product"][0]
+                if "db_xref" in fa:
+                    n["db_xref"][i] = fa["db_xref"]
+                if "name" in fa:
+                    n["name"] = fa["name"][0]
+                    if len(fa["name"]) > 1:
+                        n["gene_synonym"] += fa["name"][1:]
+                if "note" in fa:
+                    n["note"][i] = fa["note"]
+                if "ec_number" in fa:
+                    n["ec_number"][i] = fa["ec_number"]
+                if "go_terms" in fa:
+                    n["go_terms"][i] = fa["go_terms"]
+        Annotation[k] = n
+
+    logger.info("Converting to GenBank format")
+    # now write TBL outputfile
+    finalTBL = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.tbl")
+    # first sort the dictionary to get order for tbl
+    sGenes = sorted(iter(Annotation.items()), key=_sortDict)
+    sortedGenes = OrderedDict(sGenes)
+    scaff2genes = {}
+    for k, v in list(sortedGenes.items()):
+        if v["contig"] not in scaff2genes:
+            scaff2genes[v["contig"]] = [k]
+        else:
+            scaff2genes[v["contig"]].append(k)
+    # get contig lengths
+    scaffLen = fasta2lengths(args.fasta)
+    # finally write output
+    errors, duplicates, pseudo, nocds = dict2tbl(
+        sortedGenes,
+        scaff2genes,
+        scaffLen,
+        "CFMR",
+        "12345",
+        [],
+        output=finalTBL,
+        annotations=True,
+        external=True,
+    )
+    if len(errors) > 0:
+        logger.warning(
+            "Errors detected in creation of TBL file:\n{}".format("\n".join(errors))
+        )
+    # now we want to run table2asn
+    finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
+    table2asn(
+        finalTBL,
+        args.fasta,
+        organism=args.species,
+        strain=args.strain,
+        tmpdir=misc_dir,
+        table=1,
+        cleanup=False,
+        output=finalGBK,
+    )
+    # fetch files from the table2asn directory
+
+    # now write remaining files
+    finalGFF3 = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gff3")
+    finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
+    finalSummary = os.path.join(
+        res_dir, f"{naming_slug(args.species, args.strain)}.summary.json"
+    )
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])

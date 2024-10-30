@@ -37,12 +37,14 @@ def install(args):
     log = logger.info
     system_info(log)
 
-    # now get databases, etc
+    # now get databases and ensure folders exist
     if not os.path.isdir(env["FUNANNOTATE2_DB"]):
         os.makedirs(env["FUNANNOTATE2_DB"])
     logger.info(
         f"The backend database location is from the $FUNANNOTATE2_DB env variable: {env['FUNANNOTATE2_DB']}"
     )
+    if not os.path.isdir(os.path.join(env["FUNANNOTATE2_DB"], "pretrained")):
+        os.makedirs(os.path.join(env["FUNANNOTATE2_DB"], "pretrained"))
 
     global today
     today = datetime.datetime.today().strftime("%Y-%m-%d")

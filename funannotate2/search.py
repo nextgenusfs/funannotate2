@@ -2,11 +2,13 @@ import pyhmmer
 from .config import env
 from .utilities import checkfile
 import os
+import sys
 from natsort import natsorted
 import subprocess
 import json
 import json_repair
 import uuid
+from buscolite.busco import runbusco
 import re
 
 
@@ -628,7 +630,12 @@ def add2dict(adict, gene, key, value):
 
 
 def swissprot_valid_gene(name):
-    if number_present(name) and len(name) > 2 and not morethanXnumbers(name, 3):
+    if (
+        number_present(name)
+        and len(name) > 2
+        and not morethanXnumbers(name, 3)
+        and "." not in name
+    ):
         return True
     else:
         return False
@@ -674,3 +681,84 @@ def morethanXnumbers(s, num):
 
 def capfirst(x):
     return x[0].upper() + x[1:]
+
+
+def busco_search(query, buscodb, cpus=1, logger=sys.stderr):
+    """
+    Run BUSCO search on a query using a specified BUSCO database.
+
+    This function executes a BUSCO search on the provided query file using the specified BUSCO database.
+    It utilizes the `runbusco` function to perform the search in protein mode and returns the results.
+
+    Args:
+        query (str): Path to the query file to be analyzed.
+        buscodb (str): Path to the BUSCO database to be used for the search.
+        cpus (int, optional): Number of CPUs to allocate for the search process. Defaults to 1.
+        logger (file object, optional): Logger object for logging messages. Defaults to sys.stderr.
+
+    Returns:
+        dict: The results of the BUSCO search, containing information about the identified BUSCOs.
+    """
+    busco_results, busco_missing, stats, cfg = runbusco(
+        query,
+        buscodb,
+        mode="proteins",
+        cpus=cpus,
+        logger=logger,
+        verbosity=0,
+    )
+    return busco_results
+
+
+def busco2tsv(results, buscodb, busco_results, annots):
+    """
+    Parse BUSCO proteome analysis results and construct functional annotations.
+
+    This function processes the results of a BUSCO analysis by writing the raw results to a file,
+    extracting database information, and constructing functional annotations. The annotations are
+    written to a specified file in a tab-separated format.
+
+    Parameters:
+    - results (dict): The BUSCO analysis results, where each key is a BUSCO ID and the value is a dictionary
+      containing details such as 'name', 'hit', 'bitscore', 'evalue', 'domains', 'length', and 'status'.
+    - buscodb (str): The path to the BUSCO database directory, which contains links to additional information.
+    - busco_results (str): The file path where the raw BUSCO results will be written in JSON format.
+    - annots (str): The file path where the constructed functional annotations will be written.
+
+    Returns:
+    - dict: A dictionary containing the constructed functional annotations, where each key is a gene hit
+      and the value is a dictionary with annotation details.
+    """
+    # function to parse busco proteome analysis
+    # first write the raw data
+    with open(busco_results, "w") as outfile:
+        json.dump(results, outfile, indent=2)
+    # get the DB info and load for constructing the functional annotation
+    odb_version = os.path.basename(buscodb)
+    links_file = None
+    for f in os.listdir(buscodb):
+        if f.startswith("links_to_ODB"):
+            links_file = os.path.join(buscodb, f)
+    busco_data = {}
+    if links_file:
+        with open(links_file, "r") as infile:
+            for line in infile:
+                line = line.strip()
+                busco_id, description, url = line.split("\t")
+                busco_data[busco_id] = {"description": description, "url": url}
+    # the results object is a dictionary like this:
+    # 16968at33183 {'name': '16968at33183', 'hit': 'FUN2_002340-T1', 'bitscore': 148.97767639160156, 'evalue': 1.1007091320326609e-44, 'domains': [{'hmm_from': 2, 'hmm_to': 51, 'env_from': 2, 'env_to': 60, 'score': 70.0794906616211}, {'hmm_from': 46, 'hmm_to': 97, 'env_from': 54, 'env_to': 132, 'score': 82.8307876586914}], 'length': 133, 'status': 'complete'}
+    # so now we want to construct the 3 column
+    a = {}
+    with open(annots, "w") as annot:
+        for k, v in natsorted(
+            results.items(), key=lambda x: (x[1]["hit"], -x[1]["bitscore"])
+        ):
+            if v["name"] in busco_data:
+                defline = f'BUSCO:{k} [{odb_version}] {busco_data.get(v["name"])["description"]}'
+            else:
+                defline = f"BUSCO:{k} [{odb_version}]"
+            if v["hit"] not in a:
+                a = add2dict(a, v["hit"], "note", defline)
+                annot.write(f"{v['hit']}\tnote\t{defline}\n")
+    return a
