@@ -772,7 +772,7 @@ def calculate_weights(scores, cli_weights):
                 "train" not in v
             ):  # these are either user entered or from gapmm2/miniprot
                 # can only do augustus busco comparison here
-                if v["busco"] >= 1:
+                if v["busco"] >= 0.99:
                     weights[k] = 2
                 else:
                     busco_diff = (aug_busco - v["busco"]) * 100
@@ -782,6 +782,7 @@ def calculate_weights(scores, cli_weights):
                     else:
                         weights[k] = 1
             else:
+                # short circut this logic if busco results are good
                 busco_diff = aug_busco - v["busco"]  # higher better
                 aed_diff = v["train"]["average_aed"] - aug_aed  # lower better
                 exon_diff = aug_exon - v["train"]["exon_sensitivity"]  # higher better
@@ -795,7 +796,11 @@ def calculate_weights(scores, cli_weights):
                 elif change > 0.20:  # 20% worse than augustus
                     weights[k] = 1
                 else:
-                    weights[k] = 2
+                    # one more clarifiyer here, interject if busco score < 0.98
+                    if v["busco"] >= 0.98:
+                        weights[k] = 2
+                    else:
+                        weights[k] = 1
     # add hiq augustus
     weights["augustus-hiq"] = weights["augustus"] + 2
     # add any other usr_weights
