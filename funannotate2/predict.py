@@ -617,6 +617,7 @@ def sanitize_external(gff3, fasta, contig_map, debug=False):
     source = set()
     for k, v in Genes.items():
         v["contig"] = inv_map.get(v["contig"])
+        v["source"] = v["source"].lower()
         Swap[k] = v
         source.add(v["source"])
     return Swap, source
