@@ -260,6 +260,26 @@ def predict(args):
     elif checkfile(ProtAlign) and checkfile(ProtGenes):
         log("Existing protein alignments found, will re-use and continue")
 
+    # if external predictions passed, process them here
+    external_abinitio = []
+    external_counts = {}
+    if args.external:
+        for ext in args.external:
+            if checkfile(ext):
+                models, sources = sanitize_external(ext, args.fasta, contig_name_map)
+                source = list(sources)[0].lower()
+                if source in params["abinitio"].keys():
+                    source = f"{source}-ext"
+                extPred = os.path.join(misc_dir, f"predictions.{source}.gff3")
+                dict2gff3(models, output=extPred, debug=False)
+                logger.info(
+                    f"Parsed {len(models)} external gene models [source={source}] from {ext}"
+                )
+                external_abinitio.append(extPred)
+                external_counts[source] = len(models)
+            else:
+                logger.error(f"ERROR: -e {ext} is not a valid file, skipping.")
+
     # lets see if already run, get list of expected output files
     Consensus = os.path.join(misc_dir, "consensus.predictions.gff3")
     ab_files_missing = []
@@ -281,8 +301,8 @@ def predict(args):
         runProcessJob(abinitio_wrapper, abinit_cmds, cpus=args.cpus)
 
         # get all predictions
-        gene_counts = {}
-        abinitio_preds = []
+        gene_counts = external_counts
+        abinitio_preds = external_abinitio
         if checkfile(ProtGenes):
             abinitio_preds.append(ProtGenes)
         if checkfile(TranGenes):
@@ -574,6 +594,34 @@ def predict(args):
     finishLogging(log, vars(sys.modules[__name__])["__name__"])
 
 
+def sanitize_external(gff3, fasta, contig_map, debug=False):
+    """
+    Sanitize external gene annotations by swapping contig names based on a provided map.
+
+    This function loads gene annotations from a GFF3 file into a dictionary using the `gff2dict` function. It then swaps contig names using a provided mapping and returns the updated annotations. The function also collects unique gene sources during the process.
+
+    Parameters:
+        gff3 (str): Path to the input GFF3 file.
+        fasta (str): Path to the corresponding FASTA file.
+        contig_map (dict): Mapping of original contig names to new contig names.
+        debug (bool, optional): Enable debug mode. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the sanitized gene annotations dictionary and a set of unique sources.
+    """
+    # load into dicitonary
+    Genes = gff2dict(gff3, fasta, debug=debug)
+    # swap names of contigs based on the map
+    inv_map = {v: k for k, v in contig_map.items()}
+    Swap = {}
+    source = set()
+    for k, v in Genes.items():
+        v["contig"] = inv_map.get(v["contig"])
+        Swap[k] = v
+        source.add(v["source"])
+    return Swap, source
+
+
 def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}):
     """
     Merge and rename gene models from multiple GFF files.
@@ -723,7 +771,13 @@ def calculate_weights(scores, cli_weights):
             if (
                 "train" not in v
             ):  # these are either user entered or from gapmm2/miniprot
-                weights[k] = 1
+                # can only do augustus busco comparison here
+                busco_diff = (aug_busco - v["busco"]) * 100
+                # these are percents now
+                if busco_diff <= 1:
+                    weights[k] = 2
+                else:
+                    weights[k] = 1
             else:
                 busco_diff = aug_busco - v["busco"]  # higher better
                 aed_diff = v["train"]["average_aed"] - aug_aed  # lower better

@@ -193,6 +193,14 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-e",
+        "--external",
+        required=False,
+        nargs="+",
+        help="External gene moddels/annotation in GFF3 format.",
+        metavar="",
+    )
+    optional_args.add_argument(
         "-w",
         "--weights",
         required=False,
