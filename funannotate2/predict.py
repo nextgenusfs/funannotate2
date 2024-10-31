@@ -538,6 +538,7 @@ def predict(args):
         output=finalGBK,
         organism=args.species,
         strain=args.strain,
+        table=1,
     )
 
     # get some stats for user
