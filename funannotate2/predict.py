@@ -772,12 +772,15 @@ def calculate_weights(scores, cli_weights):
                 "train" not in v
             ):  # these are either user entered or from gapmm2/miniprot
                 # can only do augustus busco comparison here
-                busco_diff = (aug_busco - v["busco"]) * 100
-                # these are percents now
-                if busco_diff <= 1:
+                if v["busco"] >= 1:
                     weights[k] = 2
                 else:
-                    weights[k] = 1
+                    busco_diff = (aug_busco - v["busco"]) * 100
+                    # these are percents now
+                    if busco_diff <= 1.5:
+                        weights[k] = 2
+                    else:
+                        weights[k] = 1
             else:
                 busco_diff = aug_busco - v["busco"]  # higher better
                 aed_diff = v["train"]["average_aed"] - aug_aed  # lower better
