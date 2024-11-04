@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import shutil
-from .__version__ import __version__
+from .__init__ import __version__
 import textwrap as _textwrap
 
 

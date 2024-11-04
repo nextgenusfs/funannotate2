@@ -1,1 +1,3 @@
-from .__version__ import __version__
+import importlib.metadata
+
+__version__ = importlib.metadata.version("funannotate2")

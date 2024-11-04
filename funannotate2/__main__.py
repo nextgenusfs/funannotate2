@@ -3,7 +3,7 @@
 import sys
 import os
 import argparse
-from .__version__ import __version__
+from .__init__ import __version__
 from .help_formatter import MyParser, MyHelpFormatter
 
 from .annotate import annotate
