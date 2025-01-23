@@ -72,6 +72,10 @@ def predict(args):
                 args.params = os.path.abspath(param_files[0])
                 with open(args.params, "r") as infile:
                     params = json.load(infile)
+            else:
+                sys.stderr.write(
+                    f'WARNING: unable to find params file in {os.path.join(args.input_dir, "train_results")}\n{os.listdir(os.path.join(args.input_dir, "train_results"))}'
+                )
         if not args.species:  # load from params file
             args.species = params.get("species")
         if not args.out:
@@ -115,7 +119,7 @@ def predict(args):
             sys.stderr.write(
                 "ERROR: -p,--params parameter is missing, exiting. To see arguments: funannotate2 predict --help\n"
             )
-            raise SystemExit(1)
+        raise SystemExit(1)
 
     # create output directories
     misc_dir, res_dir, log_dir = create_directories(args.out, base="predict")
