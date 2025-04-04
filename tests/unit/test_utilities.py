@@ -1,6 +1,7 @@
 """
 Unit tests for the utilities module.
 """
+
 import os
 import pytest
 from funannotate2.utilities import (

@@ -1,6 +1,7 @@
 """
 Unit tests for the taxonomy-related functions in utilities.py.
 """
+
 import pytest
 import funannotate2.utilities
 from unittest.mock import patch, MagicMock
@@ -12,6 +13,7 @@ class TestBestTaxonomy:
 
     def test_exact_match(self, mock_pretty_taxonomy):
         """Test with an exact taxonomy match."""
+
         # Create a custom implementation of best_taxonomy that returns a specific result
         def mock_best_taxonomy(query, ref):
             # For an exact match, return the key of the matching taxonomy
@@ -63,6 +65,7 @@ class TestBestTaxonomy:
 
     def test_partial_match(self, mock_pretty_taxonomy):
         """Test with a partial taxonomy match."""
+
         # Create a custom implementation of best_taxonomy that returns a specific result
         def mock_best_taxonomy(query, ref):
             # For a partial match, return the key of the best matching taxonomy
@@ -114,6 +117,7 @@ class TestBestTaxonomy:
 
     def test_no_match(self, mock_pretty_taxonomy):
         """Test with no taxonomy match."""
+
         # Create a custom implementation of best_taxonomy that returns an empty list
         def mock_best_taxonomy(query, ref):
             # For no match, return an empty list
@@ -165,6 +169,7 @@ class TestBestTaxonomy:
 
     def test_empty_query(self, mock_pretty_taxonomy):
         """Test with an empty query."""
+
         # Create a custom implementation of best_taxonomy that returns an empty list
         def mock_best_taxonomy(query, ref):
             # For an empty query, return an empty list
@@ -203,6 +208,7 @@ class TestBestTaxonomy:
 
     def test_empty_ref(self, mock_pretty_taxonomy):
         """Test with an empty reference."""
+
         # Create a custom implementation of best_taxonomy that returns an empty list
         def mock_best_taxonomy(query, ref):
             # For an empty reference, return an empty list

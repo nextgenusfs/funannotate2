@@ -1,6 +1,7 @@
 """
 Unit tests for specific functions in the annotate module.
 """
+
 import os
 import tempfile
 import pytest

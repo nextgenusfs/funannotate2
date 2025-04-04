@@ -15,12 +15,6 @@ import requests
 import errno
 from urllib.request import urlopen
 import socket
-
-# Global variables for thread job tracking
-lock = None
-tasks_total = 0
-tasks_completed = 0
-tasks_failed = 0
 import random
 import json
 from .config import augustus_species, busco_taxonomy
@@ -642,6 +636,9 @@ def runThreadJob(func, argList, cpus=2, progress=True):
     Returns:
     - list: A list of futures representing the result of each function call.
     """
+    # Global variables for thread job tracking
+    lock = None
+    tasks_total = 0
 
     # simple progress indicator callback function
     def _progress_indicator(future):

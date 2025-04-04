@@ -1,6 +1,7 @@
 """
 Integration tests for CLI commands.
 """
+
 import os
 import tempfile
 import subprocess

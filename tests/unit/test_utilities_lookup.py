@@ -1,6 +1,7 @@
 """
 Unit tests for the lookup_taxonomy function in utilities.py.
 """
+
 import os
 import tempfile
 import pytest
@@ -13,6 +14,7 @@ class TestLookupTaxonomy:
 
     def test_lookup_taxonomy(self):
         """Test the lookup_taxonomy function with a mock implementation."""
+
         # Create a custom implementation of lookup_taxonomy that returns a mock taxonomy
         def mock_lookup_taxonomy(name):
             return {
@@ -52,6 +54,7 @@ class TestLookupTaxonomy:
 
     def test_failed_lookup(self):
         """Test a failed taxonomy lookup."""
+
         # Create a custom implementation of lookup_taxonomy that returns an empty dict
         def mock_lookup_taxonomy(name):
             return {}

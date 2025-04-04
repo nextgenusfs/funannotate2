@@ -1,6 +1,7 @@
 """
 Shared pytest fixtures for funannotate2 tests.
 """
+
 import os
 import pytest
 import tempfile

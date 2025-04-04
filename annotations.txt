@@ -1,0 +1,2 @@
+seq1	db_xref	UniProtKB/Swiss-Prot:P12345
+seq1	note	80.0% identical to TEST_HUMAN Test protein
