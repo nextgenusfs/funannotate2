@@ -3,7 +3,8 @@ import os
 import json
 import shutil
 import time
-from natsort import natsorted
+
+# from natsort import natsorted
 from collections import OrderedDict
 from .utilities import (
     create_directories,
@@ -16,7 +17,8 @@ from .utilities import (
     naming_slug,
 )
 from .log import startLogging, system_info, finishLogging
-from .fastx import fasta2chunks
+
+# from .fastx import fasta2chunks
 from .search import (
     digitize_sequences,
     pfam_search,
@@ -33,10 +35,10 @@ from .search import (
 )
 from .config import env
 from gfftk.gff import gff2dict, dict2gff3
-from gfftk.stats import annotation_stats
-from gfftk.convert import _dict2proteins
 from gfftk.genbank import tbl2dict, dict2tbl, table2asn
 from gfftk.fasta import fasta2lengths
+from gfftk.stats import annotation_stats
+from gfftk.convert import _dict2proteins, _dict2transcripts
 
 
 def _sortDict(d):
@@ -124,9 +126,13 @@ def annotate(args):
     elif args.gff3:
         Genes = gff2dict(args.gff3, args.fasta)
 
-    genome_stats = annotation_stats(Genes)
-    logger.info(f"Parsed genome stats:\n{json.dumps(genome_stats, indent=2)}")
+    # Get genome stats from the annotation
+    genome_stats_data = annotation_stats(Genes)
+    logger.info("Parsed genome stats:")
+    logger.info(f"\n{json.dumps(genome_stats_data, indent=2)}")
     Proteins = os.path.join(misc_dir, "proteome.fasta")
+
+    # Write protein sequences
     _dict2proteins(Genes, output=Proteins, strip_stop=True)
 
     # split input protein files for parallel processing steps
@@ -160,7 +166,7 @@ def annotate(args):
         pfam = pfam_search(digital_seqs, cpus=args.cpus)
         end = time.time()
         logger.info(
-            f"Pfam-A search resulted in {len(pfam)} hits and finished in {round(end-start, 2)} seconds"
+            f"Pfam-A search resulted in {len(pfam)} hits and finished in {round(end - start, 2)} seconds"
         )
         pfam_dict = pfam2tsv(pfam, pfam_all, pfam_annots)
     else:
@@ -180,7 +186,7 @@ def annotate(args):
         dbcan = dbcan_search(digital_seqs, cpus=args.cpus)
         end = time.time()
         logger.info(
-            f"dbCAN search resulted in {len(dbcan)} hits and finished in {round(end-start, 2)} seconds"
+            f"dbCAN search resulted in {len(dbcan)} hits and finished in {round(end - start, 2)} seconds"
         )
         dbcan_dict = dbcan2tsv(dbcan, dbcan_all, dbcan_annots)
     else:
@@ -201,7 +207,7 @@ def annotate(args):
         swiss = swissprot_blast(Proteins, cpus=args.cpus)
         end = time.time()
         logger.info(
-            f"UniProtKB/Swiss-Prot search resulted in {len(swiss)} hits and finished in {round(end-start, 2)} seconds"
+            f"UniProtKB/Swiss-Prot search resulted in {len(swiss)} hits and finished in {round(end - start, 2)} seconds"
         )
         swiss_dict = swissprot2tsv(swiss, swiss_all, swiss_annots)
     else:
@@ -221,7 +227,7 @@ def annotate(args):
         merops = merops_blast(Proteins, cpus=args.cpus)
         end = time.time()
         logger.info(
-            f"MEROPS search resulted in {len(merops)} hits and finished in {round(end-start, 2)} seconds"
+            f"MEROPS search resulted in {len(merops)} hits and finished in {round(end - start, 2)} seconds"
         )
         merops_dict = merops2tsv(merops, merops_all, merops_annots)
     else:
@@ -255,7 +261,7 @@ def annotate(args):
         end = time.time()
         busco_dict = busco2tsv(busco_results, busco_model_path, busco_all, busco_annots)
         logger.info(
-            f"BUSCOlite search resulted in {len(busco_dict)} hits and finished in {round(end-start, 2)} seconds"
+            f"BUSCOlite search resulted in {len(busco_dict)} hits and finished in {round(end - start, 2)} seconds"
         )
     else:
         busco_dict = parse_annotations(busco_annots)
@@ -334,7 +340,7 @@ def annotate(args):
     # get contig lengths
     scaffLen = fasta2lengths(args.fasta)
     # finally write output
-    errors, duplicates, pseudo, nocds = dict2tbl(
+    errors, _, _, _ = dict2tbl(
         sortedGenes,
         scaff2genes,
         scaffLen,
@@ -365,10 +371,38 @@ def annotate(args):
 
     # now write remaining files
     finalGFF3 = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gff3")
+    finalProteins = os.path.join(
+        res_dir, f"{naming_slug(args.species, args.strain)}.proteins.fa"
+    )
+    finalTranscripts = os.path.join(
+        res_dir, f"{naming_slug(args.species, args.strain)}.transcripts.fa"
+    )
     finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
     finalSummary = os.path.join(
         res_dir, f"{naming_slug(args.species, args.strain)}.summary.json"
     )
+
+    # Write GFF3 file directly from the annotation object
+    logger.info("Writing rest of the output annotation files")
+    dict2gff3(sortedGenes, output=finalGFF3)
+
+    # Extract protein sequences directly from the annotation object
+    _dict2proteins(sortedGenes, output=finalProteins, strip_stop=True)
+
+    # Extract transcript sequences directly from the annotation object
+    _dict2transcripts(sortedGenes, output=finalTranscripts)
+
+    # Copy the input FASTA to the results directory
+    shutil.copy2(args.fasta, finalFA)
+
+    # Generate summary statistics directly from the annotation object
+    stats = annotation_stats(sortedGenes)
+    with open(finalSummary, "w") as f:
+        json.dump(stats, f, indent=4)
+
+    # Print summary to log
+    logger.info("Annotation Summary:")
+    logger.info(f"\n{json.dumps(stats, indent=2)}")
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])

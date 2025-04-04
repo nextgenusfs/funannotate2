@@ -1,0 +1,8 @@
+##gff-version 3
+##sequence-region contig1 1 1000
+contig1	prediction	gene	1	1000	.	+	.	ID=gene1;Name=test_gene
+contig1	prediction	mRNA	1	1000	.	+	.	ID=mRNA1;Parent=gene1;Name=test_mrna
+contig1	prediction	exon	1	500	.	+	.	ID=exon1;Parent=mRNA1
+contig1	prediction	exon	600	1000	.	+	.	ID=exon2;Parent=mRNA1
+contig1	prediction	CDS	1	500	.	+	0	ID=cds1;Parent=mRNA1
+contig1	prediction	CDS	600	1000	.	+	0	ID=cds2;Parent=mRNA1

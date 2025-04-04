@@ -74,7 +74,7 @@ def predict(args):
                     params = json.load(infile)
             else:
                 sys.stderr.write(
-                    f'WARNING: unable to find params file in {os.path.join(args.input_dir, "train_results")}\n{os.listdir(os.path.join(args.input_dir, "train_results"))}'
+                    f"WARNING: unable to find params file in {os.path.join(args.input_dir, 'train_results')}\n{os.listdir(os.path.join(args.input_dir, 'train_results'))}"
                 )
         if not args.species:  # load from params file
             args.species = params.get("species")
@@ -88,15 +88,19 @@ def predict(args):
             if len(fasta_files) == 1:
                 args.fasta = os.path.abspath(fasta_files[0])
     # check if pre-trained is passed, if so then overwrite any auto globbed data
-    if args.pretrained_species:
-        all_pretrained = fetch_pretrained_species()
-        if args.pretrained_species not in all_pretrained:
-            sys.stderr.write(
-                "ERROR: --pretrained-species is not in the database. To see valid species: funannotate2 species"
-            )
-            raise SystemExit(1)
+    if args.params:
+        if os.path.isfile(args.params):
+            with open(args.params, "r") as infile:
+                params = json.load(infile)
         else:
-            params = all_pretrained.get(args.pretrained_species)
+            all_pretrained = fetch_pretrained_species()
+            if args.params not in all_pretrained:
+                sys.stderr.write(
+                    "ERROR: --pretrained-species is not in the database. To see valid species: funannotate2 species"
+                )
+                raise SystemExit(1)
+            else:
+                params = all_pretrained.get(args.params)
 
     # now check arguments
     if not args.out:
@@ -141,7 +145,7 @@ def predict(args):
             with open(args.params, "r") as infile:
                 params = json.load(infile)
     logger.info(
-        f'Loaded training params for {params["name"]}: {list(params["abinitio"].keys())}'
+        f"Loaded training params for {params['name']}: {list(params['abinitio'].keys())}"
     )
 
     # create a tmpdir for some files
@@ -216,7 +220,7 @@ def predict(args):
     if args.transcripts and not checkfile(Transcripts):
         n_transcripts, tot_transcripts = mergefasta(args.transcripts, Transcripts)
         logger.info(
-            f'Parsed {n_transcripts} [out of {tot_transcripts}] transcripts to align for evidence, derived from:\n{"/n".join(args.transcripts)}'
+            f"Parsed {n_transcripts} [out of {tot_transcripts}] transcripts to align for evidence, derived from:\n{'/n'.join(args.transcripts)}"
         )
     if checkfile(Transcripts) and not checkfile(TranAlign):
         align_transcripts(
@@ -249,7 +253,7 @@ def predict(args):
     # merge and dereplicate
     n_prots, tot_prots = mergefasta(args.proteins, Proteins)
     logger.info(
-        f'Parsed {n_prots} [out of {tot_prots}] proteins to align for evidence, derived from:\n{"/n".join(args.proteins)}'
+        f"Parsed {n_prots} [out of {tot_prots}] proteins to align for evidence, derived from:\n{'/n'.join(args.proteins)}"
     )
     if checkfile(Proteins) and not checkfile(ProtAlign):
         align_proteins(
@@ -585,9 +589,7 @@ def predict(args):
         "taxonomy": taxonomy,
         "species": args.species,
         "strain": args.strain,
-        "prediction-params": args.params
-        if args.params is not None
-        else args.pretrained_species,
+        "prediction-params": args.params if args.params is not None else None,
         "busco-models": busco_model_path,
         "busco-completeness": stats,
         "stats": consensus_stats,

@@ -1,0 +1,11 @@
+# Sphinx build directory
+_build/
+
+# Generated API documentation
+generated/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store

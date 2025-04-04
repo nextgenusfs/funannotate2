@@ -174,7 +174,7 @@ def predict_subparser(subparsers):
         "--pretrained",
         dest="params",
         required=False,
-        help="Params.json or pretrained species slug. `funannotate2 info` to see pretrained species",
+        help="Params.json or pretrained species slug. `funannotate2 species` to see pretrained species",
         metavar="",
     )
     required_args.add_argument(
@@ -274,14 +274,6 @@ def predict_subparser(subparsers):
         default=1,
         type=int,
         help="Specify start of gene numbering",
-        metavar="",
-    )
-    optional_args.add_argument(
-        "-pt",
-        "--pretrained-species",
-        dest="pretrained_species",
-        required=False,
-        help="Use pretrained parameters for prediction, ie values in funannotate2 species",
         metavar="",
     )
     optional_args.add_argument(

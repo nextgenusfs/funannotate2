@@ -1,0 +1,7 @@
+HMMER3/f [3.1b2 | February 2015]
+NAME  busco1
+ACC   PF00001.1
+DESC  Test BUSCO HMM
+LENG  300
+ALPH  amino
+//

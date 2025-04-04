@@ -2,5 +2,6 @@
 build/*
 funannotate2.egg-info/*
 funannotate2/__pycache*
-tests/*
 local_tests/*
+tests/unit/__pycache__*
+tests/__pycache__*
