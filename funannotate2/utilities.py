@@ -6,8 +6,6 @@ from contextlib import contextmanager
 import subprocess
 import sys
 import multiprocessing
-import time
-import sys
 import queue
 import signal
 import uuid
@@ -17,6 +15,12 @@ import requests
 import errno
 from urllib.request import urlopen
 import socket
+
+# Global variables for thread job tracking
+lock = None
+tasks_total = 0
+tasks_completed = 0
+tasks_failed = 0
 import random
 import json
 from .config import augustus_species, busco_taxonomy
@@ -641,7 +645,7 @@ def runThreadJob(func, argList, cpus=2, progress=True):
 
     # simple progress indicator callback function
     def _progress_indicator(future):
-        global lock, tasks_total, tasks_completed, tasks_failed
+        global tasks_failed, tasks_completed
         # obtain the lock
         with lock:
             if future.cancelled():
@@ -653,7 +657,7 @@ def runThreadJob(func, argList, cpus=2, progress=True):
                 tasks_completed += 1
             # report progress
             sys.stdout.write(
-                f"  Progress: {tasks_completed}/{tasks_total} complete, {tasks_failed} failed, {tasks_total-tasks_completed} remaining        \r"
+                f"  Progress: {tasks_completed}/{tasks_total} complete, {tasks_failed} failed, {tasks_total - tasks_completed} remaining        \r"
             )
             if (
                 tasks_total - tasks_completed == 0
@@ -692,7 +696,6 @@ def runThreadJob(func, argList, cpus=2, progress=True):
 
     # setup job here
     # create a lock for the counter
-    global lock, tasks_total, tasks_completed, tasks_failed
     lock = Lock()
     tasks_total = len(argList)
     tasks_completed = 0
@@ -700,7 +703,7 @@ def runThreadJob(func, argList, cpus=2, progress=True):
 
     results = []
     executor = ThreadPoolExecutor(max_workers=cpus + 4)
-    signal.signal(signal.SIGINT, lambda sig, frame: _exit_threads(executor))
+    signal.signal(signal.SIGINT, lambda _sig, _frame: _exit_threads(executor))
 
     # submit jobs to executor
     for a in argList:
@@ -874,7 +877,6 @@ def print_table(
     fixed_col_widths=None,
     left_align_header=True,
     bottom_align_header=True,
-    verbosity=1,
 ):
     """
     Print a formatted table with customizable options.
