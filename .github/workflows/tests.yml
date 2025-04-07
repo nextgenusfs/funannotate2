@@ -43,11 +43,11 @@ jobs:
       run: |
         pytest tests/integration/test_funannotate_cli.py -v
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false
+        slug: nextgenusfs/funannotate2
 
   lint:
     runs-on: ubuntu-latest
