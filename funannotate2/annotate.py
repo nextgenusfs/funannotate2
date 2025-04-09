@@ -17,6 +17,11 @@ from .utilities import (
     naming_slug,
 )
 from .log import startLogging, system_info, finishLogging
+from .name_cleaner import (
+    NameCleaner,
+    write_problematic_annotations,
+    write_new_valid_annotations,
+)
 
 # from .fastx import fasta2chunks
 from .search import (
@@ -302,13 +307,46 @@ def annotate(args):
     logger.info(f"Found functional annotation for {len(merged)} gene models")
     logger.info(f"Annotation sources: {sources}")
 
+    # Clean gene names and product descriptions using the curated database
+    logger.info("Cleaning gene names and product descriptions using curated database")
+    if args.curated_names:
+        logger.info(f"Using custom annotations from {args.curated_names}")
+        name_cleaner = NameCleaner(custom_file=args.curated_names)
+    else:
+        name_cleaner = NameCleaner()
+
+    # Write problematic annotations to file for manual curation
+    problematic_file = os.path.join(res_dir, "Gene2Products.need-curating.txt")
+    num_problematic = write_problematic_annotations(merged, problematic_file)
+    if num_problematic > 0:
+        logger.info(
+            f"Found {num_problematic} problematic gene names/products that need manual curation"
+        )
+        logger.info(f"See {problematic_file} for details")
+
+    # Write new valid annotations to file for potential addition to curated database
+    new_valid_file = os.path.join(res_dir, "Gene2Products.new-valid.txt")
+    num_new_valid = write_new_valid_annotations(merged, new_valid_file)
+    if num_new_valid > 0:
+        logger.info(
+            f"Found {num_new_valid} new valid gene names/products that could be added to the curated database"
+        )
+        logger.info(f"See {new_valid_file} for details")
+
+    # First, clean the merged annotations
+    cleaned_merged = {}
+    for gene_id, annot in merged.items():
+        # Process the annotation to clean names and products, passing the gene_id for custom annotations
+        cleaned_annot = name_cleaner.process_annotation(annot, gene_id=gene_id)
+        cleaned_merged[gene_id] = cleaned_annot
+
     # now loop through the annotation object and add functional annotation
     Annotation = {}
     for k, v in Genes.items():
         n = v.copy()
         for i, x in enumerate(n["ids"]):
-            if x in merged:  # then functional annotation to add
-                fa = merged.get(x)
+            if x in cleaned_merged:  # then functional annotation to add
+                fa = cleaned_merged.get(x)
                 if "product" in fa:
                     n["product"][i] = fa["product"][0]
                 if "db_xref" in fa:

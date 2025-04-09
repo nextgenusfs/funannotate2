@@ -498,6 +498,12 @@ def annotate_subparser(subparsers):
     optional_args.add_argument(
         "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
     )
+    optional_args.add_argument(
+        "--curated-names",
+        dest="curated_names",
+        help="Path to custom file with gene-specific annotations (tab-delimited: gene_id\tannotation_type\tannotation_value)",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",
