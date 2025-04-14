@@ -64,15 +64,28 @@ def load_genome(fafile):
         )
     sortdata = sorted(data, key=lambda x: x["length"])
     lengths = [x["length"] for x in sortdata]
+
+    # Handle empty or very small genomes
+    if not lengths:
+        return sortdata, 0
+
+    # Calculate N50
     nlist = []
     for x in lengths:
         nlist += [x] * x
-    if len(nlist) % 2 == 0:
+
+    if not nlist:
+        return sortdata, 0
+
+    if len(nlist) % 2 == 0 and len(nlist) >= 2:
         medianpos = int(len(nlist) / 2)
         N50 = int((nlist[medianpos] + nlist[medianpos - 1]) / 2)
-    else:
+    elif len(nlist) >= 1:
         medianpos = int(len(nlist) / 2)
         N50 = int(nlist[medianpos])
+    else:
+        N50 = 0
+
     return sortdata, N50
 
 
@@ -109,12 +122,31 @@ def clean(args):
             len(genome), len(genome_ms), args.minlen, n50
         )
     )
+
+    # Check if we have any contigs that meet the minimum length requirement
+    if not genome_ms:
+        log(
+            "No contigs found that meet the minimum length requirement of {} bp".format(
+                args.minlen
+            )
+        )
+        # Write an empty output file
+        with open(args.out, "w") as outfile:
+            pass
+        log("Wrote 0 contigs to {}".format(args.out))
+        shutil.rmtree(tmpdir)
+        finishLogging(log, vars(sys.modules[__name__])["__name__"])
+        return
+
     max_idx = len(genome_ms)
     if not args.exhaustive:
         for i, x in enumerate(genome_ms):
             if x["length"] > n50:
                 max_idx = i - 1
                 break
+
+    # Make sure max_idx is at least 1
+    max_idx = max(1, max_idx)
 
     # now loop through data with thread pool
     log(
@@ -125,11 +157,16 @@ def clean(args):
 
     # get a list of lists with arguments
     job_arguments = []
-    for x in range(0, max_idx):
-        job_arguments.append([genome_ms, x, tmpdir, args.pident, args.cov])
+    if max_idx > 0:
+        for x in range(0, max_idx):
+            job_arguments.append([genome_ms, x, tmpdir, args.pident, args.cov])
 
-    # run this will threadpool
-    results = runThreadJob(is_duplicated, job_arguments, cpus=args.cpus, progress=False)
+    # run this will threadpool if we have jobs to run
+    results = []
+    if job_arguments:
+        results = runThreadJob(
+            is_duplicated, job_arguments, cpus=args.cpus, progress=False
+        )
 
     # parse results
     duplicated = []

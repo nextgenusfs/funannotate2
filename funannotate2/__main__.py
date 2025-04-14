@@ -374,10 +374,16 @@ def clean_subparser(subparsers):
 
     required_args = group.add_argument_group("Required arguments")
     required_args.add_argument(
-        "-f", "--fasta", required=True, help="genome in FASTA format", metavar=""
+        "-f",
+        "--fasta",
+        required=True,
+        help="genome in FASTA format",
     )
     required_args.add_argument(
-        "-o", "--out", required=True, help="Cleaned genome output (FASTA)", metavar=""
+        "-o",
+        "--out",
+        required=True,
+        help="Cleaned genome output (FASTA)",
     )
 
     optional_args = group.add_argument_group("Optional arguments")
@@ -387,10 +393,13 @@ def clean_subparser(subparsers):
         type=int,
         default=95,
         help="percent identity of contig",
-        metavar="",
     )
     optional_args.add_argument(
-        "-c", "--cov", type=int, default=95, help="coverage of contig", metavar=""
+        "-c",
+        "--cov",
+        type=int,
+        default=95,
+        help="coverage of contig",
     )
     optional_args.add_argument(
         "-m",
@@ -398,26 +407,22 @@ def clean_subparser(subparsers):
         type=int,
         default=500,
         help="Minimum length of contig",
-        metavar="",
     )
     optional_args.add_argument(
         "-r",
         "--rename",
         help="Rename contigs largest to smallest with this basename, ie scaffold_",
-        metavar="",
     )
     optional_args.add_argument(
-        "--cpus", default=2, type=int, help="Number of CPUs to use", metavar=""
+        "--cpus", default=2, type=int, help="Number of CPUs to use"
     )
-    optional_args.add_argument("--tmpdir", help="TMP directory to use", metavar="")
+    optional_args.add_argument("--tmpdir", help="TMP directory to use")
     optional_args.add_argument(
         "--exhaustive",
         action="store_true",
         help="Compute every contig, else stop at N50",
     )
-    optional_args.add_argument(
-        "--logfile", default=False, help="Write logs to file", metavar=""
-    )
+    optional_args.add_argument("--logfile", help="Write logs to file")
     optional_args.add_argument("--debug", action="store_true", help="Debug the output")
 
     other_args = group.add_argument_group("Other arguments")

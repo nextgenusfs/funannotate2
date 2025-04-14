@@ -20,7 +20,7 @@ What are the system requirements for Funannotate2?
 Funannotate2 requires:
 
 - Linux or macOS operating system
-- Python 3.8 or later
+- Python 3.7 or later
 - At least 8 GB of RAM (16 GB or more recommended for larger genomes)
 - At least 50 GB of free disk space
 - Multiple CPU cores (8 or more recommended for faster processing)
@@ -38,14 +38,6 @@ Why can't I install GeneMark-ES through conda?
 
 GeneMark-ES is not available through conda due to licensing restrictions. You need to register and download it manually from the `GeneMark website <http://exon.gatech.edu/GeneMark/license_download.cgi>`_.
 
-How do I check if all dependencies are installed correctly?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can use the following command to check if all dependencies are installed correctly:
-
-.. code-block:: bash
-
-    funannotate2 check --dependencies
 
 Usage Questions
 ------------
@@ -56,9 +48,9 @@ What is the recommended workflow for annotating a genome?
 The recommended workflow is:
 
 1. Clean the genome assembly using ``funannotate2 clean``
-2. Predict genes using ``funannotate2 predict``
-3. Functionally annotate the predicted genes using ``funannotate2 annotate``
-4. Optionally, compare with other genomes using ``funannotate2 compare``
+2. Train ab initio prediction tools using ``funannotate2 train``
+3. Predict genes using ``funannotate2 predict``
+4. Functionally annotate the predicted genes using ``funannotate2 annotate``
 
 See the :doc:`tutorial` for a detailed example.
 

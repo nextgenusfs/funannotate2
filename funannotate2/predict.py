@@ -499,9 +499,10 @@ def predict(args):
                 repeats=maskedRegions,
                 tiebreakers="weights",
                 log=logger.info,
-                debug=True,
+                debug=False,
                 max_intron=args.max_intron,
                 evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
+                num_processes=args.cpus,
             )
     else:
         logger.info("Existing consensus predictions found, will re-use and continue")

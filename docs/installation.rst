@@ -8,19 +8,31 @@ Requirements
 
 Funannotate2 has the following dependencies:
 
-* Python 3.8 or later
-* Biopython
-* EvidenceModeler (>=2)
+* Python 3.7 or later
+* EvidenceModeler (>=2) [optional]
 * Minimap2
 * Miniprot
 * SNAP
 * Augustus (==3.5.0)
 * GlimmerHMM
+* GeneMark-ES/ET [optional]
 * Diamond
 * tRNAscan-SE
 * table2asn
+* natsort
+* numpy
+* mappy
+* gfftk (>=24.10.29)
+* BUSCOlite (>=24.7.29)
+* gapmm2
+* pyhmmer (>=0.10.15)
+* pyfastx (>=2.0.0)
+* requests
+* gb-io (>=0.3.2)
+* json-repair
+* pytantan
 
-Some tools like GeneMark-ES/ET must be installed manually due to licensing restrictions.
+Some tools like GeneMark-ES/ET must be installed manually due to licensing restrictions (see below).
 
 Installing with conda
 ------------------
@@ -48,14 +60,6 @@ To install the development version directly from GitHub:
 
     pip install git+https://github.com/nextgenusfs/funannotate2.git
 
-Installing GeneMark
-----------------
-
-GeneMark-ES/ET must be installed manually due to licensing restrictions:
-
-1. Register and download GeneMark-ES/ET from the `GeneMark website <http://exon.gatech.edu/GeneMark/license_download.cgi>`_
-2. Follow the installation instructions provided with the download
-3. Make sure the GeneMark executables are in your PATH
 
 Verifying Installation
 -------------------
@@ -68,10 +72,25 @@ To verify that Funannotate2 is installed correctly:
 
 This should display the version of Funannotate2.
 
-To check if all dependencies are installed correctly:
+
+Installing Databases
+-------------------
+
+Funannotate2 requires several databases to be installed. The funannotate2 scripts expect the $FUNANNOTATE2_DB environment variable to be set. These can be installed using the following command:
 
 .. code-block:: bash
 
-    funannotate2 check --dependencies
+    export FUNANNOTATE2_DB=/path/to/funannotate2_db
 
-This will check if all required dependencies are installed and available in your PATH.
+    funannotate2 install -d all
+
+
+
+Installing GeneMark
+----------------
+
+GeneMark-ES/ET must be installed manually due to licensing restrictions:
+
+1. Register and download GeneMark-ES/ET from the `GeneMark website <http://exon.gatech.edu/GeneMark/license_download.cgi>`_
+2. Follow the installation instructions provided with the download
+3. Make sure the GeneMark executables are in your PATH

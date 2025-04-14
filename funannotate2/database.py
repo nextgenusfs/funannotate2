@@ -36,7 +36,7 @@ def species(args):
         existing = fetch_pretrained_species()
         if args.delete not in existing:
             logger.error(
-                f'Species {args.delete} is not found in pre-trained database {os.path.join(env["FUNANNOTATE2_DB"], "pretrained")}'
+                f"Species {args.delete} is not found in pre-trained database {os.path.join(env['FUNANNOTATE2_DB'], 'pretrained')}"
             )
             raise SystemExit(1)
         # now delete it
@@ -59,7 +59,7 @@ def species(args):
         f"Pre-trained species in database [format={args.format}]:\n{db_species}"
     )
     logger.info(
-        'Note, use these spcies in funannotate2 predict with the "-pt,--pretrained-species" argument'
+        'Note, use these spcies in funannotate2 predict with the "-p, --pretrained" argument'
     )
 
 

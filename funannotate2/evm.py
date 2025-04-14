@@ -32,7 +32,7 @@ def get_loci(annot_dict):
     # so loop through and add to contig keyed dictionary
     all_genes = {}
     for gene, info in annot_dict.items():
-        if not info["contig"] in all_genes:
+        if info["contig"] not in all_genes:
             all_genes[info["contig"]] = [info["location"]]
         else:
             all_genes[info["contig"]].append(info["location"])

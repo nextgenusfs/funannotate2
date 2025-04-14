@@ -3,7 +3,7 @@ import subprocess
 import uuid
 import os
 from gfftk.gff import gff2dict, dict2gff3, dict2gff3alignments
-from gapmm2.align import splice_aligner, paf2gff3
+from gapmm2.align import aligner as transcript_aligner
 from .utilities import runSubprocess, execute, checkfile, merge_coordinates
 from .config import env
 
@@ -86,10 +86,16 @@ def align_transcripts(
     # function to run spliced transcript alignment using gapmm2 (mm2 + edlib refinement)
     # generate an EVM compatible GFF alignment file, parse data and pull out any full length gene models
     log.info("Aligning transcript evidence to the genome assembly with gapmm2")
-    t_aligned, t_stats = splice_aligner(
-        fasta, transcripts, threads=cpus, max_intron=max_intron
+
+    t_stats = transcript_aligner(
+        fasta,
+        transcripts,
+        output=evidence,
+        out_fmt="gff3",
+        threads=cpus,
+        max_intron=max_intron,
     )
-    paf2gff3(t_aligned, evidence)
+
     # now we need to parse this evidence GFF3 file and look for full length
     n_aligns, n_genes = split_evidence_and_genes(
         evidence, fasta, evidence, genes, gff_format="alignment"
