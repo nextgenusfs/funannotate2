@@ -71,7 +71,7 @@ class TestPredict:
     @patch("funannotate2.predict.run_genemark")
     @patch("funannotate2.predict.run_glimmerhmm")
     @patch("funannotate2.predict.run_snap")
-    @patch("funannotate2.predict.evm_consensus")
+    @patch("gfftk.consensus.generate_consensus")
     @patch("funannotate2.predict.gff2dict")
     @patch("funannotate2.predict.dict2gff3")
     @patch("funannotate2.predict.annotation_stats")
@@ -88,7 +88,7 @@ class TestPredict:
         mock_annotation_stats,
         mock_dict2gff3,
         mock_gff2dict,
-        mock_evm_consensus,
+        mock_generate_consensus,
         mock_run_snap,
         mock_run_glimmerhmm,
         mock_run_genemark,
@@ -148,8 +148,8 @@ class TestPredict:
         mock_run_glimmerhmm.return_value = "glimmerhmm.gff3"
         mock_run_snap.return_value = "snap.gff3"
 
-        # Mock the EVM consensus
-        mock_evm_consensus.return_value = "evm.gff3"
+        # Mock the consensus generation
+        mock_generate_consensus.return_value = "consensus.gff3"
 
         # Mock the GFF parsing
         mock_gff_dict = {"gene1": {"type": "gene", "location": [1, 1000]}}
