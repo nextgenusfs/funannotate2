@@ -28,7 +28,6 @@ from .fastx import (
 )
 from .align import align_transcripts, align_proteins, align_mito
 from .database import fetch_pretrained_species
-from .evm import evm_consensus
 from .abinitio import (
     run_snap,
     run_glimmerhmm,
@@ -476,34 +475,22 @@ def predict(args):
         t_aligns = []
         if checkfile(TranAlign):
             t_aligns.append(TranAlign)
-        if args.consensus == "evm":
-            _ = evm_consensus(
-                GenomeFasta,
-                abinitio_preds,
-                p_aligns,
-                t_aligns,
-                weightings,
-                Consensus,
-                log=logger,
-                tmpdir=consensus_tmp,
-                cpus=args.cpus,
-            )
-        elif args.consensus == "gfftk":
-            _ = generate_consensus(
-                GenomeFasta,
-                abinitio_preds,
-                p_aligns,
-                t_aligns,
-                weightings,
-                Consensus,
-                repeats=maskedRegions,
-                tiebreakers="weights",
-                log=logger.info,
-                debug=False,
-                max_intron=args.max_intron,
-                evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
-                num_processes=args.cpus,
-            )
+        # run gfftk consensus
+        _ = generate_consensus(
+            GenomeFasta,
+            abinitio_preds,
+            p_aligns,
+            t_aligns,
+            weightings,
+            Consensus,
+            repeats=maskedRegions,
+            tiebreakers="weights",
+            log=logger.info,
+            debug=False,
+            max_intron=args.max_intron,
+            evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
+            num_processes=args.cpus,
+        )
     else:
         logger.info("Existing consensus predictions found, will re-use and continue")
 

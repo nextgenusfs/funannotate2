@@ -7,12 +7,12 @@
 
 Funannotate2 is a comprehensive eukaryotic genome annotation pipeline that provides a complete workflow for annotating fungal, plant, and other eukaryotic genomes. It integrates various tools and databases to produce high-quality gene predictions and functional annotations.
 
-#### This is work in progress. Do not expect it to work until a release is tagged.
+#### This is work in progress. Do not expect it to work until a release is tagged.  We are getting close.
 
 Setting up a conda environment with these packages is necessary, then it can be installed with pip.
 
 ```shell
-mamba create -n funannotate2 "python<=3.10" biopython "evidencemodeler>=2" minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn
+mamba create -n funannotate2 gfftk gapmm2 minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn gb-io
 conda activate funannotate2
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
 ```

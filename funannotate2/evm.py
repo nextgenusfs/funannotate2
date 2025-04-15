@@ -402,6 +402,12 @@ def cmd_splitter(
                     print("more to do here")
 
             elif n_parts[contig] > 1:  # chr is split into chunks
+                part_interval = (
+                    int(k.split(":")[1].split("-")[0]),
+                    int(k.split(":")[1].split("-")[1]),
+                )
+                if part_interval[0] > part_interval[1]:
+                    continue
                 partDir = os.path.join(chrDir, k)
                 if not os.path.isdir(partDir):
                     os.makedirs(partDir)
@@ -410,18 +416,19 @@ def cmd_splitter(
                         contig, os.path.abspath(chrDir), "Y", os.path.abspath(partDir)
                     )
                 )
-                part_interval = (
-                    int(k.split(":")[1].split("-")[0]),
-                    int(k.split(":")[1].split("-")[1]),
-                )
+
                 # write the fasta file
                 chrFasta = os.path.join(partDir, "genome.fasta")
-                with open(chrFasta, "w") as fastaout:
-                    fastaout.write(
-                        ">{}\n{}\n".format(
-                            contig, softwrap(Genome.fetch(contig, part_interval))
+                try:
+                    with open(chrFasta, "w") as fastaout:
+                        fastaout.write(
+                            ">{}\n{}\n".format(
+                                contig, softwrap(Genome.fetch(contig, part_interval))
+                            )
                         )
-                    )
+                except ValueError:
+                    print(f"ERROR fetching contig: {contig} {part_interval}")
+                    raise SystemExit(1)
                 # write the gene predictions
                 genePred = os.path.join(partDir, "gene_predictions.gff3")
                 dict2gff3(v["genes"], output=genePred)

@@ -209,16 +209,6 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
-        "-m",
-        "--consensus-method",
-        required=False,
-        choices=["evm", "gfftk"],
-        dest="consensus",
-        help="Consensus model generation method [evm,gfftk]",
-        default="gfftk",
-        metavar="",
-    )
-    optional_args.add_argument(
         "-ps",
         "--proteins",
         required=False,
