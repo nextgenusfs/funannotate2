@@ -59,7 +59,7 @@ Or to install the bleeding edge version from github repo:
 
 ```shell
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
-
+```
 
 ## Development
 
