@@ -5,25 +5,61 @@
 
 # funannotate2: eukaryotic genome annotation pipeline
 
-Funannotate2 is a comprehensive eukaryotic genome annotation pipeline that provides a complete workflow for annotating fungal, plant, and other eukaryotic genomes. It integrates various tools and databases to produce high-quality gene predictions and functional annotations.
+Funannotate2 is a comprehensive eukaryotic genome annotation pipeline that provides a complete workflow for annotating
+eukaryotic genomes. It integrates various tools and databases to produce high-quality gene predictions and functional annotations.
 
-#### This is work in progress. Do not expect it to work until a release is tagged.  We are getting close.
 
-Setting up a conda environment with these packages is necessary, then it can be installed with pip.
+### Quick start: Installation
 
+#### Linux systems
+
+Unit this gets pushed to bioconda, can try this:
 ```shell
-mamba create -n funannotate2 gfftk gapmm2 minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn gb-io
+mamba create -n funannotate2 gfftk gapmm2 minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn gb-io buscolite
 conda activate funannotate2
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
 ```
 
+#### Apple Silicon (M series)
+Installation on apple silicon (M series) is a little bit more involved due to some dependency issues and non-native builds of some software.  I've not been able to find or build a version of `augustus` that will run, so instead I've been running `augustus` and `genemark` locally with Docker.  I've setup two repos with instructions on how to get this working (Need Docker Desktop installed) and then will need to put the bash wrapper files in your PATH to mimic the CLI interface.
+
+https://github.com/nextgenusfs/dockerized-augustus
+
+https://github.com/nextgenusfs/dockerized-genemark
+
+Once that is working, you can then install most of the remaining dependencies with conda, although we need to leave out both `buscolite` and `funannotate2` because they have `augustus` as a dependency, instead we will install those python packages with pip.
+
+```shell
+# first install most of the dependencies
+mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.12" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair
+
+# we can then add the required FUNANNOTATE2_DB env variable to the conda environment, note need to reactivate to use it
+conda activate funannotate2
+conda env config vars set FUNANNOTATE2_DB=/path/to/funannotate2-db
+conda deactivate
+
+# now reactivate environment, and install the remaining python dependencies with pip
+conda activate funannotate2
+python -m pip install buscolite funannotate2
+
+# now we can install the databases
+funannotate2 install -d all
+```
+
+#### Other/Manual Installation
+
 Additional tools like genemarkHMM must be installed manually due to licensing.
 
-To install release versions use the pip package manager, like so:
+`funannotate2` is a python package, to install release versions use the pip package manager, like so:
 
 ```shell
 pip install funannotate2
 ```
+Or to install the bleeding edge version from github repo:
+
+```shell
+python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
+
 
 ## Development
 
