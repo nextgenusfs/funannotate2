@@ -9,11 +9,11 @@ Key Features
 -----------
 
 * Genome cleaning and preparation
-* Gene prediction using multiple methods (Augustus, GeneMark-ES, etc.)
-* Evidence-based gene prediction using RNA-seq and protein evidence
+* Gene prediction using multiple methods (Augustus, GeneMark-ES, SNAP, GlimmerHMM, etc.)
+* Automated ab-initio training of gene prediction algorithms
+* Evidence-based gene prediction using transcript andd protein alignment evidence
 * Functional annotation using various databases (Pfam, dbCAN, MEROPS, SwissProt, etc.)
 * BUSCO-based quality assessment
-* Comparative genomics analysis
 * Output in various formats (GFF3, GenBank, FASTA, etc.)
 
 
