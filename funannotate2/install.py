@@ -111,7 +111,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("uniprot-release"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'UniProtKB checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"UniProtKB checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -131,7 +131,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("mito-release"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'UniProtKB checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"UniProtKB checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -151,7 +151,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("merops"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'MEROPS checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"MEROPS checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -171,7 +171,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("dbCAN"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'dbCAN checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"dbCAN checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -191,7 +191,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("pfam-log"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'Pfam-A checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"Pfam-A checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -211,7 +211,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("go"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'GO-OBO checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"GO-OBO checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -231,7 +231,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("interpro-tsv"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'InterPro checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"InterPro checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -251,7 +251,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("mibig"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'MiBig checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"MiBig checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -271,7 +271,7 @@ def install(args):
                 check = remote_md5_updated(DBURL.get("gene2product"), data["md5"])
                 if check is not False:
                     logger.info(
-                        f'Gene2Product checksum suggests an update: existing={data["md5"]} remote={check}'
+                        f"Gene2Product checksum suggests an update: existing={data['md5']} remote={check}"
                     )
                     data = {}
                 else:
@@ -312,7 +312,7 @@ def calcmd5(file):
     return md5local
 
 
-def calcmd5remote(url, max_file_size=100 * 1024 * 1024):
+def calcmd5remote_original(url, max_file_size=100 * 1024 * 1024):
     remote = urlopen(url)
     hash = hashlib.md5()
     total_read = 0
@@ -323,6 +323,90 @@ def calcmd5remote(url, max_file_size=100 * 1024 * 1024):
             break
         hash.update(data)
     return hash.hexdigest()
+
+
+def calcmd5remote(url, timeout=60):
+    """
+    Calculate the MD5 hash of a remote file's headers or a small sample.
+
+    This function tries HTTPS first, then falls back to FTP if needed.
+
+    Parameters:
+    - url (str): The URL of the file to calculate the MD5 hash for.
+    - timeout (int, optional): Timeout in seconds for the request (default is 60).
+
+    Returns:
+    - str: The MD5 hash value or a header-based identifier of the file.
+    """
+    # Try HTTPS first
+    try:
+        # First try to get headers only, which is much faster
+        response = requests.head(url, timeout=timeout, verify=False)
+        response.raise_for_status()
+
+        # Check if we have ETag or Last-Modified headers
+        etag = response.headers.get("ETag")
+        if etag:
+            # Remove quotes if present
+            return etag.strip("\"'")
+
+        last_modified = response.headers.get("Last-Modified")
+        if last_modified:
+            # Use Last-Modified as a proxy for content
+            return hashlib.md5(last_modified.encode()).hexdigest()
+
+        # If we don't have useful headers, fall back to sampling the file
+        response = requests.get(url, stream=True, timeout=timeout, verify=False)
+        response.raise_for_status()
+
+        hash = hashlib.md5()
+        total_read = 0
+        max_sample = 1024 * 1024  # 1MB sample
+
+        for chunk in response.iter_content(chunk_size=4096):
+            if not chunk:
+                break
+            total_read += len(chunk)
+            hash.update(chunk)
+            if total_read >= max_sample:
+                break
+
+        return hash.hexdigest()
+
+    except requests.exceptions.RequestException as e:
+        print(f"HTTPS request failed: {str(e)}")
+
+        # If HTTPS fails and the URL is using HTTPS to access an FTP server, try direct FTP
+        if "ftp." in url and url.startswith("https://"):
+            try:
+                # Convert HTTPS URL to FTP URL
+                ftp_url = url.replace("https://", "ftp://")
+                print(f"Trying FTP fallback: {ftp_url}")
+
+                from urllib.request import urlopen
+                import socket
+
+                # Set a socket timeout for FTP connections
+                socket.setdefaulttimeout(timeout)
+
+                remote = urlopen(ftp_url)
+                hash = hashlib.md5()
+                total_read = 0
+                max_sample = 1024 * 1024  # 1MB sample
+
+                while True:
+                    data = remote.read(4096)
+                    if not data or total_read >= max_sample:
+                        break
+                    total_read += len(data)
+                    hash.update(data)
+
+                return hash.hexdigest()
+            except Exception as ftp_e:
+                print(f"FTP fallback also failed: {str(ftp_e)}")
+
+        # Return a placeholder value that won't match any real MD5
+        return "ERROR_CALCULATING_MD5"
 
 
 def remote_md5_updated(url, md5):

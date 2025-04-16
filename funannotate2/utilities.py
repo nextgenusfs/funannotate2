@@ -9,15 +9,18 @@ import multiprocessing
 import queue
 import signal
 import uuid
+import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 import requests
 import errno
 from urllib.request import urlopen
+from urllib.error import URLError
 import socket
 import random
 import json
 from .config import augustus_species, busco_taxonomy
+
 
 # disable insecure warning
 requests.packages.urllib3.disable_warnings()
@@ -132,42 +135,138 @@ def load_json(filename):
     return data
 
 
-def download(url, name, wget=False):
+def download(url, name, wget=False, timeout=60, retries=3):
     """
-    Download a file from a given URL.
+    Download a file from a given URL with improved error handling and retries.
 
-    This function downloads a file from the specified URL and saves it with the given name.
-    It can use either the `wget` command-line tool or Python's `urllib` for downloading,
-    depending on the `wget` flag.
+    This function tries HTTPS first, then falls back to FTP if needed.
 
     Parameters:
     - url (str): The URL of the file to download.
     - name (str): The name to save the downloaded file as.
     - wget (bool, optional): Flag to use `wget` for downloading (default is False).
+    - timeout (int, optional): Timeout in seconds for the download (default is 60).
+    - retries (int, optional): Number of retry attempts for failed downloads (default is 3).
 
     Returns:
     None
     """
     if wget:
         # download with wget
-        cmd = ["wget", "-O", name, "--no-check-certificate", "-t", "2", "-c", url]
+        cmd = [
+            "wget",
+            "-O",
+            name,
+            "--no-check-certificate",
+            "-t",
+            str(retries),
+            "-c",
+            url,
+        ]
         subprocess.call(cmd)
-    else:
-        file_name = name
+        return
+
+    file_name = name
+    attempt = 0
+
+    # Try HTTPS first
+    while attempt < retries:
+        try:
+            # Use requests for HTTP/HTTPS
+            with requests.get(url, stream=True, timeout=timeout, verify=False) as r:
+                r.raise_for_status()  # Raise an exception for HTTP errors
+                with open(file_name, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk:  # filter out keep-alive chunks
+                            f.write(chunk)
+            # If we get here, download was successful
+            return
+        except requests.exceptions.RequestException as e:
+            attempt += 1
+            if attempt < retries:
+                print(
+                    f"HTTPS download attempt {attempt} failed: {str(e)}. Retrying in 5 seconds..."
+                )
+                time.sleep(5)  # Wait before retrying
+            else:
+                print(f"HTTPS download failed after {retries} attempts: {str(e)}")
+
+                # If HTTPS fails and the URL is using HTTPS to access an FTP server, try direct FTP
+                if "ftp." in url and url.startswith("https://"):
+                    print(f"Trying FTP fallback for {url}")
+                    ftp_url = url.replace("https://", "ftp://")
+                    ftp_success = _download_ftp(ftp_url, file_name, timeout)
+                    if ftp_success:
+                        return
+
+                # If we get here, both HTTPS and FTP failed
+                raise Exception(f"Download failed: {str(e)}")
+
+
+def _download_ftp(url, file_name, timeout=60):
+    """
+    Helper function to download a file using FTP protocol.
+
+    Parameters:
+    - url (str): The FTP URL to download from.
+    - file_name (str): The name to save the downloaded file as.
+    - timeout (int, optional): Timeout in seconds for the download (default is 60).
+
+    Returns:
+    - bool: True if download was successful, False otherwise.
+    """
+    try:
+        # Set a socket timeout for FTP connections
+        socket.setdefaulttimeout(timeout)
+
+        # Create a temporary file first to avoid partial downloads
+        temp_file = file_name + ".tmp"
+
+        u = None
+        f = None
         try:
             u = urlopen(url)
-            f = open(file_name, "wb")
+            f = open(temp_file, "wb")
             block_sz = 8192
             while True:
                 buffer = u.read(block_sz)
                 if not buffer:
                     break
                 f.write(buffer)
-            f.close()
-        except socket.error as e:
-            if e.errno != errno.ECONNRESET:
-                raise
-            pass
+
+            # Close files before renaming
+            if f:
+                f.close()
+                f = None
+            if u:
+                u.close()
+                u = None
+
+            # Rename temp file to final file
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            os.rename(temp_file, file_name)
+
+            print(f"FTP download successful: {url}")
+            return True
+
+        except Exception as e:
+            print(f"FTP download failed: {str(e)}")
+            # Clean up temp file if it exists
+            if f:
+                f.close()
+            if u:
+                try:
+                    u.close()
+                except:
+                    pass
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            return False
+
+    except Exception as e:
+        print(f"FTP connection failed: {str(e)}")
+        return False
 
 
 def lookup_taxonomy(name):
