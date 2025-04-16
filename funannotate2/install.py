@@ -25,6 +25,9 @@ def install(args):
     databases like UniProt, MEROPS, dbCAN, Pfam, and others, and logs the installation
     process and results.
 
+    If the --show option is provided, it displays the currently installed databases
+    without performing any installations or updates.
+
     Parameters:
     - args: Command-line arguments provided by the user.
 
@@ -49,6 +52,43 @@ def install(args):
     global today
     today = datetime.datetime.today().strftime("%Y-%m-%d")
 
+    # pull the database JSON file
+    # if text file with DB info is in database folder, parse into Dictionary
+    DatabaseFile = os.path.join(env["FUNANNOTATE2_DB"], "funannotate-db-info.json")
+    dbinfo = {}
+    if checkfile(DatabaseFile):
+        dbinfo = load_json(DatabaseFile)
+
+    # If --show option is provided, display the installed databases as JSON and exit
+    if hasattr(args, "show") and args.show:
+        if not dbinfo:
+            logger.info("No databases are currently installed.")
+        else:
+            # Clean up the database paths to show only filenames for cleaner output
+            display_info = {}
+            for db_name, db_info in dbinfo.items():
+                display_info[db_name] = db_info.copy()
+                if "db" in display_info[db_name]:
+                    display_info[db_name]["db"] = os.path.basename(
+                        display_info[db_name]["db"]
+                    )
+
+            # Print as formatted JSON
+            logger.info("Currently installed databases:")
+            logger.info(json.dumps(display_info, indent=2, sort_keys=True))
+        # Finish logging and exit
+        finishLogging(log, vars(sys.modules[__name__])["__name__"])
+        return
+
+    # Check if --db argument is provided for installation
+    if not hasattr(args, "db") or not args.db:
+        logger.error(
+            "No databases specified for installation. Use -d/--db to specify databases to install."
+        )
+        finishLogging(log, vars(sys.modules[__name__])["__name__"])
+        return
+
+    # Proceed with installation
     db2install = []
     if "all" in args.db:
         db2install = [
@@ -82,13 +122,6 @@ def install(args):
             "downloads"
         ]
     logger.info(json.dumps(DBURL, indent=2))
-
-    # pull the database JSON file
-    # if text file with DB info is in database folder, parse into Dictionary
-    DatabaseFile = os.path.join(env["FUNANNOTATE2_DB"], "funannotate-db-info.json")
-    dbinfo = {}
-    if checkfile(DatabaseFile):
-        dbinfo = load_json(DatabaseFile)
 
     # let user know what you are doing
     if args.force is False:

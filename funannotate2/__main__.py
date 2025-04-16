@@ -86,7 +86,7 @@ def install_subparser(subparsers):
     required_args.add_argument(
         "-d",
         "--db",
-        required=True,
+        required=False,
         nargs="+",
         choices=[
             "all",
@@ -104,6 +104,12 @@ def install_subparser(subparsers):
         metavar="",
     )
     optional_args = group.add_argument_group("Optional arguments")
+    optional_args.add_argument(
+        "-s",
+        "--show",
+        action="store_true",
+        help="Show currently installed databases",
+    )
     optional_args.add_argument(
         "-w",
         "--wget",
