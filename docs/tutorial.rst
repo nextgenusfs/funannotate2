@@ -88,7 +88,7 @@ And then we can have a look at the annotation stats in this heavily curated mode
 Step 2: Train Ab Initio Prediction Tools
 -------------------
 
-The next step is to train the ab initio prediction tools, to do that we'll use `funannotate2 train`.  I'm going to use the `anid_f2` as the output directory.
+The next step is to train the ab initio prediction tools, to do that we'll use ``funannotate2 train``.  I'm going to use the ``anid_f2`` as the output directory.
 
 .. code-block:: bash
 
@@ -217,7 +217,7 @@ The next step is to train the ab initio prediction tools, to do that we'll use `
 Step 3: Predict Genes
 -------------------
 
-The next step is to predict genes using the training sets we just generated.  Here we will just use the defaults for evidence mapping, which is to align the SwissProt/UniProt curated database. If you had high quality curated transcript data you could pass that to `--transcripts` option.
+The next step is to predict genes using the training sets we just generated.  Here we will just use the defaults for evidence mapping, which is to align the SwissProt/UniProt curated database. If you had high quality curated transcript data you could pass that to ``--transcripts`` option.
 
 .. code-block:: bash
 
@@ -422,7 +422,7 @@ In this case we see that the tool predicted 10196 genes (10016 of which are prot
 Step 4: Functionally Annotate Genes
 ---------------------------------
 
-The next step is to functionally annotate the predicted gene models.  The core `annotate` module in `funannotate2` will do a few functional annotation steps, however, it does not natively try to support everything as this becomes daunting. Rather users can provide their own functional annotation to the script via the `-a,--annotations` command line argument.
+The next step is to functionally annotate the predicted gene models.  The core ``annotate`` module in ``funannotate2`` will do a few functional annotation steps, however, it does not natively try to support everything as this becomes daunting. Rather users can provide their own functional annotation to the script via the ``-a,--annotations`` command line argument.
 
 .. code-block:: bash
 
@@ -561,19 +561,19 @@ The annotation process produces various output in the output directory (``anid_f
    - ``train_results/Aspergillus_nidulans_FGSCA4.params.json``: Training parameters for ab initio gene prediction tools, can be used for future predictions or permanently install with `funannotate2 species`
 
 2. **Gene Prediction**:
-   - ``predict_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
-   - ``predict_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
-   - ``predict_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
-   - ``predict_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
+   * ``predict_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
+   * ``predict_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
+   * ``predict_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
+   * ``predict_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
 
 3. **Functional Annotation**:
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.proteins.fa``: Predicted proteins in FASTA format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.transcripts.fa``: Predicted transcripts in FASTA format
-   - ``annotate_results/Aspergillus_nidulans_FGSCA4.summary.json``: Summary statistics in JSON format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.proteins.fa``: Predicted proteins in FASTA format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.transcripts.fa``: Predicted transcripts in FASTA format
+   * ``annotate_results/Aspergillus_nidulans_FGSCA4.summary.json``: Summary statistics in JSON format
 
 
 
