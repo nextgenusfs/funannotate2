@@ -558,21 +558,35 @@ Output Files
 The annotation process produces various output in the output directory (``anid_f2``). Here are some of the key files:
 
 1. **Ab initio training parameters**:
+
    - ``train_results/Aspergillus_nidulans_FGSCA4.params.json``: Training parameters for ab initio gene prediction tools, can be used for future predictions or permanently install with `funannotate2 species`
 
+
 2. **Gene Prediction**:
+
    * ``predict_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
+
    * ``predict_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
+
    * ``predict_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
+
    * ``predict_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
 
+
 3. **Functional Annotation**:
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.fasta``: Genome assembly in FASTA format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.gff3``: Predicted genes in GFF3 format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.gbk``: Predicted genes in GenBank flat-file format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.tbl``: Predicted genes in GenBank TBL format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.proteins.fa``: Predicted proteins in FASTA format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.transcripts.fa``: Predicted transcripts in FASTA format
+
    * ``annotate_results/Aspergillus_nidulans_FGSCA4.summary.json``: Summary statistics in JSON format
 
 
