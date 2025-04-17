@@ -1,7 +1,7 @@
 Tutorial
 ========
 
-This tutorial will guide you through the process of annotating a fungal genome using Funannotate2.
+This tutorial will guide you through the process of annotating a fungal genome using Funannotate2. We will use a publically available genome assembly for Aspergillus nidulans.
 
 Prerequisites
 ------------
@@ -9,37 +9,87 @@ Prerequisites
 Before starting this tutorial, make sure you have:
 
 1. Installed Funannotate2 and its dependencies and databases (see :doc:`installation`)
-2. A genome assembly in FASTA format, preferrably genome should be repeat softmasked.
-3. Protein evidence (optional but recommended)
-4. Transcript evidence (optional but recommended)
 
-Step 1: Clean the Genome Assembly
+
+Step 1: Fetch genome assembly
 --------------------------------
 
-The first step is to clean and prepare the genome assembly for annotation:
+Lets fetch the model organism Aspergillus nidulans FGSCA4 from NCBI:
 
 .. code-block:: bash
 
-    funannotate2 clean -i raw_genome.fasta -o cleaned_genome.fasta --minlen 1000 -s "Aspergillus nidulans" --strain "FGSCA4"
+    wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/011/425/GCF_000011425.1_ASM1142v1/GCF_000011425.1_ASM1142v1_genomic.fna.gz
+    wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/011/425/GCF_000011425.1_ASM1142v1/GCF_000011425.1_ASM1142v1_genomic.gff.gz
 
-This command will:
 
-1. Remove contigs shorter than 1000 bp
-2. Clean contig headers
-3. Sort contigs by size
-4. Output the cleaned genome to ``cleaned_genome.fasta``
+Next we can clean up the NCBI GFF3 format:
+
+.. code-block:: bash
+
+   $ gfftk sanitize -f GCF_000011425.1_ASM1142v1_genomic.fna.gz -g GCF_000011425.1_ASM1142v1_genomic.gff.gz -o FGSCA4.gff3
+
+
+And then we can have a look at the annotation stats in this heavily curated model organism:
+
+.. code-block:: bash
+
+   $ gfftk stats -f GCF_000011425.1_ASM1142v1_genomic.fna.gz -i FGSCA4.gff3
+   {
+   "genes": 10518,
+   "common_name": 112,
+   "mRNA": 10455,
+   "tRNA": 0,
+   "ncRNA": 0,
+   "rRNA": 0,
+   "repeat_region": 0,
+   "misc_feature": 0,
+   "avg_gene_length": 1764.49,
+   "transcript-level": {
+      "CDS_transcripts": 10455,
+      "CDS_five_utr": 0,
+      "CDS_three_utr": 0,
+      "CDS_no_utr": 10455,
+      "CDS_five_three_utr": 0,
+      "CDS_complete": 10443,
+      "CDS_no-start": 3,
+      "CDS_no-stop": 7,
+      "CDS_no-start_no-stop": 2,
+      "total_exons": 35133,
+      "total_cds_exons": 34802,
+      "average_number_transcripts_per_gene": 0.99,
+      "multiple_exon_transcript": 9084,
+      "single_exon_transcript": 1371,
+      "average_number_cds_exons": 3.33,
+      "avg_exon_length": 462.21,
+      "median_number_exons": 3,
+      "max_number_exons": 26,
+      "avg_protein_length": 485.62,
+      "avg_transcript_length": 1553.22,
+      "functional": {
+         "go_terms": 0,
+         "interproscan": 8169,
+         "eggnog": 0,
+         "pfam": 0,
+         "cazyme": 0,
+         "merops": 0,
+         "busco": 0,
+         "secretion": 0
+      }
+   }
 
 Step 2: Train Ab Initio Prediction Tools
 -------------------
 
-The next step is to train the ab initio prediction tools using the cleaned genome assembly:
+The next step is to train the ab initio prediction tools, to do that we'll use `funannotate2 train`.  I'm going to use the `anid_f2` as the output directory.
 
 .. code-block:: bash
 
-    funannotate2 train -i cleaned_genome.fasta -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 -o anidulans
+   $ funannotate2 train -f GCF_000011425.1_ASM1142v1_genomic.fna.gz \
+      -g FGSCA4.gff3 -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 \
+      -o anid_f2
 
 
-.. seealso::
+.. admonition:: See the full output of this command
     :class: dropdown
 
       .. code-block:: bash
@@ -48,24 +98,24 @@ The next step is to train the ab initio prediction tools using the cleaned genom
          [Apr 12 10:12 PM] Loading genome assembly and running QC checks
          [Apr 12 10:12 PM] Genome stats:
          {
-         "n_contigs": 8,
-         "size": 29828291,
-         "n50": 3704807,
-         "n90": 3145033,
-         "l50": 4,
-         "l90": 7,
-         "avg_length": 3728536
+            "n_contigs": 8,
+            "size": 29828291,
+            "n50": 3704807,
+            "n90": 3145033,
+            "l50": 4,
+            "l90": 7,
+            "avg_length": 3728536
          }
          [Apr 12 10:12 PM] Getting taxonomy information
          {
-         "superkingdom": "Eukaryota",
-         "kingdom": "Fungi",
-         "phylum": "Ascomycota",
-         "class": "Eurotiomycetes",
-         "order": "Eurotiales",
-         "family": "Aspergillaceae",
-         "genus": "Aspergillus",
-         "species": "Aspergillus nidulans"
+            "superkingdom": "Eukaryota",
+            "kingdom": "Fungi",
+            "phylum": "Ascomycota",
+            "class": "Eurotiomycetes",
+            "order": "Eurotiales",
+            "family": "Aspergillaceae",
+            "genus": "Aspergillus",
+            "species": "Aspergillus nidulans"
          }
          [Apr 12 10:12 PM] Choosing best augustus species based on taxonomy: anidulans
          [Apr 12 10:12 PM] Choosing best busco species based on taxonomy: eurotiales
@@ -76,80 +126,80 @@ The next step is to train the ab initio prediction tools using the cleaned genom
          [Apr 12 10:41 PM] Found 3989 BUSCOs in first pass, trying harder to find remaining 202
          [Apr 12 10:41 PM] Found 52 from miniprot, now launching 147 augustus/pyhmmer jobs for 135 BUSCO models
          [Apr 12 10:43 PM] Analysis complete:
-         single-copy=4077
-         fragmented=0
-         duplicated=0
-         total=4077
+            single-copy=4077
+            fragmented=0
+            duplicated=0
+            total=4077
          [Apr 12 10:43 PM] Training set [/Users/jon/software/funannotate2/local_tests/anidulans/train_misc/busco_training_set.gff3] loaded with 4077 gene models
          [Apr 12 10:44 PM] 3,696 of 4,077 models pass training parameters
          [Apr 12 10:44 PM] 3696 gene models selected for training, now splitting into test [n=200] and train [n=3496]
          [Apr 12 10:44 PM] Training augustus using training set
          [Apr 12 10:45 PM] Initial training completed in 00:01:55s
          {
-         "tool": "augustus",
-         "model": "2729fffa-bec0-45a2-a0fe-b64c0d6ea542",
-         "n_test_genes": 200,
-         "ref_genes_found": 199,
-         "ref_genes_missed": 1,
-         "extra_query_genes": 101,
-         "average_aed": 0.07467057536626677,
-         "nucleotide_sensitivity": 0.9220365983327615,
-         "nucleotide_precision": 0.9506290384745041,
-         "exon_sensitivity": 0.7030456852791879,
-         "exon_precision": 0.7353456611070821,
-         "gene_sensitivity": 0.99,
-         "gene_precision": 0.495
+            "tool": "augustus",
+            "model": "2729fffa-bec0-45a2-a0fe-b64c0d6ea542",
+            "n_test_genes": 200,
+            "ref_genes_found": 199,
+            "ref_genes_missed": 1,
+            "extra_query_genes": 101,
+            "average_aed": 0.07467057536626677,
+            "nucleotide_sensitivity": 0.9220365983327615,
+            "nucleotide_precision": 0.9506290384745041,
+            "exon_sensitivity": 0.7030456852791879,
+            "exon_precision": 0.7353456611070821,
+            "gene_sensitivity": 0.99,
+            "gene_precision": 0.495
          }
          [Apr 12 10:45 PM] Training snap using training set
          [Apr 12 10:46 PM] Initial training completed in 00:00:10s
          {
-         "tool": "snap",
-         "model": "snap-trained.hmm",
-         "n_test_genes": 200,
-         "ref_genes_found": 200,
-         "ref_genes_missed": 0,
-         "extra_query_genes": 200,
-         "average_aed": 0.11985835682750766,
-         "nucleotide_sensitivity": 0.8578286982555101,
-         "nucleotide_precision": 0.9623470985417217,
-         "exon_sensitivity": 0.5644329896907216,
-         "exon_precision": 0.6013132056946491,
-         "gene_sensitivity": 1.0,
-         "gene_precision": 0.23954372623574144
+            "tool": "snap",
+            "model": "snap-trained.hmm",
+            "n_test_genes": 200,
+            "ref_genes_found": 200,
+            "ref_genes_missed": 0,
+            "extra_query_genes": 200,
+            "average_aed": 0.11985835682750766,
+            "nucleotide_sensitivity": 0.8578286982555101,
+            "nucleotide_precision": 0.9623470985417217,
+            "exon_sensitivity": 0.5644329896907216,
+            "exon_precision": 0.6013132056946491,
+            "gene_sensitivity": 1.0,
+            "gene_precision": 0.23954372623574144
          }
          [Apr 12 10:46 PM] Training glimmerHMM using training set
          [Apr 12 11:14 PM] Initial training completed in 00:20:17 and parameter optimization completed in 00:07:47s
          {
-         "tool": "glimmerhmm",
-         "model": "train",
-         "n_test_genes": 200,
-         "ref_genes_found": 191,
-         "ref_genes_missed": 9,
-         "extra_query_genes": 90,
-         "average_aed": 0.09936167211746938,
-         "nucleotide_sensitivity": 0.8940046590916744,
-         "nucleotide_precision": 0.9345785751153856,
-         "exon_sensitivity": 0.5783783783783784,
-         "exon_precision": 0.61981981981982,
-         "gene_sensitivity": 0.8846153846153846,
-         "gene_precision": 0.4339622641509434
+            "tool": "glimmerhmm",
+            "model": "train",
+            "n_test_genes": 200,
+            "ref_genes_found": 191,
+            "ref_genes_missed": 9,
+            "extra_query_genes": 90,
+            "average_aed": 0.09936167211746938,
+            "nucleotide_sensitivity": 0.8940046590916744,
+            "nucleotide_precision": 0.9345785751153856,
+            "exon_sensitivity": 0.5783783783783784,
+            "exon_precision": 0.61981981981982,
+            "gene_sensitivity": 0.8846153846153846,
+            "gene_precision": 0.4339622641509434
          }
          [Apr 12 11:14 PM] Training GeneMark-ES using self-training
          [Apr 13 02:59 AM] Initial training completed in 03:44:55s
          {
-         "tool": "genemark",
-         "model": "gmhmm.mod",
-         "n_test_genes": 200,
-         "ref_genes_found": 200,
-         "ref_genes_missed": 0,
-         "extra_query_genes": 183,
-         "average_aed": 0.062178024762870994,
-         "nucleotide_sensitivity": 0.9213744271525245,
-         "nucleotide_precision": 0.9748335923946361,
-         "exon_sensitivity": 0.745,
-         "exon_precision": 0.7820714285714284,
-         "gene_sensitivity": 1.0,
-         "gene_precision": 0.3879598662207358
+            "tool": "genemark",
+            "model": "gmhmm.mod",
+            "n_test_genes": 200,
+            "ref_genes_found": 200,
+            "ref_genes_missed": 0,
+            "extra_query_genes": 183,
+            "average_aed": 0.062178024762870994,
+            "nucleotide_sensitivity": 0.9213744271525245,
+            "nucleotide_precision": 0.9748335923946361,
+            "exon_sensitivity": 0.745,
+            "exon_precision": 0.7820714285714284,
+            "gene_sensitivity": 1.0,
+            "gene_precision": 0.3879598662207358
          }
          [Apr 13 02:59 AM] Ab initio training finished: /Users/jon/software/funannotate2/local_tests/anidulans/train_results/Aspergillus_nidulans_FGSCA4.params.json
          [Apr 13 02:59 AM] The params.json file can be passed to funannotate2 predict or installed globally with funannotate2 species
@@ -163,29 +213,14 @@ The next step is to predict genes in the cleaned genome assembly:
 
 .. code-block:: bash
 
-    funannotate2 predict -i anidulans --cpus 8
+    funannotate2 predict -i anid_f2 --cpus 8
 
-    [Apr 13 07:28 AM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
-    [Apr 13 07:28 AM] Parsed data from --input-dir anidulans
-    --fasta /Users/jon/software/funannotate2/local_tests/anidulans/train_results/FGSCA4.fna
-    --species "Aspergillus nidulans"
-    --params /Users/jon/software/funannotate2/local_tests/anidulans/train_results/Aspergillus_nidulans_FGSCA4.params.json
-    --out anidulans
-    [Apr 13 07:28 AM] Loaded training params for Aspergillus_nidulans_FGSCA4: ['augustus', 'glimmerhmm', 'snap', 'genemark']
-    [Apr 13 07:28 AM] temporary files located in: /tmp/predict_e82de575-b811-45be-b2ea-fcf2af1eaaff
-    [Apr 13 07:28 AM] Loading genome assembly, running QC checks, searching for mitochondrial contigs, calculating softmasked regions and assembly gaps
-    [Apr 13 07:28 AM] Genome stats:
-    {
-    "n_contigs": 8,
-    "size": 29828291,
-    "softmasked": "5.10%",
-    "gaps": "0.03%",
-    "n50": 3704807,
-    "n90": 3145033,
-    "l50": 4,
-    "l90": 7,
-    "avg_length": 3728536
-    }
+
+.. seealso::
+    :class: dropdown
+
+      .. code-block:: bash
+
 
 
 This command will:
