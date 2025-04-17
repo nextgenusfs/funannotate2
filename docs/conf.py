@@ -43,7 +43,10 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosectionlabel",
     "sphinx_togglebutton",
+    "sphinx_rtd_size",
 ]
+
+sphinx_rtd_size_width = "90%"
 
 # Configure napoleon for Google style docstrings
 napoleon_google_docstring = True
