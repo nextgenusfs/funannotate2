@@ -39,10 +39,9 @@ The next step is to train the ab initio prediction tools using the cleaned genom
     funannotate2 train -i cleaned_genome.fasta -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 -o anidulans
 
 
-.. note::
-    :class: dropdown
-
-   .. code-block:: bash
+```{admonition} Click here to see output
+:class: dropdown
+  .. code-block:: bash
     [Apr 12 10:12 PM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
     [Apr 12 10:12 PM] Loading genome assembly and running QC checks
     [Apr 12 10:12 PM] Genome stats:
@@ -153,6 +152,8 @@ The next step is to train the ab initio prediction tools using the cleaned genom
     [Apr 13 02:59 AM] Ab initio training finished: /Users/jon/software/funannotate2/local_tests/anidulans/train_results/Aspergillus_nidulans_FGSCA4.params.json
     [Apr 13 02:59 AM] The params.json file can be passed to funannotate2 predict or installed globally with funannotate2 species
     [Apr 13 02:59 AM] funannotate2.train module finished: peak memory usage=204.64 MiB
+```
+
 
 
 Step 3: Predict Genes
