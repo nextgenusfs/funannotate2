@@ -39,8 +39,8 @@ The next step is to train the ab initio prediction tools using the cleaned genom
     funannotate2 train -i cleaned_genome.fasta -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 -o anidulans
 
 
-.. code-bock:: bash
-      :class: dropdown
+.. note::
+    :class: dropdown
 
     [Apr 12 10:12 PM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
     [Apr 12 10:12 PM] Loading genome assembly and running QC checks
