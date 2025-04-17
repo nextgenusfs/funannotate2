@@ -550,7 +550,7 @@ The next step is to functionally annotate the predicted gene models.  The core `
          }
          [Apr 17 01:49 PM] funannotate2.annotate module finished: peak memory usage=183.47 MiB
 
-
+The annotate step was able to add functional annotation to 8594 of the 10196 gene models from PFAM, CAZymes, MEROPS, SwissProt/UniProt, and BUSCO.
 
 Output Files
 -----------
