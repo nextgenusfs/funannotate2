@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import shutil
+import gzip
 from collections import OrderedDict
 from natsort import natsorted
 from .utilities import (
@@ -42,6 +43,7 @@ from gfftk.stats import annotation_stats
 from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
 from gfftk.consensus import generate_consensus
 from buscolite.busco import runbusco
+from gfftk.utils import check_file_type
 
 
 def predict(args):
@@ -525,12 +527,17 @@ def predict(args):
     if mito_contigs:
         annotate_fasta(args.fasta, finalFA, ids=list(mito_contigs.keys()))
     else:
-        shutil.copyfile(args.fasta, finalFA)
+        if check_file_type(args.fasta) == "gzipped binary":
+            with gzip.open(args.fasta, "rt") as infile, open(finalFA, "w") as outfile:
+                for line in infile:
+                    outfile.write(line)
+        else:
+            shutil.copyfile(args.fasta, finalFA)
     logger.info("Converting to GenBank format")
-    gff2tbl(finalGFF3, args.fasta, output=finalTBL, table=1)
+    gff2tbl(finalGFF3, finalFA, output=finalTBL, table=1)
     tbl2gbff(
         finalTBL,
-        args.fasta,
+        finalFA,
         output=finalGBK,
         organism=args.species,
         strain=args.strain,
