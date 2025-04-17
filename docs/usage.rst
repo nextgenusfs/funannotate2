@@ -6,7 +6,6 @@ Funannotate2 provides a command-line interface for annotating eukaryotic genomes
 1. Clean the genome assembly
 2. Predict genes
 3. Functionally annotate the predicted genes
-4. Compare multiple genome annotations (optional)
 
 Command-Line Interface
 ---------------------
@@ -22,8 +21,9 @@ Available commands:
 * ``clean``: Clean and prepare the genome assembly
 * ``predict``: Predict genes in the genome
 * ``annotate``: Functionally annotate predicted genes
-* ``compare``: Compare multiple genome annotations
-* ``check``: Check dependencies and installation
+* ``install``: Install and manage databases
+* ``train``: Train ab initio gene prediction algorithms
+* ``species``: Manage trained species models
 
 Each command has its own set of options. Use ``funannotate2 <command> --help`` to see the available options for each command.
 
@@ -96,21 +96,7 @@ Options:
 * ``--busco_db``: BUSCO database to use
 * ``--cpus``: Number of CPUs to use (default: 1)
 
-Genome Comparison
----------------
 
-You can compare multiple genome annotations:
-
-.. code-block:: bash
-
-    funannotate2 compare -i genome1_results genome2_results -o compare_results -n genome1 genome2
-
-Options:
-
-* ``-i, --input``: Input directories from annotate step
-* ``-o, --out``: Output directory
-* ``-n, --names``: Names for each input genome
-* ``--cpus``: Number of CPUs to use (default: 1)
 
 Example Workflow
 --------------
@@ -131,6 +117,3 @@ Here's an example workflow for annotating a fungal genome:
     funannotate2 annotate --gff3 predict_results/funannotate_predict.gff3 --fasta cleaned_genome.fasta \
         -o annotate_results -s "Aspergillus fumigatus" --strain "Af293" \
         --pfam --dbcan --merops --swissprot --busco --busco_db fungi --cpus 16
-
-    # Compare with another genome
-    funannotate2 compare -i annotate_results other_genome_results -o compare_results -n "Af293" "Other" --cpus 16

@@ -39,6 +39,9 @@ The next step is to train the ab initio prediction tools using the cleaned genom
     funannotate2 train -i cleaned_genome.fasta -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 -o anidulans
 
 
+.. code-bock:: bash
+      :class: dropdown
+
     [Apr 12 10:12 PM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
     [Apr 12 10:12 PM] Loading genome assembly and running QC checks
     [Apr 12 10:12 PM] Genome stats:
@@ -158,7 +161,7 @@ The next step is to predict genes in the cleaned genome assembly:
 
 .. code-block:: bash
 
-    funannotate2 predict -i anidulans --cpus 8 --transcripts Aspergillus_ests.fasta
+    funannotate2 predict -i anidulans --cpus 8
 
     [Apr 13 07:28 AM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
     [Apr 13 07:28 AM] Parsed data from --input-dir anidulans
@@ -181,7 +184,6 @@ The next step is to predict genes in the cleaned genome assembly:
     "l90": 7,
     "avg_length": 3728536
     }
-    [Apr 13 07:28 AM] Aligning transcript evidence to the genome assembly with gapmm2
 
 
 This command will:
@@ -190,7 +192,7 @@ This command will:
 2. Run Augustus to predict genes
 3. Align protein evidence using Miniprot
 4. Align transcript evidence using Minimap2
-5. Merge the predictions from all sources
+5. Merge the predictions from all sources into consensus models using GFFtk
 6. Output the predicted genes to ``predict_results/funannotate_predict.gff3``
 
 Step 4: Functionally Annotate Genes
@@ -200,9 +202,7 @@ The next step is to functionally annotate the predicted genes:
 
 .. code-block:: bash
 
-    funannotate2 annotate --gff3 predict_results/funannotate_predict.gff3 --fasta cleaned_genome.fasta \
-        -o annotate_results -s "Aspergillus fumigatus" --strain "Af293" \
-        --pfam --dbcan --merops --swissprot --busco --busco_db fungi --cpus 16
+    funannotate2 annotate -i anidulans --cpus 8
 
 This command will:
 

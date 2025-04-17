@@ -7,7 +7,6 @@ API Reference
    API/clean
    API/predict
    API/annotate
-   API/compare
    API/search
    API/utilities
    API/log
@@ -22,7 +21,6 @@ Funannotate2 consists of several core modules:
 - **clean**: Functions for cleaning and preparing genome assemblies
 - **predict**: Functions for predicting genes in genome assemblies
 - **annotate**: Functions for functionally annotating predicted genes
-- **compare**: Functions for comparing multiple genome annotations
 - **search**: Functions for searching sequences against various databases
 - **utilities**: Utility functions used by other modules
 - **log**: Logging functions used by other modules
@@ -117,25 +115,3 @@ Here's an example of how to use the Funannotate2 API to functionally annotate pr
 
     # Annotate genes
     annotate(args)
-
-Here's an example of how to use the Funannotate2 API to compare multiple genome annotations:
-
-.. code-block:: python
-
-    from funannotate2.compare import compare
-
-    # Create arguments object
-    class Args:
-        def __init__(self):
-            self.input = ["annotate_results", "other_genome_results"]
-            self.out = "compare_results"
-            self.names = ["Af293", "Other"]
-            self.cpus = 1
-            self.tmpdir = None
-            self.logfile = None
-            self.force = False
-
-    args = Args()
-
-    # Compare genomes
-    compare(args)

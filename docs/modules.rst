@@ -33,15 +33,6 @@ funannotate2.annotate
 
 The annotate module provides functions for functionally annotating predicted genes.
 
-funannotate2.compare
------------------
-
-.. automodule:: funannotate2.compare
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-The compare module provides functions for comparing multiple genome annotations.
 
 funannotate2.search
 ----------------
