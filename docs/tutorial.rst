@@ -42,6 +42,7 @@ The next step is to train the ab initio prediction tools using the cleaned genom
 .. note::
     :class: dropdown
 
+   .. code-block:: bash
     [Apr 12 10:12 PM] Python v3.9.19; funannotate2 v25.4.12; gfftk v25.4.12; buscolite v25.4.3
     [Apr 12 10:12 PM] Loading genome assembly and running QC checks
     [Apr 12 10:12 PM] Genome stats:
