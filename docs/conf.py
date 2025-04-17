@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosectionlabel",
+    "sphinx_togglebutton",
 ]
 
 # Configure napoleon for Google style docstrings
@@ -60,7 +61,6 @@ napoleon_use_rtype = True
 # Configure intersphinx mapping
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
-    "biopython": ("https://biopython.org/docs/latest/api/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
