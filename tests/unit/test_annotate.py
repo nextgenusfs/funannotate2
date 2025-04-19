@@ -3,10 +3,10 @@ Unit tests for the annotate module.
 """
 
 import os
-import json
-import tempfile
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 import funannotate2.annotate
 
 
@@ -177,9 +177,7 @@ class TestAnnotate:
         with open(gff_file, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t1000\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t1000\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t1000\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
             f.write(
                 "contig1\tFunannotate\tCDS\t1\t1000\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
             )
@@ -211,9 +209,7 @@ class TestAnnotate:
             with patch("os.path.exists", return_value=True):
                 with patch("os.path.isdir", return_value=True):
                     with patch("os.path.isfile", return_value=True):
-                        with patch(
-                            "funannotate2.annotate.checkfile", return_value=True
-                        ):
+                        with patch("funannotate2.annotate.checkfile", return_value=True):
                             funannotate2.annotate.annotate(mock_args)
         finally:
             # Restore the original function

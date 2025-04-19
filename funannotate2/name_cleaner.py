@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import logging
 import os
 import re
-import logging
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -59,9 +59,7 @@ class NameCleaner:
         if custom_file and os.path.exists(custom_file):
             logger.info(f"Loading custom annotations from {custom_file}")
             self.custom_annotations = self._load_custom_annotations(custom_file)
-            logger.info(
-                f"Loaded custom annotations for {len(self.custom_annotations)} genes"
-            )
+            logger.info(f"Loaded custom annotations for {len(self.custom_annotations)} genes")
         self.bad_words = ["(Fragment)", "homolog", "homolog,", "AltName:"]
 
         # Word replacements for product descriptions
@@ -185,9 +183,7 @@ class NameCleaner:
                         # Add the annotation value
                         custom[gene_id][annot_type].append(annot_value)
                     except ValueError as e:
-                        logger.warning(
-                            f"Error parsing line {line_num} in {file_path}: {e}"
-                        )
+                        logger.warning(f"Error parsing line {line_num} in {file_path}: {e}")
                         continue
             return custom
         except (FileNotFoundError, IOError) as e:
@@ -255,9 +251,7 @@ class NameCleaner:
         product = " ".join(filtered_words)
 
         # Apply replacements
-        product = self.rep_pattern.sub(
-            lambda m: self.rep_dict[re.escape(m.group(0))], product
-        )
+        product = self.rep_pattern.sub(lambda m: self.rep_dict[re.escape(m.group(0))], product)
 
         # If gene name in product, preserve case
         # We don't want to automatically lowercase gene names in products
@@ -391,12 +385,7 @@ class NameCleaner:
             products = result["product"]
             names = result["name"]
 
-            if (
-                isinstance(products, list)
-                and products
-                and isinstance(names, list)
-                and names
-            ):
+            if isinstance(products, list) and products and isinstance(names, list) and names:
                 # If we have a curated product, it's already set above
                 if not self.get_curated_product(names[0]):
                     # Clean the product
@@ -457,20 +446,12 @@ def write_problematic_annotations(annotations, output_file):
             names = annot["name"]
             products = annot["product"]
 
-            if (
-                isinstance(names, list)
-                and names
-                and isinstance(products, list)
-                and products
-            ):
+            if isinstance(names, list) and names and isinstance(products, list) and products:
                 name = names[0]
                 product = products[0]
 
                 # Check if name is in curated database
-                if (
-                    name not in cleaner.curated_names
-                    and name.lower() not in cleaner.curated_names
-                ):
+                if name not in cleaner.curated_names and name.lower() not in cleaner.curated_names:
                     # Check for problematic product descriptions
                     if (
                         "By similarity" in product
@@ -527,12 +508,7 @@ def write_new_valid_annotations(annotations, output_file):
             names = annot["name"]
             products = annot["product"]
 
-            if (
-                isinstance(names, list)
-                and names
-                and isinstance(products, list)
-                and products
-            ):
+            if isinstance(names, list) and names and isinstance(products, list) and products:
                 name = names[0]
                 product = products[0]
 

@@ -3,15 +3,9 @@ Unit tests for the gff module.
 """
 
 import os
-import pytest
 import tempfile
-from gfftk.gff import (
-    gff2dict,
-    dict2gff3,
-    start_end_gap,
-    _detect_format,
-    simplifyGO,
-)
+
+from gfftk.gff import _detect_format, dict2gff3, gff2dict, simplifyGO, start_end_gap
 
 
 class TestGFFParsing:
@@ -30,9 +24,7 @@ class TestGFFParsing:
 
         # Check the gene properties
         gene = result["gene1"]
-        assert gene["type"] == [
-            "mRNA"
-        ]  # The actual implementation uses a list for type
+        assert gene["type"] == ["mRNA"]  # The actual implementation uses a list for type
         assert gene["contig"] == "contig1"
         assert gene["location"] == (
             1,

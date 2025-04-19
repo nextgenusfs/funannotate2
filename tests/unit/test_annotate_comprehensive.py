@@ -3,10 +3,11 @@ Comprehensive unit tests for the annotate module.
 """
 
 import os
-import json
 import tempfile
+from unittest.mock import MagicMock, mock_open, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+
 import funannotate2.annotate as annotate
 
 
@@ -158,9 +159,7 @@ class TestAnnotateComprehensive:
     @patch("funannotate2.annotate.os.path.isdir")
     @patch("funannotate2.annotate.os.path.isfile")
     @patch("funannotate2.annotate.checkfile")
-    def test_check_inputs_missing_files(
-        self, mock_checkfile, mock_isfile, mock_isdir, mock_args
-    ):
+    def test_check_inputs_missing_files(self, mock_checkfile, mock_isfile, mock_isdir, mock_args):
         """Test the check_inputs function with missing files."""
         # Set up mocks
         mock_isdir.return_value = True
@@ -171,9 +170,7 @@ class TestAnnotateComprehensive:
         # Instead, the input validation is done directly in the annotate function
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(
-        reason="find_input_files function not implemented in annotate module"
-    )
+    @pytest.mark.skip(reason="find_input_files function not implemented in annotate module")
     @patch("funannotate2.annotate.find_files")
     def test_find_input_files(self, mock_find_files, mock_args):
         """Test the find_input_files function."""
@@ -216,9 +213,7 @@ class TestAnnotateComprehensive:
             # Clean up
             os.unlink(temp_name)
 
-    @pytest.mark.skip(
-        reason="write_output_files function not implemented in annotate module"
-    )
+    @pytest.mark.skip(reason="write_output_files function not implemented in annotate module")
     @patch("funannotate2.annotate.os.path.join")
     @patch("funannotate2.annotate.os.makedirs")
     @patch("funannotate2.annotate.dict2tbl")

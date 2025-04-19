@@ -2,10 +2,12 @@
 import json
 import os
 import shutil
+
 from natsort import natsorted
+
 from .config import env
 from .log import startLogging, system_info
-from .utilities import print_table, checkfile
+from .utilities import checkfile, print_table
 
 
 def species(args):
@@ -41,13 +43,9 @@ def species(args):
             raise SystemExit(1)
         # now delete it
         del_params = os.path.join(
-            os.path.join(
-                env["FUNANNOTATE2_DB"], "pretrained", f"{args.delete}.params.json"
-            )
+            os.path.join(env["FUNANNOTATE2_DB"], "pretrained", f"{args.delete}.params.json")
         )
-        del_dir = os.path.join(
-            os.path.join(env["FUNANNOTATE2_DB"], "pretrained", args.delete)
-        )
+        del_dir = os.path.join(os.path.join(env["FUNANNOTATE2_DB"], "pretrained", args.delete))
         if checkfile(del_params):
             os.remove(del_params)
         if os.path.isdir(del_dir):
@@ -55,9 +53,7 @@ def species(args):
 
     # at end always show the data in database
     db_species = show_species(layout=args.format)
-    logger.info(
-        f"Pre-trained species in database [format={args.format}]:\n{db_species}"
-    )
+    logger.info(f"Pre-trained species in database [format={args.format}]:\n{db_species}")
     logger.info(
         'Note, use these spcies in funannotate2 predict with the "-p, --pretrained" argument'
     )

@@ -1,49 +1,51 @@
-import sys
-import os
 import json
+import os
 import shutil
+import sys
 import time
 
 # from natsort import natsorted
 from collections import OrderedDict
-from .utilities import (
-    create_directories,
-    create_tmpdir,
-    find_files,
-    checkfile,
-    load_json,
-    choose_best_busco_species,
-    lookup_taxonomy,
-    naming_slug,
-)
-from .log import startLogging, system_info, finishLogging
+
+from gfftk.convert import _dict2proteins, _dict2transcripts
+from gfftk.fasta import fasta2lengths
+from gfftk.genbank import dict2tbl, table2asn, tbl2dict
+from gfftk.gff import dict2gff3, gff2dict
+from gfftk.stats import annotation_stats
+
+from .config import env
+from .log import finishLogging, startLogging, system_info
 from .name_cleaner import (
     NameCleaner,
-    write_problematic_annotations,
     write_new_valid_annotations,
+    write_problematic_annotations,
 )
 
 # from .fastx import fasta2chunks
 from .search import (
-    digitize_sequences,
-    pfam_search,
-    dbcan_search,
-    dbcan2tsv,
-    swissprot_blast,
-    swissprot2tsv,
-    pfam2tsv,
-    merops_blast,
-    merops2tsv,
-    parse_annotations,
-    busco_search,
     busco2tsv,
+    busco_search,
+    dbcan2tsv,
+    dbcan_search,
+    digitize_sequences,
+    merops2tsv,
+    merops_blast,
+    parse_annotations,
+    pfam2tsv,
+    pfam_search,
+    swissprot2tsv,
+    swissprot_blast,
 )
-from .config import env
-from gfftk.gff import gff2dict, dict2gff3
-from gfftk.genbank import tbl2dict, dict2tbl, table2asn
-from gfftk.fasta import fasta2lengths
-from gfftk.stats import annotation_stats
-from gfftk.convert import _dict2proteins, _dict2transcripts
+from .utilities import (
+    checkfile,
+    choose_best_busco_species,
+    create_directories,
+    create_tmpdir,
+    find_files,
+    load_json,
+    lookup_taxonomy,
+    naming_slug,
+)
 
 
 def _sortDict(d):
@@ -56,21 +58,15 @@ def annotate(args):
     if args.input_dir:
         if os.path.isdir(args.input_dir):
             if not args.fasta:
-                fasta_files = find_files(
-                    os.path.join(args.input_dir, "predict_results"), ".fasta"
-                )
+                fasta_files = find_files(os.path.join(args.input_dir, "predict_results"), ".fasta")
                 if len(fasta_files) == 1:
                     args.fasta = os.path.abspath(fasta_files[0])
             if not args.tbl:
-                tbl_files = find_files(
-                    os.path.join(args.input_dir, "predict_results"), ".tbl"
-                )
+                tbl_files = find_files(os.path.join(args.input_dir, "predict_results"), ".tbl")
                 if len(tbl_files) == 1:
                     args.tbl = os.path.abspath(tbl_files[0])
             if not args.gff3:
-                gff_files = find_files(
-                    os.path.join(args.input_dir, "predict_results"), ".gff3"
-                )
+                gff_files = find_files(os.path.join(args.input_dir, "predict_results"), ".gff3")
                 if len(gff_files) == 1:
                     args.gff3 = os.path.abspath(gff_files[0])
             if not args.out:
@@ -184,9 +180,7 @@ def annotate(args):
     dbcan_all = os.path.join(misc_dir, "dbcan.results.json")
     dbcan_annots = os.path.join(misc_dir, "annotations.dbcan.tsv")
     if not checkfile(dbcan_annots):
-        logger.info(
-            "Annotating proteome with pyhmmer against the dbCAN (CAZyme) database"
-        )
+        logger.info("Annotating proteome with pyhmmer against the dbCAN (CAZyme) database")
         start = time.time()
         dbcan = dbcan_search(digital_seqs, cpus=args.cpus)
         end = time.time()
@@ -205,9 +199,7 @@ def annotate(args):
     swiss_all = os.path.join(misc_dir, "uniprot-swissprot.results.json")
     swiss_annots = os.path.join(misc_dir, "annotations.uniprot-swissprot.tsv")
     if not checkfile(swiss_annots):
-        logger.info(
-            "Annotating proteome with diamond against the UniProtKB/Swiss-Prot database"
-        )
+        logger.info("Annotating proteome with diamond against the UniProtKB/Swiss-Prot database")
         start = time.time()
         swiss = swissprot_blast(Proteins, cpus=args.cpus)
         end = time.time()
@@ -225,9 +217,7 @@ def annotate(args):
     merops_all = os.path.join(misc_dir, "merops.results.json")
     merops_annots = os.path.join(misc_dir, "annotations.merops.tsv")
     if not checkfile(merops_annots):
-        logger.info(
-            "Annotating proteome with diamond against the MEROPS protease database"
-        )
+        logger.info("Annotating proteome with diamond against the MEROPS protease database")
         start = time.time()
         merops = merops_blast(Proteins, cpus=args.cpus)
         end = time.time()
@@ -251,18 +241,12 @@ def annotate(args):
 
         # choose best busco species
         busco_species = choose_best_busco_species(taxonomy)
-        busco_model_path = os.path.join(
-            env["FUNANNOTATE2_DB"], f"{busco_species}_odb10"
-        )
+        busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb10")
 
         # run busco proteome screen
-        logger.info(
-            f"BUSCOlite [conserved ortholog] search using {busco_species} models"
-        )
+        logger.info(f"BUSCOlite [conserved ortholog] search using {busco_species} models")
         start = time.time()
-        busco_results = busco_search(
-            Proteins, busco_model_path, cpus=args.cpus, logger=logger
-        )
+        busco_results = busco_search(Proteins, busco_model_path, cpus=args.cpus, logger=logger)
         end = time.time()
         busco_dict = busco2tsv(busco_results, busco_model_path, busco_all, busco_annots)
         logger.info(
@@ -390,9 +374,7 @@ def annotate(args):
         external=True,
     )
     if len(errors) > 0:
-        logger.warning(
-            "Errors detected in creation of TBL file:\n{}".format("\n".join(errors))
-        )
+        logger.warning("Errors detected in creation of TBL file:\n{}".format("\n".join(errors)))
     # now we want to run table2asn
     finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
     table2asn(
@@ -409,16 +391,12 @@ def annotate(args):
 
     # now write remaining files
     finalGFF3 = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gff3")
-    finalProteins = os.path.join(
-        res_dir, f"{naming_slug(args.species, args.strain)}.proteins.fa"
-    )
+    finalProteins = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.proteins.fa")
     finalTranscripts = os.path.join(
         res_dir, f"{naming_slug(args.species, args.strain)}.transcripts.fa"
     )
     finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
-    finalSummary = os.path.join(
-        res_dir, f"{naming_slug(args.species, args.strain)}.summary.json"
-    )
+    finalSummary = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.summary.json")
 
     # Write GFF3 file directly from the annotation object
     logger.info("Writing rest of the output annotation files")

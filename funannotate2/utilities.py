@@ -1,26 +1,25 @@
+import json
+import multiprocessing
 import os
+import queue
+import random
 import re
-import textwrap
 import shutil
-from contextlib import contextmanager
+import signal
+import socket
 import subprocess
 import sys
-import multiprocessing
-import queue
-import signal
-import uuid
+import textwrap
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from threading import Lock
-import requests
-import errno
 from urllib.request import urlopen
-from urllib.error import URLError
-import socket
-import random
-import json
-from .config import augustus_species, busco_taxonomy
 
+import requests
+
+from .config import augustus_species, busco_taxonomy
 
 # disable insecure warning
 requests.packages.urllib3.disable_warnings()
@@ -258,7 +257,7 @@ def _download_ftp(url, file_name, timeout=60):
             if u:
                 try:
                     u.close()
-                except:
+                except Exception:
                     pass
             if os.path.exists(temp_file):
                 os.remove(temp_file)
@@ -315,9 +314,7 @@ def lookup_taxonomy(name):
         return False
 
 
-def pretty_taxonomy(
-    obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]
-):
+def pretty_taxonomy(obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]):
     """
     Extract specified taxonomy levels from a taxonomy object.
 
@@ -682,9 +679,9 @@ def runSubprocess(
         logfile.debug(" ".join(cmd))
     except AttributeError:
         pass
-    with process_handle(stdout) as p_out, process_handle(
-        stderr
-    ) as p_error, process_handle(stdin, mode="r") as p_in:
+    with process_handle(stdout) as p_out, process_handle(stderr) as p_error, process_handle(
+        stdin, mode="r"
+    ) as p_in:
         if not env:
             process = subprocess.run(
                 cmd,
@@ -755,10 +752,7 @@ def runThreadJob(func, argList, cpus=2, progress=True):
             sys.stdout.write(
                 f"  Progress: {tasks_completed}/{tasks_total} complete, {tasks_failed} failed, {tasks_total - tasks_completed} remaining        \r"
             )
-            if (
-                tasks_total - tasks_completed == 0
-                and tasks_completed + tasks_failed == tasks_total
-            ):
+            if tasks_total - tasks_completed == 0 and tasks_completed + tasks_failed == tasks_total:
                 sys.stdout.write("\r")
 
     def _exit_threads(executor):
@@ -843,13 +837,9 @@ def runProcessJob(function, inputList, cpus=2):
     results = []
     for i in inputList:
         if isinstance(i, list):
-            p.apply_async(
-                function, args=(i,), callback=update, error_callback=handle_error
-            )
+            p.apply_async(function, args=(i,), callback=update, error_callback=handle_error)
         else:
-            p.apply_async(
-                function, args=(i), callback=update, error_callback=handle_error
-            )
+            p.apply_async(function, args=(i), callback=update, error_callback=handle_error)
     p.close()
     p.join()
     return results
@@ -1046,9 +1036,7 @@ def print_table(
                 )
                 wrapped_row.append(wrapper.wrap(col))
         else:
-            wrapper = textwrap.TextWrapper(
-                subsequent_indent=subsequent_indent, width=max_col_width
-            )
+            wrapper = textwrap.TextWrapper(subsequent_indent=subsequent_indent, width=max_col_width)
             wrapped_row = [wrapper.wrap(x) for x in row]
 
         row_rows = max(len(x) for x in wrapped_row)

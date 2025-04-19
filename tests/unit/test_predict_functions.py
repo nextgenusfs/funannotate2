@@ -2,12 +2,11 @@
 Unit tests for specific functions in the predict module.
 """
 
-import os
-import tempfile
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 import funannotate2.predict
-from collections import OrderedDict
 
 
 class TestSanitizeExternal:
@@ -47,9 +46,7 @@ class TestSanitizeExternal:
         }
 
         # Call the function
-        result, sources = funannotate2.predict.sanitize_external(
-            gff3_file, fasta_file, contig_map
-        )
+        result, sources = funannotate2.predict.sanitize_external(gff3_file, fasta_file, contig_map)
 
         # Check that gff2dict was called with the correct arguments
         mock_gff2dict.assert_called_once_with(gff3_file, fasta_file, debug=False)
@@ -75,9 +72,7 @@ class TestSanitizeExternal:
         }
 
         # Call the function
-        result, sources = funannotate2.predict.sanitize_external(
-            gff3_file, fasta_file, contig_map
-        )
+        result, sources = funannotate2.predict.sanitize_external(gff3_file, fasta_file, contig_map)
 
         # Check the result
         assert len(result) == 2

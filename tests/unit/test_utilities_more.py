@@ -4,12 +4,10 @@ Additional unit tests for the utilities module.
 
 import os
 import tempfile
+
 import pytest
-from unittest.mock import patch, MagicMock
-from funannotate2.utilities import (
-    checkfile,
-    process_handle,
-)
+
+from funannotate2.utilities import checkfile, process_handle
 
 
 class TestCheckfile:

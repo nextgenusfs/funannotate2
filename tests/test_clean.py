@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from funannotate2.clean import is_duplicated, load_genome, clean
-import tempfile
 import os
+import tempfile
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from funannotate2.clean import clean, is_duplicated, load_genome
 
 # Test data for load_genome
 FASTA_CONTENT = """>contig1
@@ -28,9 +30,7 @@ def test_load_genome(fasta_file):
     assert len(genome) == 3
     assert n50 > 0
     assert all(isinstance(item, dict) for item in genome)
-    assert all(
-        "header" in item and "length" in item and "sequence" in item for item in genome
-    )
+    assert all("header" in item and "length" in item and "sequence" in item for item in genome)
 
 
 @patch("funannotate2.clean.mp.Aligner")
@@ -63,9 +63,7 @@ def test_is_duplicated(mock_ntf, mock_aligner, fasta_file):
 
             # Verify the results
             assert header == data[0]["header"]
-            assert (
-                result is True
-            )  # Should be True because pident and coverage exceed thresholds
+            assert result is True  # Should be True because pident and coverage exceed thresholds
             assert pident == 95.0  # mlen/blen * 100 = 95/100 * 100 = 95.0
             assert coverage == 100.0  # blen/ctg_len * 100 = 100/100 * 100 = 100.0
 
@@ -107,9 +105,7 @@ def test_clean(mock_load_genome, mock_run_thread_job, mock_start_logging, fasta_
     clean(args)
 
     # Check that the expected log messages were generated
-    mock_logger.info.assert_any_call(
-        "Loaded 3 contigs; 3 are larger than 10; N50 is 60 bp"
-    )
+    mock_logger.info.assert_any_call("Loaded 3 contigs; 3 are larger than 10; N50 is 60 bp")
     mock_logger.info.assert_any_call("Wrote 3 contigs to output.fa")
 
     # Check that the output file was created

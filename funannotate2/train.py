@@ -1,34 +1,36 @@
-import sys
-import os
-import json
 import datetime
 import getpass
+import json
+import os
 import random
 import shutil
-from collections import defaultdict, OrderedDict
-from natsort import natsorted
+import sys
+from collections import OrderedDict, defaultdict
+
 from buscolite.busco import runbusco
 from buscolite.gff import gffwriter
 from buscolite.utilities import summary_writer
-from gfftk.gff import gff2dict, dict2gff3
-from gfftk.fasta import softwrap, fasta2dict
-from .interlap import InterLap
-from .log import startLogging, system_info, finishLogging
-from .fastx import analyzeAssemblySimple, simplify_headers
+from gfftk.fasta import fasta2dict, softwrap
+from gfftk.gff import dict2gff3, gff2dict
+from natsort import natsorted
+
+from .abinitio import train_augustus, train_genemark, train_glimmerhmm, train_snap
 from .config import env
+from .fastx import analyzeAssemblySimple, simplify_headers
+from .interlap import InterLap
+from .log import finishLogging, startLogging, system_info
 from .utilities import (
-    lookup_taxonomy,
+    checkfile,
     choose_best_augustus_species,
     choose_best_busco_species,
     create_directories,
-    checkfile,
     download,
     load_json,
-    runSubprocess,
+    lookup_taxonomy,
     naming_slug,
+    runSubprocess,
     which_path,
 )
-from .abinitio import train_snap, train_augustus, train_glimmerhmm, train_genemark
 
 
 def train(args):
@@ -62,9 +64,7 @@ def train(args):
     shutil.copyfile(args.fasta, original_genome)
     # set max header high as going to simplify below if no other issues
     logger.info("Loading genome assembly and running QC checks")
-    stats, bad_names, nuc_errors = analyzeAssemblySimple(
-        args.fasta, header_max=args.header_length
-    )
+    stats, bad_names, nuc_errors = analyzeAssemblySimple(args.fasta, header_max=args.header_length)
     if len(bad_names) > 0:
         bad_string = ", ".join(bad_names)
         logger.critical(
@@ -75,15 +75,13 @@ def train(args):
         bad_string = ""
         for x in nuc_errors:
             bad_string += f"{x[0]}: {x[1]}, "
-        logger.critical(
-            f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}"
-        )
+        logger.critical(f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}")
         raise SystemExit(1)
     logger.info(f"Genome stats:\n{json.dumps(stats, indent=2)}")
 
     # to circumvent any downstream issues, rename headers
     GenomeFasta = os.path.join(misc_dir, "genome.fasta")
-    header_map = simplify_headers(args.fasta, GenomeFasta, base="contig_")
+    simplify_headers(args.fasta, GenomeFasta, base="contig_")
 
     # get taxonomy information
     taxonomy = lookup_taxonomy(args.species)
@@ -103,20 +101,14 @@ def train(args):
         if args.training_set is None:
             args.training_set = os.path.join(misc_dir, "busco_training_set.gff3")
             if not os.path.isfile(args.training_set):
-                logger.info(
-                    f"Choosing best busco species based on taxonomy: {busco_species}"
-                )
+                logger.info(f"Choosing best busco species based on taxonomy: {busco_species}")
                 if not os.path.isdir(busco_model_path):
                     download_urls = load_json(
                         os.path.join(os.path.dirname(__file__), "downloads.json")
                     )
                     busco_url = download_urls["busco"][busco_species][0]
-                    busco_tgz = os.path.join(
-                        env["FUNANNOTATE2_DB"], os.path.basename(busco_url)
-                    )
-                    logger.info(
-                        f"Downloading {busco_species}_odb10 model from {busco_url}"
-                    )
+                    busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
+                    logger.info(f"Downloading {busco_species}_odb10 model from {busco_url}")
                     download(busco_url, busco_tgz, wget=False)
                     if os.path.isfile(busco_tgz):
                         runSubprocess(
@@ -142,13 +134,9 @@ def train(args):
                 logger.info(f"Existing BUSCO results found: {args.training_set}")
         # load  GFF3 training set, load with gfftk
         train_set = gff2dict(args.training_set, GenomeFasta)
-        logger.info(
-            f"Training set [{args.training_set}] loaded with {len(train_set)} gene models"
-        )
+        logger.info(f"Training set [{args.training_set}] loaded with {len(train_set)} gene models")
         if len(train_set) == 0:
-            logger.critical(
-                f"No gene models found in training set: {args.training_set}"
-            )
+            logger.critical(f"No gene models found in training set: {args.training_set}")
             raise SystemExit(1)
 
         # now filter training set
@@ -163,7 +151,7 @@ def train(args):
     if n_test > 200:
         n_test = 200
     logger.info(
-        f"{len(models4training)} gene models selected for training, now splitting into test [n={n_test}] and train [n={len(models4training)-n_test}]"
+        f"{len(models4training)} gene models selected for training, now splitting into test [n={n_test}] and train [n={len(models4training) - n_test}]"
     )
 
     test_model_keys = random.sample(list(models4training.keys()), n_test)
@@ -188,9 +176,7 @@ def train(args):
 
     # run snap training functions
     logger.info("Training snap using training set")
-    snap_train = train_snap(
-        GenomeFasta, train_models, test_models, folder=misc_dir, log=logger
-    )
+    snap_train = train_snap(GenomeFasta, train_models, test_models, folder=misc_dir, log=logger)
     snap_train["training_set"] = filt_train_models_final
 
     # run glimmerHMM training functions
@@ -435,9 +421,7 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                                 len(v["CDS"][0]),
                             )
                         )
-                        protout.write(
-                            f'>{k}___{len(v["CDS"][0])}\n{softwrap(v["protein"][0])}\n'
-                        )
+                        protout.write(f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n")
                 else:
                     gene_inter[v["contig"]].add(
                         (
@@ -448,9 +432,7 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                             len(v["CDS"][0]),
                         )
                     )
-                    protout.write(
-                        f'>{k}___{len(v["CDS"][0])}\n{softwrap(v["protein"][0])}\n'
-                    )
+                    protout.write(f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n")
 
     # make sure gene models are unique, so do pairwise diamond search @ 80% identity
     cmd = ["diamond", "makedb", "--in", proteins, "--db", augdmnddb]
@@ -519,9 +501,7 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
     sGenes = sorted(iter(GenesPass.items()), key=_sortDict, reverse=True)
     sortedGenes = OrderedDict(sGenes)
     logger.info(
-        "{:,} of {:,} models pass training parameters".format(
-            len(sortedGenes), len(train_dict)
-        )
+        "{:,} of {:,} models pass training parameters".format(len(sortedGenes), len(train_dict))
     )
     # normalize the names, but also write each gene +/- 1 kb to file
     fa = fasta2dict(genome)

@@ -1,11 +1,13 @@
-import sys
 import os
-import uuid
 import shutil
+import sys
+import uuid
 from tempfile import NamedTemporaryFile as NTF
+
 import mappy as mp
+
 from .fastx import softwrap
-from .log import startLogging, system_info, finishLogging
+from .log import finishLogging, startLogging, system_info
 from .utilities import runThreadJob
 
 
@@ -59,9 +61,7 @@ def load_genome(fafile):
     # parse genome, sort by shortest to longest length
     data = []
     for r in mp.fastx_read(fafile, read_comment=False):
-        data.append(
-            {"header": r[0], "length": len(r[1]), "sequence": r[1], "status": None}
-        )
+        data.append({"header": r[0], "length": len(r[1]), "sequence": r[1], "status": None})
     sortdata = sorted(data, key=lambda x: x["length"])
     lengths = [x["length"] for x in sortdata]
 
@@ -126,9 +126,7 @@ def clean(args):
     # Check if we have any contigs that meet the minimum length requirement
     if not genome_ms:
         log(
-            "No contigs found that meet the minimum length requirement of {} bp".format(
-                args.minlen
-            )
+            "No contigs found that meet the minimum length requirement of {} bp".format(args.minlen)
         )
         # Write an empty output file
         with open(args.out, "w") as outfile:
@@ -164,9 +162,7 @@ def clean(args):
     # run this will threadpool if we have jobs to run
     results = []
     if job_arguments:
-        results = runThreadJob(
-            is_duplicated, job_arguments, cpus=args.cpus, progress=False
-        )
+        results = runThreadJob(is_duplicated, job_arguments, cpus=args.cpus, progress=False)
 
     # parse results
     duplicated = []

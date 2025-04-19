@@ -3,10 +3,9 @@ Comprehensive unit tests for the predict module.
 """
 
 import os
-import tempfile
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
-import funannotate2.predict as predict
 
 
 class TestPredictComprehensive:
@@ -102,9 +101,7 @@ class TestPredictComprehensive:
     @patch("funannotate2.predict.os.path.isdir")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.checkfile")
-    def test_check_inputs_missing_files(
-        self, mock_checkfile, mock_isfile, mock_isdir, mock_args
-    ):
+    def test_check_inputs_missing_files(self, mock_checkfile, mock_isfile, mock_isdir, mock_args):
         """Test the check_inputs function with missing files."""
         # Set up mocks
         mock_isdir.return_value = True
@@ -114,9 +111,7 @@ class TestPredictComprehensive:
         # The check_inputs function is not implemented in the predict module
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(
-        reason="run_genemark_es function not implemented in predict module"
-    )
+    @pytest.mark.skip(reason="run_genemark_es function not implemented in predict module")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.subprocess.run")
     def test_run_genemark_es(self, mock_run, mock_isfile, test_fasta, tmp_path):
@@ -158,9 +153,7 @@ class TestPredictComprehensive:
         with open(gff_file, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tAUGUSTUS\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tAUGUSTUS\tCDS\t1\t100\t.\t+\t0\tID=gene1.cds;Parent=gene1\n"
-            )
+            f.write("contig1\tAUGUSTUS\tCDS\t1\t100\t.\t+\t0\tID=gene1.cds;Parent=gene1\n")
 
         # The run_augustus function is not implemented in the predict module
         # This test is skipped until the function is implemented
@@ -168,9 +161,7 @@ class TestPredictComprehensive:
     @pytest.mark.skip(reason="run_miniprot function not implemented in predict module")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.subprocess.run")
-    def test_run_miniprot(
-        self, mock_run, mock_isfile, test_fasta, test_protein_fasta, tmp_path
-    ):
+    def test_run_miniprot(self, mock_run, mock_isfile, test_fasta, test_protein_fasta, tmp_path):
         """Test the run_miniprot function."""
         # Set up mocks
         mock_isfile.return_value = True
@@ -185,16 +176,12 @@ class TestPredictComprehensive:
         with open(gff_file, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tminiprot\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tminiprot\tCDS\t1\t100\t.\t+\t0\tID=gene1.cds;Parent=gene1\n"
-            )
+            f.write("contig1\tminiprot\tCDS\t1\t100\t.\t+\t0\tID=gene1.cds;Parent=gene1\n")
 
         # The run_miniprot function is not implemented in the predict module
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(
-        reason="run_minimap2_transcripts function not implemented in predict module"
-    )
+    @pytest.mark.skip(reason="run_minimap2_transcripts function not implemented in predict module")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.subprocess.run")
     def test_run_minimap2_transcripts(
@@ -221,9 +208,7 @@ class TestPredictComprehensive:
         # The run_minimap2_transcripts function is not implemented in the predict module
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(
-        reason="run_minimap2_proteins function not implemented in predict module"
-    )
+    @pytest.mark.skip(reason="run_minimap2_proteins function not implemented in predict module")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.subprocess.run")
     def test_run_minimap2_proteins(
@@ -243,16 +228,12 @@ class TestPredictComprehensive:
         with open(gff_file, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tminimap2\tgene\t1\t100\t.\t+\t.\tID=protein1\n")
-            f.write(
-                "contig1\tminimap2\tCDS\t1\t100\t.\t+\t0\tID=protein1.cds;Parent=protein1\n"
-            )
+            f.write("contig1\tminimap2\tCDS\t1\t100\t.\t+\t0\tID=protein1.cds;Parent=protein1\n")
 
         # The run_minimap2_proteins function is not implemented in the predict module
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(
-        reason="merge_predictions function not implemented in predict module"
-    )
+    @pytest.mark.skip(reason="merge_predictions function not implemented in predict module")
     @patch("funannotate2.predict.os.path.isfile")
     @patch("funannotate2.predict.gff2dict")
     def test_merge_predictions(self, mock_gff2dict, mock_isfile, tmp_path):

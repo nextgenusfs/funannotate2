@@ -1,15 +1,17 @@
+import json
+import os
+import re
+import subprocess
+import sys
+import uuid
+
+import json_repair
 import pyhmmer
+from buscolite.busco import runbusco
+from natsort import natsorted
+
 from .config import env
 from .utilities import checkfile
-import os
-import sys
-from natsort import natsorted
-import subprocess
-import json
-import json_repair
-import uuid
-from buscolite.busco import runbusco
-import re
 
 
 def pyhmmer_version():
@@ -85,8 +87,7 @@ def hmmer_search(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                             "seq_length": hit.length,
                             "hmm_length": s_domains[0]["hmm_length"],
                             "hmm_aln_length": s_domains[0]["hmm_aln"],
-                            "hmm_coverage": s_domains[0]["hmm_aln"]
-                            / s_domains[0]["hmm_length"],
+                            "hmm_coverage": s_domains[0]["hmm_aln"] / s_domains[0]["hmm_length"],
                             "bitscore": hit.score,
                             "evalue": hit.evalue,
                             "domains": s_domains,
@@ -156,20 +157,15 @@ def hmmer_scan(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                             ),
                             "name": hit.name.decode(),
                             "accession": (
-                                None
-                                if hit.accession is None
-                                else hit.accession.decode()
+                                None if hit.accession is None else hit.accession.decode()
                             ),
                             "description": (
-                                None
-                                if hit.description is None
-                                else hit.description.decode()
+                                None if hit.description is None else hit.description.decode()
                             ),
                             "seq_length": len(top_hits.query.sequence),
                             "hmm_length": s_domains[0]["hmm_length"],
                             "hmm_aln_length": s_domains[0]["hmm_aln"],
-                            "hmm_coverage": s_domains[0]["hmm_aln"]
-                            / s_domains[0]["hmm_length"],
+                            "hmm_coverage": s_domains[0]["hmm_aln"] / s_domains[0]["hmm_length"],
                             "bitscore": hit.score,
                             "evalue": hit.evalue,
                             "domains": s_domains,
@@ -425,9 +421,7 @@ def merops2tsv(results, output, annots):
         json.dump(results, outfile, indent=2)
     with open(annots, "w") as annot:
         for result in results:
-            annot.write(
-                f"{result['qseqid']}\tnote\tMEROPS:{result['sseqid']} {result['family']}\n"
-            )
+            annot.write(f"{result['qseqid']}\tnote\tMEROPS:{result['sseqid']} {result['family']}\n")
             a = add2dict(
                 a,
                 result["qseqid"],
@@ -437,9 +431,7 @@ def merops2tsv(results, output, annots):
     return a
 
 
-def swissprot_blast(
-    query, evalue=1e-5, cpus=1, min_pident=60, min_cov=60, max_target_seqs=1
-):
+def swissprot_blast(query, evalue=1e-5, cpus=1, min_pident=60, min_cov=60, max_target_seqs=1):
     """
     Perform a BLAST search against the SwissProt database using Diamond.
 
@@ -543,9 +535,7 @@ def swissprot2tsv(results, output, annots):
         json.dump(results, outfile, indent=2)
     with open(annots, "w") as annot:
         for result in results:
-            annot.write(
-                f"{result['query']}\tdb_xref\tUniProtKB/Swiss-Prot:{result['accession']}\n"
-            )
+            annot.write(f"{result['query']}\tdb_xref\tUniProtKB/Swiss-Prot:{result['accession']}\n")
             # add db_xref
             a = add2dict(
                 a,
@@ -640,12 +630,7 @@ def add2dict(adict, gene, key, value):
 
 
 def swissprot_valid_gene(name):
-    if (
-        number_present(name)
-        and len(name) > 2
-        and not morethanXnumbers(name, 3)
-        and "." not in name
-    ):
+    if number_present(name) and len(name) > 2 and not morethanXnumbers(name, 3) and "." not in name:
         return True
     else:
         return False
@@ -761,9 +746,7 @@ def busco2tsv(results, buscodb, busco_results, annots):
     # so now we want to construct the 3 column
     a = {}
     with open(annots, "w") as annot:
-        for k, v in natsorted(
-            results.items(), key=lambda x: (x[1]["hit"], -x[1]["bitscore"])
-        ):
+        for k, v in natsorted(results.items(), key=lambda x: (x[1]["hit"], -x[1]["bitscore"])):
             if v["name"] in busco_data:
                 defline = f'BUSCO:{k} [{odb_version}] {busco_data.get(v["name"])["description"]}'
             else:

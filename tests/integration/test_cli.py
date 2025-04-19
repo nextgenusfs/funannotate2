@@ -3,9 +3,9 @@ Integration tests for the command-line interface.
 """
 
 import os
-import pytest
 import subprocess
-import sys
+
+import pytest
 
 
 def run_command(command):

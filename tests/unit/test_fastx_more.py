@@ -3,12 +3,8 @@ More unit tests for the fastx module.
 """
 
 import os
-import pytest
-from funannotate2.fastx import (
-    contig_analysis,
-    analyzeAssembly,
-    analyzeAssemblySimple,
-)
+
+from funannotate2.fastx import analyzeAssembly, analyzeAssemblySimple, contig_analysis
 
 
 class TestContigAnalysis:

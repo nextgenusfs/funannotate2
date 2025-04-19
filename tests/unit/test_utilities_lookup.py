@@ -2,11 +2,7 @@
 Unit tests for the lookup_taxonomy function in utilities.py.
 """
 
-import os
-import tempfile
-import pytest
 import funannotate2.utilities
-from unittest.mock import patch, MagicMock
 
 
 class TestLookupTaxonomy:

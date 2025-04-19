@@ -68,57 +68,55 @@ class InterLap(object):
     def find(self, other):
         """Return an interable of elements that overlap other in the tree."""
         iset = self._iset
-        l = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
-        r = binsearch_right_end(iset, other[1], 0, len(iset))
-        iopts = iset[l:r]
+        left_idx = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
+        right_idx = binsearch_right_end(iset, other[1], 0, len(iset))
+        iopts = iset[left_idx:right_idx]
         iiter = (s for s in iopts if s[0] <= other[1] and s[1] >= other[0])
         for o in iiter:
             yield o
 
     def closest(self, other):
         iset = self._iset
-        l = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
-        r = binsearch_right_end(iset, other[1], 0, len(iset))
-        l, r = max(0, l - 1), min(len(iset), r + 2)
+        left_idx = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
+        right_idx = binsearch_right_end(iset, other[1], 0, len(iset))
+        left_idx, right_idx = max(0, left_idx - 1), min(len(iset), right_idx + 2)
 
-        while r < len(iset) and iset[r - 1][0] == iset[r][0]:
-            r += 1
+        while right_idx < len(iset) and iset[right_idx - 1][0] == iset[right_idx][0]:
+            right_idx += 1
 
-        while l > 1 and iset[l][1] == iset[l + 1][1]:
-            l -= 1
-        iopts = iset[l:r]
+        while left_idx > 1 and iset[left_idx][1] == iset[left_idx + 1][1]:
+            left_idx -= 1
+        iopts = iset[left_idx:right_idx]
         ovls = [s for s in iopts if s[0] <= other[1] and s[1] >= other[0]]
         if ovls:
             for o in ovls:
                 yield o
         else:
-            iopts = sorted(
-                [(min(abs(i[0] - other[1]), abs(other[0] - i[1])), i) for i in iopts]
-            )
-            for dist, g in groupby(iopts, itemgetter(0)):
+            iopts = sorted([(min(abs(i[0] - other[1]), abs(other[0] - i[1])), i) for i in iopts])
+            for _, g in groupby(iopts, itemgetter(0)):
                 # only yield the closest intervals
-                for d, ival in g:
+                for _, ival in g:
                     yield ival
                 break
 
     def __contains__(self, other):
         """Indicate whether `other` overlaps any elements in the tree."""
         iset = self._iset
-        l = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
+        left_idx = binsearch_left_start(iset, other[0] - self._maxlen, 0, len(iset))
         # since often the found interval will overlap, we short cut that
         # case of speed.
         max_search = 8
-        if l == len(iset):
+        if left_idx == len(iset):
             return False
-        for left in iset[l : l + max_search]:
+        for left in iset[left_idx : left_idx + max_search]:
             if left[1] >= other[0] and left[0] <= other[1]:
                 return True
             if left[0] > other[1]:
                 return False
 
-        r = binsearch_right_end(iset, other[1], 0, len(iset))
+        right_idx = binsearch_right_end(iset, other[1], 0, len(iset))
         return any(
-            s[0] <= other[1] and s[1] >= other[0] for s in iset[l + max_search : r]
+            s[0] <= other[1] and s[1] >= other[0] for s in iset[left_idx + max_search : right_idx]
         )
 
     def __iter__(self):
@@ -157,7 +155,7 @@ def reduce(args):
         return args
     args.sort()
     ret = [args[0]]
-    for next_i, (s, e) in enumerate(args, start=1):
+    for next_i, (_, e) in enumerate(args, start=1):
         if next_i == len(args):
             ret[-1] = ret[-1][0], max(ret[-1][1], e)
             break

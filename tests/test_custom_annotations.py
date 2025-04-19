@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
-import shutil
 
 from funannotate2.name_cleaner import NameCleaner
 
@@ -18,9 +18,7 @@ class TestCustomAnnotations(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -61,9 +59,7 @@ class TestCustomAnnotations(unittest.TestCase):
 
         # Check specific annotations
         self.assertEqual(cleaner.custom_annotations["gene123"]["name"], ["ACT1"])
-        self.assertEqual(
-            cleaner.custom_annotations["gene123"]["product"], ["Custom Actin"]
-        )
+        self.assertEqual(cleaner.custom_annotations["gene123"]["product"], ["Custom Actin"])
         self.assertEqual(
             cleaner.custom_annotations["gene123"]["note"],
             ["Manually curated annotation"],
@@ -75,12 +71,8 @@ class TestCustomAnnotations(unittest.TestCase):
             ["Custom Cell division control protein 42"],
         )
 
-        self.assertEqual(
-            cleaner.custom_annotations["gene789"]["go_term"], ["GO:0005524"]
-        )
-        self.assertEqual(
-            cleaner.custom_annotations["gene789"]["ec_number"], ["3.6.4.13"]
-        )
+        self.assertEqual(cleaner.custom_annotations["gene789"]["go_term"], ["GO:0005524"])
+        self.assertEqual(cleaner.custom_annotations["gene789"]["ec_number"], ["3.6.4.13"])
 
     def test_process_annotation_with_custom_annotations(self):
         """Test processing annotations with custom annotations."""
@@ -115,9 +107,7 @@ class TestCustomAnnotations(unittest.TestCase):
         # Check that custom annotations were added to existing ones
         self.assertEqual(processed["name"], ["YPT7"])
         self.assertEqual(processed["product"], ["GTPase YPT7"])
-        self.assertEqual(
-            set(processed["go_term"]), {"GO:0003700", "GO:0006355", "GO:0005524"}
-        )
+        self.assertEqual(set(processed["go_term"]), {"GO:0003700", "GO:0006355", "GO:0005524"})
         self.assertEqual(set(processed["ec_number"]), {"1.2.3.4", "3.6.4.13"})
 
 

@@ -3,8 +3,8 @@ Integration tests for CLI commands.
 """
 
 import os
-import tempfile
 import subprocess
+import tempfile
 
 
 def run_command(command):
@@ -26,42 +26,26 @@ class TestCLICommands:
     def test_convert_command(self):
         """Test the convert command."""
         # Create a temporary GFF file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_gff:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_gff:
             temp_gff.write("##gff-version 3\n")
-            temp_gff.write(
-                "contig1\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene1;Name=test_gene\n"
-            )
+            temp_gff.write("contig1\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene1;Name=test_gene\n")
             temp_gff.write(
                 "contig1\tprediction\tmRNA\t1\t1000\t.\t+\t.\tID=mRNA1;Parent=gene1;Name=test_mrna\n"
             )
-            temp_gff.write(
-                "contig1\tprediction\texon\t1\t500\t.\t+\t.\tID=exon1;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\texon\t600\t1000\t.\t+\t.\tID=exon2;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\tCDS\t1\t500\t.\t+\t0\tID=cds1;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\tCDS\t600\t1000\t.\t+\t0\tID=cds2;Parent=mRNA1\n"
-            )
+            temp_gff.write("contig1\tprediction\texon\t1\t500\t.\t+\t.\tID=exon1;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\texon\t600\t1000\t.\t+\t.\tID=exon2;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\tCDS\t1\t500\t.\t+\t0\tID=cds1;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\tCDS\t600\t1000\t.\t+\t0\tID=cds2;Parent=mRNA1\n")
             temp_gff_name = temp_gff.name
 
         # Create a temporary FASTA file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".fasta"
-        ) as temp_fasta:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".fasta") as temp_fasta:
             temp_fasta.write(">contig1\n")
             temp_fasta.write("A" * 1000 + "\n")
             temp_fasta_name = temp_fasta.name
 
         # Create a temporary output file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gtf"
-        ) as temp_out:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gtf") as temp_out:
             temp_out_name = temp_out.name
 
         try:
@@ -94,28 +78,16 @@ class TestCLICommands:
     def test_stats_command(self):
         """Test the stats command."""
         # Create a temporary GFF file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_gff:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_gff:
             temp_gff.write("##gff-version 3\n")
-            temp_gff.write(
-                "contig1\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene1;Name=test_gene\n"
-            )
+            temp_gff.write("contig1\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene1;Name=test_gene\n")
             temp_gff.write(
                 "contig1\tprediction\tmRNA\t1\t1000\t.\t+\t.\tID=mRNA1;Parent=gene1;Name=test_mrna\n"
             )
-            temp_gff.write(
-                "contig1\tprediction\texon\t1\t500\t.\t+\t.\tID=exon1;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\texon\t600\t1000\t.\t+\t.\tID=exon2;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\tCDS\t1\t500\t.\t+\t0\tID=cds1;Parent=mRNA1\n"
-            )
-            temp_gff.write(
-                "contig1\tprediction\tCDS\t600\t1000\t.\t+\t0\tID=cds2;Parent=mRNA1\n"
-            )
+            temp_gff.write("contig1\tprediction\texon\t1\t500\t.\t+\t.\tID=exon1;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\texon\t600\t1000\t.\t+\t.\tID=exon2;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\tCDS\t1\t500\t.\t+\t0\tID=cds1;Parent=mRNA1\n")
+            temp_gff.write("contig1\tprediction\tCDS\t600\t1000\t.\t+\t0\tID=cds2;Parent=mRNA1\n")
             temp_gff_name = temp_gff.name
 
         try:
@@ -140,9 +112,7 @@ class TestCLICommands:
     def test_sort_command(self):
         """Test the sort command."""
         # Create a temporary GFF file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_gff:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_gff:
             temp_gff.write("##gff-version 3\n")
             temp_gff.write(
                 "contig2\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene2;Name=test_gene2\n"
@@ -153,9 +123,7 @@ class TestCLICommands:
             temp_gff_name = temp_gff.name
 
         # Create a temporary output file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_out:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_out:
             temp_out_name = temp_out.name
 
         try:
@@ -191,9 +159,7 @@ class TestCLICommands:
     def test_rename_command(self):
         """Test the rename command."""
         # Create a temporary GFF file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_gff:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_gff:
             temp_gff.write("##gff-version 3\n")
             temp_gff.write(
                 "contig1\tprediction\tgene\t1\t1000\t.\t+\t.\tID=gene1;Name=test_gene1\n"
@@ -204,16 +170,12 @@ class TestCLICommands:
             temp_gff_name = temp_gff.name
 
         # Create a temporary output file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".gff3"
-        ) as temp_out:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".gff3") as temp_out:
             temp_out_name = temp_out.name
 
         try:
             # Run the rename command
-            command = (
-                f"python -m gfftk rename -i {temp_gff_name} -o {temp_out_name} -p TEST_"
-            )
+            command = f"python -m gfftk rename -i {temp_gff_name} -o {temp_out_name} -p TEST_"
             returncode, stdout, stderr = run_command(command)
 
             # The command might fail if the module is not installed

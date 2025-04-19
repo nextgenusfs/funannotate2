@@ -1,33 +1,32 @@
-import os
-import sys
-import shutil
-import uuid
 import errno
-from collections import OrderedDict
+import json
+import os
+import shutil
+import subprocess
+import sys
 import tempfile
-from natsort import natsorted
-from gfftk.gff import gff2dict, dict2gff3, validate_models, gtf2dict
+import time
+import types
+import uuid
+from collections import OrderedDict
+
+import numpy as np
+import pyfastx
 from gfftk.fasta import fasta2dict, softwrap
-from gfftk.stats import annotation_stats
-from .utilities import (
-    checkfile,
-    runSubprocess,
-    runProcessJob,
-    runThreadJob,
-    which_path,
-    print_table,
-    readBlocks,
-    execute,
-)
+from gfftk.gff import dict2gff3, gff2dict, gtf2dict, validate_models
+from natsort import natsorted
+
 from .config import env
 from .genbank import gff3_to_gbio
 from .interlap import InterLap
-import subprocess
-import pyfastx
-import types
-import time
-import numpy as np
-import json
+from .utilities import (
+    checkfile,
+    execute,
+    print_table,
+    readBlocks,
+    runSubprocess,
+    which_path,
+)
 
 
 class reversor:
@@ -96,7 +95,7 @@ def run_trnascan(genome, predictions, cpus=1, folder="/tmp", log=sys.stderr.writ
                 end = int(end)
                 intron_start = int(intron_start)
                 intron_end = int(intron_end)
-                gene_name = f"{t_type}_{i+1}"
+                gene_name = f"{t_type}_{i + 1}"
                 trna_name = f"{gene_name}_tRNA"
                 product = f"tRNA-{t_type}"
                 note = f"Predicted {anticodon} anticodon"
@@ -110,10 +109,10 @@ def run_trnascan(genome, predictions, cpus=1, folder="/tmp", log=sys.stderr.writ
                     )
                     if intron_start > 0 and intron_end > 0:
                         outfile.write(
-                            f"{contig}\ttRNAScan-SE\texon\t{start}\t{intron_start-1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                            f"{contig}\ttRNAScan-SE\texon\t{start}\t{intron_start - 1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
                         )
                         outfile.write(
-                            f"{contig}\ttRNAScan-SE\texon\t{intron_end+1}\t{end}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
+                            f"{contig}\ttRNAScan-SE\texon\t{intron_end + 1}\t{end}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
                         )
                     else:
                         outfile.write(
@@ -129,10 +128,10 @@ def run_trnascan(genome, predictions, cpus=1, folder="/tmp", log=sys.stderr.writ
                     )
                     if intron_start > 0 and intron_end > 0:
                         outfile.write(
-                            f"{contig}\ttRNAScan-SE\texon\t{end}\t{intron_end+1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
+                            f"{contig}\ttRNAScan-SE\texon\t{end}\t{intron_end + 1}\t.\t{strand}\t.\tID={trna_name}.exon1;Parent={trna_name};\n"
                         )
                         outfile.write(
-                            f"{contig}\ttRNAScan-SE\texon\t{intron_start-1}\t{start}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
+                            f"{contig}\ttRNAScan-SE\texon\t{intron_start - 1}\t{start}\t.\t{strand}\t.\tID={trna_name}.exon2;Parent={trna_name};\n"
                         )
                     else:
                         outfile.write(
@@ -243,7 +242,7 @@ def train_glimmerhmm(
                 line = line.rstrip()
                 if " " in line:
                     key, value = line.split(" ", 1)
-                    if not key in cfg:
+                    if key not in cfg:
                         cfg[key] = value
         return cfg
 
@@ -335,9 +334,7 @@ def train_glimmerhmm(
     # generate glimmer training input
     # load gff3 into dictionary
     if isinstance(train_gff, str):
-        Genes = gff2dict(
-            os.path.abspath(train_gff), os.path.abspath(genome), logger=log
-        )
+        Genes = gff2dict(os.path.abspath(train_gff), os.path.abspath(genome), logger=log)
     elif isinstance(train_gff, dict):
         Genes = train_gff
     glimmExons = os.path.join(tmpdir, "glimmer.exons")
@@ -363,7 +360,7 @@ def train_glimmerhmm(
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(train_end - time_start))
 
     # now we can test the trained model
-    init_train = test_training(TrainData, test_models, tmpdir, tool="glimmerhmm")
+    test_training(TrainData, test_models, tmpdir, tool="glimmerhmm")
     # log.info(
     #    "Initial training completed in {}s\n{}".format(
     #        train_elapsed, json.dumps(init_train, indent=2, default=str)
@@ -392,11 +389,11 @@ def train_glimmerhmm(
                 elif line.startswith("MeanIntergen"):
                     outfile.write(f"MeanIntergen {mean_intergenic}\n")
                     outfile.write(f"intergenic_val {min_intergenic}\n")
-                    outfile.write(f"intergenic_penalty 25\n")
+                    outfile.write("intergenic_penalty 25\n")
                 elif line.startswith("BoostExon"):
                     outfile.write(line)
-                    outfile.write(f"BoostSplice 0\n")
-                    outfile.write(f"BoostSgl 0\n")
+                    outfile.write("BoostSplice 0\n")
+                    outfile.write("BoostSgl 0\n")
                 else:
                     outfile.write(line)
     # write the test models to their own directory
@@ -404,7 +401,7 @@ def train_glimmerhmm(
         os.makedirs(os.path.join(tmpdir, "test"))
         for k, v in test_models.items():
             with open(os.path.join(tmpdir, "test", f"{k}.fa"), "w") as outfile:
-                outfile.write(f'>{k}\n{softwrap(v["train_dna"])}\n')
+                outfile.write(f">{k}\n{softwrap(v['train_dna'])}\n")
 
     # if optimize passed, then insert grid search logic here
     base_cfg = _glimmer_config(glimmCFG)
@@ -418,7 +415,7 @@ def train_glimmerhmm(
     best_params = {}
     for k, v in grid_search.items():
         res = {}
-        for i, j in v.items():
+        for i in v.keys():
             new_cfg = base_cfg.copy()
             new_cfg[k] = i
             new_train = os.path.join(optimize_dir, f"train_{k}_{i}")
@@ -464,9 +461,7 @@ def train_glimmerhmm(
     return {"location": TrainData, "train_results": final_train}
 
 
-def run_glimmerhmm(
-    genome, train_data, predictions, folder="/tmp", log=sys.stderr.write
-):
+def run_glimmerhmm(genome, train_data, predictions, folder="/tmp", log=sys.stderr.write):
     """
     Run GlimmerHMM on the input genome to predict genes and output the results in GFF3 format.
 
@@ -680,9 +675,7 @@ def train_genemark(
 
     # define training model
     genemark_mod = os.path.join(tmpdir, "gmhmm.mod")
-    if os.path.abspath(genome) != os.path.abspath(
-        os.path.join(folder, os.path.basename(genome))
-    ):
+    if os.path.abspath(genome) != os.path.abspath(os.path.join(folder, os.path.basename(genome))):
         shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
     cmd = [
         "gmes_petap.pl",
@@ -812,21 +805,15 @@ def train_snap(
                                 end = c[0]
                             if num == 0:
                                 outfile.write(
-                                    "Einit\t{:}\t{:}\t{:}\n".format(
-                                        start, end, gd["ids"][i]
-                                    )
+                                    "Einit\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
                                 )
                             elif num == len(gd["CDS"][i]) - 1:
                                 outfile.write(
-                                    "Eterm\t{:}\t{:}\t{:}\n".format(
-                                        start, end, gd["ids"][i]
-                                    )
+                                    "Eterm\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
                                 )
                             else:
                                 outfile.write(
-                                    "Exon\t{:}\t{:}\t{:}\n".format(
-                                        start, end, gd["ids"][i]
-                                    )
+                                    "Exon\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
                                 )
 
     # generate training directory ontop of the dir that is passed
@@ -863,9 +850,7 @@ def train_snap(
 
     # get only scaffolds that have gene models for training
     log.debug(
-        "{:} gene models to train snap on {:} scaffolds".format(
-            len(sGenes), len(scaff2genes)
-        )
+        "{:} gene models to train snap on {:} scaffolds".format(len(sGenes), len(scaff2genes))
     )
     trainingFasta = os.path.join(tmpdir, "snap-training.scaffolds.fasta")
     with open(trainingFasta, "w") as outfile:
@@ -973,9 +958,9 @@ def run_snap(genome, train_data, predictions, folder="/tmp", log=sys.stderr.writ
                 start = int(cols[3])
                 end = int(cols[4])
                 strand = cols[6]
-                score = cols[5]
+                # score = cols[5]  # Unused variable
                 phase = "?"
-                if not ID in Genes:
+                if ID not in Genes:
                     Genes[ID] = {
                         "name": None,
                         "type": ["mRNA"],
@@ -1014,9 +999,7 @@ def run_snap(genome, train_data, predictions, folder="/tmp", log=sys.stderr.writ
         # translate, check partial, etc
         SeqRecords = fasta2dict(fasta)
         # loop through and make sure CDS and exons are properly sorted and codon_start is correct, translate to protein space
-        Genes = validate_models(
-            Genes, SeqRecords, logger=log, table=1, gap_filter=False
-        )
+        Genes = validate_models(Genes, SeqRecords, logger=log, table=1, gap_filter=False)
         # now write to GFF3
         dict2gff3(Genes, output)
         return 0
@@ -1255,11 +1238,7 @@ def parse_augustus_gff3(aug, hiq_support=90):
                         support = line.split(" ")[-1]
                         values.append(support)
                     elif not line.startswith("#"):
-                        if (
-                            "\tgene\t" in line
-                            or "\ttranscript\t" in line
-                            or "\tCDS\t" in line
-                        ):
+                        if "\tgene\t" in line or "\ttranscript\t" in line or "\tCDS\t" in line:
                             gfflines.append(line.split("\t"))
                 ex_count = 0
                 for x in gfflines:
@@ -1396,9 +1375,7 @@ def train_augustus(
                 os.rename(x, x.replace(optimize, species))
         # see what initial results are
         aug_init_training = os.path.join(tmpdir, "augustus.initial.training.txt")
-        init_train = test_augustus_predictions(
-            tmpdir, species, trainingset, aug_init_training
-        )
+        init_train = test_augustus_predictions(tmpdir, species, trainingset, aug_init_training)
         log.info(f"Augustus initial training results:\n{init_train}")
         # so idea here is to copy over existing and then run optimize augustus on it
         optimize_cmd = [
@@ -1435,9 +1412,7 @@ def train_augustus(
         # see if optimize is True
         if optimize and optimize is True:
             aug_init_training = os.path.join(tmpdir, "augustus.initial.training.txt")
-            init_train = test_augustus_predictions(
-                tmpdir, species, trainingset, aug_init_training
-            )
+            init_train = test_augustus_predictions(tmpdir, species, trainingset, aug_init_training)
             log.info(f"Augustus initial training results:\n{init_train}")
             # so idea here is to copy over existing and then run optimize augustus on it
             optimize_cmd = [
@@ -1455,9 +1430,7 @@ def train_augustus(
 
     # now predict the test to see accuracy
     # now we can test the trained model
-    init_train = test_training(
-        species, test_models, tmpdir, tool="augustus", aug_config_dir=tmpdir
-    )
+    init_train = test_training(species, test_models, tmpdir, tool="augustus", aug_config_dir=tmpdir)
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - train_start))
     log.info(
         "Initial training completed in {}s\n{}".format(
@@ -1660,7 +1633,7 @@ def prot_alignments_to_hints(file):
                         ".",
                         v["strand"],
                         ".",
-                        f'src=XNT;grp={v["target"]};pri=4',
+                        f"src=XNT;grp={v['target']};pri=4",
                     ]
                 )
                 if len(sortedCDS) > 1:
@@ -1675,7 +1648,7 @@ def prot_alignments_to_hints(file):
                                 ".",
                                 v["strand"],
                                 ".",
-                                f'src=XNT;grp={v["target"]};pri=4',
+                                f"src=XNT;grp={v['target']};pri=4",
                             ]
                         )
                     except IndexError:
@@ -1693,7 +1666,7 @@ def prot_alignments_to_hints(file):
                         ".",
                         v["strand"],
                         ".",
-                        f'src=XNT;grp={v["target"]};pri=4',
+                        f"src=XNT;grp={v['target']};pri=4",
                     ]
                 )
                 if len(sortedCDS) > 1:
@@ -1708,7 +1681,7 @@ def prot_alignments_to_hints(file):
                                 ".",
                                 v["strand"],
                                 ".",
-                                f'src=XNT;grp={v["target"]};pri=4',
+                                f"src=XNT;grp={v['target']};pri=4",
                             ]
                         )
                     except IndexError:
@@ -1928,9 +1901,7 @@ def evidence2hints(prot, tran, all_contigs, outdir):
                 p = subprocess.Popen([JOINHINTS], stdin=subprocess.PIPE, stdout=outfile)
                 for h in natsorted(cHints, key=lambda x: (x[3], x[4], x[2], x[1])):
                     try:
-                        p.stdin.write(
-                            "{}\n".format("\t".join([str(x) for x in h])).encode()
-                        )
+                        p.stdin.write("{}\n".format("\t".join([str(x) for x in h])).encode())
                     except IOError as e:
                         if e.errno == errno.EPIPE or e.errno == errno.EINVAL:
                             # Stop loop on "Invalid pipe" or "Invalid argument".
@@ -1977,11 +1948,11 @@ def calculate_similarity(query, reference):
     """
 
     def _length(listTup):
-        len = 0
+        total_len = 0
         for i in listTup:
-            l = abs(i[0] - i[1])
-            len += l
-        return len
+            segment_len = abs(i[0] - i[1])
+            total_len += segment_len
+        return total_len
 
     # check if identical
     if query == reference:
@@ -2108,7 +2079,7 @@ def test_training(
         contigs.append(dest)
         if not os.path.isfile(dest):
             with open(dest, "w") as outfile:
-                outfile.write(f'>{k}\n{softwrap(v["train_dna"])}\n')
+                outfile.write(f">{k}\n{softwrap(v['train_dna'])}\n")
 
     # now run the test on the test contigs, note that contig is the gene model name
     preds = {}
@@ -2150,9 +2121,7 @@ def test_training(
                                             "strand": strand,
                                         }
                                     else:
-                                        preds[cols[0]][gID]["coords"].append(
-                                            (start, end)
-                                        )
+                                        preds[cols[0]][gID]["coords"].append((start, end))
         elif tool == "snap":
             cmd = ["snap", os.path.abspath(train_data), os.path.abspath(c)]
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -2176,7 +2145,7 @@ def test_training(
                         ) = line.split("\t")
                         start = int(start)
                         end = int(end)
-                        phase = "?"
+                        # phase = "?"  # Unused variable
                         if contig not in preds:
                             preds[contig] = {
                                 ID: {
@@ -2232,14 +2201,10 @@ def test_training(
                                             "strand": strand,
                                         }
                                     else:
-                                        preds[cols[0]][gID]["coords"].append(
-                                            (start, end)
-                                        )
+                                        preds[cols[0]][gID]["coords"].append((start, end))
         elif tool == "genemark":
             # need to copy over the mod file as has to be in same directory
-            shutil.copyfile(
-                train_data, os.path.join(tmpdir, "test", os.path.basename(train_data))
-            )
+            shutil.copyfile(train_data, os.path.join(tmpdir, "test", os.path.basename(train_data)))
             g_out = os.path.join(tmpdir, "test", os.path.basename(c) + ".gtf")
             cmd = [
                 "gmhmme3",
@@ -2285,9 +2250,7 @@ def test_training(
                                                 "strand": strand,
                                             }
                                         else:
-                                            preds[cols[0]][gID]["coords"].append(
-                                                (start, end)
-                                            )
+                                            preds[cols[0]][gID]["coords"].append((start, end))
 
     # preds is keyed by gene name, and the value is keyed by gene model name, and the value is a dict of coords and strand
     data = {
@@ -2378,8 +2341,7 @@ def test_training(
         / len(data["nucleotide_sensitivity"]),
         "nucleotide_precision": sum(data["nucleotide_precision"])
         / len(data["nucleotide_precision"]),
-        "exon_sensitivity": sum(data["exon_sensitivity"])
-        / len(data["exon_sensitivity"]),
+        "exon_sensitivity": sum(data["exon_sensitivity"]) / len(data["exon_sensitivity"]),
         "exon_precision": sum(data["exon_precision"]) / len(data["exon_precision"]),
         "gene_sensitivity": gene_sens,
         "gene_precision": gene_prec,

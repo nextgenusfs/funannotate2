@@ -3,11 +3,11 @@ Unit tests for the utilities module.
 """
 
 import os
-import pytest
+
 from funannotate2.utilities import (
+    create_tmpdir,
     merge_coordinates,
     naming_slug,
-    create_tmpdir,
     readBlocks,
 )
 
@@ -57,10 +57,7 @@ class TestNamingSlug:
 
     def test_basic_slug(self):
         """Test basic slug generation."""
-        assert (
-            naming_slug("aspergillus fumigatus", "Af293")
-            == "Aspergillus_fumigatus_Af293"
-        )
+        assert naming_slug("aspergillus fumigatus", "Af293") == "Aspergillus_fumigatus_Af293"
 
     def test_lowercase_slug(self):
         """Test lowercase slug generation."""
@@ -75,10 +72,7 @@ class TestNamingSlug:
 
     def test_strain_with_spaces(self):
         """Test slug generation with spaces in strain."""
-        assert (
-            naming_slug("Aspergillus fumigatus", "Af 293")
-            == "Aspergillus_fumigatus_Af293"
-        )
+        assert naming_slug("Aspergillus fumigatus", "Af 293") == "Aspergillus_fumigatus_Af293"
 
 
 class TestCreateTmpdir:

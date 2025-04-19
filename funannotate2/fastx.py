@@ -1,8 +1,9 @@
-import pyfastx
-from natsort import natsorted
-import os
 import math
 import multiprocessing
+import os
+
+import pyfastx
+from natsort import natsorted
 from pytantan.lib import RepeatFinder, default_scoring_matrix
 
 
@@ -136,9 +137,7 @@ def mergefasta(fasta_files, outfile):
     return o, n
 
 
-def annotate_fasta(
-    fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"
-):
+def annotate_fasta(fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"):
     """
     Annotate specific sequences in a FASTA file with custom information.
 
@@ -247,9 +246,7 @@ def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]
     names = {}
     with open(keepfile, "w") as outfile:
         with open(dropfile, "w") as dropout:
-            for i, (title, seq) in enumerate(
-                pyfastx.Fasta(inputfile, build_index=False)
-            ):
+            for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
                 if title in drop:
                     dropout.write(f">{title}\n{softwrap(seq)}\n")
                 else:
@@ -417,9 +414,7 @@ def analyzeAssembly(
             for k, v in natsorted(list(asmgaps.items())):
                 for item in v:
                     if len(item) == 2:
-                        gapout.write(
-                            f"{k}\t{item[0]}\t{item[1]}\tassembly-gap_{counter2}\n"
-                        )
+                        gapout.write(f"{k}\t{item[0]}\t{item[1]}\tassembly-gap_{counter2}\n")
                         counter2 += 1
 
     # build stats

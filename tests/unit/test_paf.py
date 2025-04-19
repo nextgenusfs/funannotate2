@@ -4,12 +4,8 @@ Unit tests for the paf module.
 
 import os
 import tempfile
-import pytest
-from gfftk.paf import (
-    paf2dict,
-    cs2coords,
-    cs2tuples,
-)
+
+from gfftk.paf import cs2coords, cs2tuples, paf2dict
 
 
 class TestPAF:
@@ -214,9 +210,7 @@ class TestPAF:
     def test_paf2dict_with_min_mapq(self):
         """Test parsing PAF file with minimum mapping quality."""
         # Create a temporary PAF file with different mapping qualities
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".paf"
-        ) as temp_paf:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".paf") as temp_paf:
             # Entry with high mapping quality
             temp_paf.write(
                 "OPO1_006208-T1\t2883\t0\t2883\t+\tscaffold_60\t41779\t19205\t22545\t2883\t2883\t60\tcs:Z::60~gt63ag:365\n"
@@ -228,9 +222,7 @@ class TestPAF:
             temp_paf_name = temp_paf.name
 
         # Create a temporary FASTA file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".fasta"
-        ) as temp_fasta:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".fasta") as temp_fasta:
             temp_fasta.write(">scaffold_60\nATGCATGCATGC\n")
             temp_fasta.write(">scaffold_82\nGCTAGCTAGCTA\n")
             temp_fasta_name = temp_fasta.name
@@ -287,18 +279,14 @@ class TestPAF:
     def test_paf2dict_without_cs_tag(self):
         """Test parsing PAF file without cs tag."""
         # Create a temporary PAF file without cs tag
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".paf"
-        ) as temp_paf:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".paf") as temp_paf:
             temp_paf.write(
                 "OPO1_006208-T1\t2883\t0\t2883\t+\tscaffold_60\t41779\t19205\t22545\t2883\t2883\t60\n"
             )
             temp_paf_name = temp_paf.name
 
         # Create a temporary FASTA file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".fasta"
-        ) as temp_fasta:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".fasta") as temp_fasta:
             temp_fasta.write(">scaffold_60\nATGCATGCATGC\n")
             temp_fasta_name = temp_fasta.name
 
@@ -308,9 +296,7 @@ class TestPAF:
 
             # Check the result
             assert isinstance(result, dict)
-            assert (
-                len(result) == 0
-            )  # No entries should be included because there's no cs tag
+            assert len(result) == 0  # No entries should be included because there's no cs tag
         finally:
             # Clean up
             os.unlink(temp_paf_name)

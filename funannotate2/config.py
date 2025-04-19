@@ -18,9 +18,7 @@ if "AUGUSTUS_CONFIG" in os.environ:
 
 if env["AUGUSTUS_CONFIG"]:
     if os.path.isdir(os.path.join(os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts")):
-        env["AUGUSTUS_BASE"] = os.path.join(
-            os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts"
-        )
+        env["AUGUSTUS_BASE"] = os.path.join(os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts")
 
 
 augustus_species = {

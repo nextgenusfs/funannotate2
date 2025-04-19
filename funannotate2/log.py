@@ -1,16 +1,13 @@
-import sys
+import logging
 import os
 import platform
-import logging
 import tracemalloc
-from .__init__ import __version__
-import numpy
-import natsort
-from .interlap import __version__ as interlap_version
-from .utilities import human_readable_size
-import gfftk
-import buscolite
 
+import buscolite
+import gfftk
+
+from .__init__ import __version__
+from .utilities import human_readable_size
 
 green = "\033[92m"
 END = "\033[0m"
@@ -139,11 +136,7 @@ def finishLogging(log, module):
     """
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    log(
-        "{} module finished: peak memory usage={}".format(
-            module, human_readable_size(peak)
-        )
-    )
+    log("{} module finished: peak memory usage={}".format(module, human_readable_size(peak)))
 
 
 def log_dependencies(script=False):

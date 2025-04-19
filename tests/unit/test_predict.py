@@ -2,11 +2,12 @@
 Unit tests for the predict module.
 """
 
-import os
 import json
-import tempfile
+import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 import funannotate2.predict
 
 

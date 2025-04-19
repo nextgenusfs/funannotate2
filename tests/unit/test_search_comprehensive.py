@@ -4,8 +4,10 @@ Comprehensive unit tests for the search module.
 
 import os
 import sys
+from unittest.mock import MagicMock, mock_open, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+
 import funannotate2.search as search
 
 
@@ -87,9 +89,7 @@ class TestSearchComprehensive:
         ]
 
         # Create mock sequences
-        sequences = (
-            MagicMock()
-        )  # This would be a pyhmmer.easel.SequenceFile object in real usage
+        sequences = MagicMock()  # This would be a pyhmmer.easel.SequenceFile object in real usage
 
         # Call the function
         result = search.pfam_search(sequences, cpus=1)
@@ -129,9 +129,7 @@ class TestSearchComprehensive:
         ]
 
         # Create mock sequences
-        sequences = (
-            MagicMock()
-        )  # This would be a pyhmmer.easel.SequenceFile object in real usage
+        sequences = MagicMock()  # This would be a pyhmmer.easel.SequenceFile object in real usage
 
         # Call the function
         result = search.dbcan_search(sequences, cpus=1, evalue=1e-15)
@@ -411,9 +409,7 @@ class TestSearchComprehensive:
         }
 
         # Call the function
-        result = search.busco2tsv(
-            results, "/path/to/db", "output.json", "annotations.txt"
-        )
+        result = search.busco2tsv(results, "/path/to/db", "output.json", "annotations.txt")
 
         # Check the result
         assert isinstance(result, dict)

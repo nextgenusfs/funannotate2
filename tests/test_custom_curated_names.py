@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
-import shutil
 
 from funannotate2.name_cleaner import NameCleaner
 
@@ -18,9 +18,7 @@ class TestCustomCuratedNames(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -57,9 +55,7 @@ class TestCustomCuratedNames(unittest.TestCase):
         self.assertIn("ACT1", cleaner.curated_names)
         self.assertEqual(cleaner.curated_names["ACT1"], "Actin")
         self.assertIn("CDC42", cleaner.curated_names)
-        self.assertEqual(
-            cleaner.curated_names["CDC42"], "Cell division control protein 42"
-        )
+        self.assertEqual(cleaner.curated_names["CDC42"], "Cell division control protein 42")
 
         # Check that custom names are not present
         self.assertNotIn("YPT7", cleaner.curated_names)
@@ -78,13 +74,9 @@ class TestCustomCuratedNames(unittest.TestCase):
 
         # Check specific custom annotations
         self.assertEqual(cleaner.custom_annotations["gene_ypt7"]["name"], ["YPT7"])
-        self.assertEqual(
-            cleaner.custom_annotations["gene_ypt7"]["product"], ["Custom GTPase YPT7"]
-        )
+        self.assertEqual(cleaner.custom_annotations["gene_ypt7"]["product"], ["Custom GTPase YPT7"])
         self.assertEqual(cleaner.custom_annotations["gene_act1"]["name"], ["ACT1"])
-        self.assertEqual(
-            cleaner.custom_annotations["gene_act1"]["product"], ["Custom Actin"]
-        )
+        self.assertEqual(cleaner.custom_annotations["gene_act1"]["product"], ["Custom Actin"])
 
     def test_process_annotation_with_custom_database(self):
         """Test processing annotations with a custom database."""

@@ -3,12 +3,10 @@ Integration tests for the funannotate2 command-line interface.
 """
 
 import os
-import sys
-import subprocess
-import tempfile
 import shutil
+import subprocess
+
 import pytest
-from pathlib import Path
 
 
 def run_command(command):
@@ -59,9 +57,7 @@ class TestFunannotateCLI:
     @pytest.mark.skip(reason="Skipping CLI tests for now")
     def test_predict_help(self):
         """Test the predict help command."""
-        returncode, stdout, stderr = run_command(
-            "python -m funannotate2 predict --help"
-        )
+        returncode, stdout, stderr = run_command("python -m funannotate2 predict --help")
         assert returncode == 0
         assert "usage:" in stdout
         assert "predict" in stdout
@@ -69,9 +65,7 @@ class TestFunannotateCLI:
     @pytest.mark.skip(reason="Skipping CLI tests for now")
     def test_annotate_help(self):
         """Test the annotate help command."""
-        returncode, stdout, stderr = run_command(
-            "python -m funannotate2 annotate --help"
-        )
+        returncode, stdout, stderr = run_command("python -m funannotate2 annotate --help")
         assert returncode == 0
         assert "usage:" in stdout
         assert "annotate" in stdout
@@ -79,9 +73,7 @@ class TestFunannotateCLI:
     @pytest.mark.skip(reason="compare command not implemented yet")
     def test_compare_help(self):
         """Test the compare help command."""
-        returncode, stdout, stderr = run_command(
-            "python -m funannotate2 compare --help"
-        )
+        returncode, stdout, stderr = run_command("python -m funannotate2 compare --help")
         assert returncode == 0
         assert "usage:" in stdout
         assert "compare" in stdout
@@ -135,9 +127,7 @@ class TestFunannotateCLI:
 
         # Run the clean command with minimum length 10
         output_file = os.path.join(tmp_path, "cleaned.fasta")
-        command = (
-            f"python -m funannotate2 clean -i {test_fasta} -o {output_file} --minlen 10"
-        )
+        command = f"python -m funannotate2 clean -i {test_fasta} -o {output_file} --minlen 10"
         returncode, stdout, stderr = run_command(command)
 
         # Check the results
@@ -152,9 +142,7 @@ class TestFunannotateCLI:
 
     @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn")
-        or not shutil.which("augustus")
-        or not shutil.which("miniprot"),
+        not shutil.which("tbl2asn") or not shutil.which("augustus") or not shutil.which("miniprot"),
         reason="Required tools (tbl2asn, augustus, miniprot) are not installed or not in PATH",
     )
     def test_predict_command_basic(self, test_data_dir, tmp_path):
@@ -204,12 +192,8 @@ class TestFunannotateCLI:
         with open(test_gff, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
 
         # Create a test FASTA file
         test_fasta = os.path.join(tmp_path, "genome.fasta")
@@ -254,26 +238,16 @@ class TestFunannotateCLI:
         with open(gff1, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
 
         with open(gff2, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
             f.write("contig1\tFunannotate\tgene\t200\t300\t.\t+\t.\tID=gene2\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t200\t300\t.\t+\t.\tID=gene2-T1;Parent=gene2\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t200\t300\t.\t+\t.\tID=gene2-T1;Parent=gene2\n")
             f.write(
                 "contig1\tFunannotate\tCDS\t200\t300\t.\t+\t0\tID=gene2-T1-CDS;Parent=gene2-T1\n"
             )

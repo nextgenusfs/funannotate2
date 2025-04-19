@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
-import shutil
-import json
 
 from funannotate2.name_cleaner import (
     NameCleaner,
-    write_problematic_annotations,
     write_new_valid_annotations,
+    write_problematic_annotations,
 )
 
 
@@ -23,9 +22,7 @@ class TestAnnotateIntegration(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -42,9 +39,7 @@ class TestAnnotateIntegration(unittest.TestCase):
             "gene3": {"name": ["orf19.123"], "product": ["Hypothetical protein"]},
             "gene4": {
                 "name": ["CDC42"],
-                "product": [
-                    "Required for cell division and establishment of cell polarity"
-                ],
+                "product": ["Required for cell division and establishment of cell polarity"],
             },
         }
 
@@ -119,9 +114,7 @@ class TestAnnotateIntegration(unittest.TestCase):
 
         # Check that problematic products are replaced with curated ones
         self.assertEqual(cleaned_merged["gene4"]["name"], ["CDC42"])
-        self.assertEqual(
-            cleaned_merged["gene4"]["product"], ["Cell division control protein 42"]
-        )
+        self.assertEqual(cleaned_merged["gene4"]["product"], ["Cell division control protein 42"])
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from buscolite.search import (
-    tblastn_version,
+    merge_overlapping_hits,
     miniprot_version,
     pyhmmer_version,
-    merge_overlapping_hits,
+    tblastn_version,
 )
 
 

@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 
-import sys
-import subprocess
+import bisect
+import math
 import os
 import shutil
-import math
+import subprocess
+import sys
+from collections import ChainMap, defaultdict
+
 import pyfastx
-from .interlap import InterLap
-from collections import defaultdict
-from gfftk.gff import gff2dict, dict2gff3, dict2gff3alignments
 from gfftk.fasta import softwrap
-from collections import ChainMap
-import bisect
-from .utilities import runSubprocess, runProcessJob, checkfile
+from gfftk.gff import dict2gff3, dict2gff3alignments, gff2dict
+
+from .interlap import InterLap
+from .utilities import checkfile, runProcessJob, runSubprocess
 
 
 def merge(coords):
@@ -74,7 +75,7 @@ def evm_consensus(
     # check for EVM_HOME
     try:
         EVM = os.environ["EVM_HOME"]
-    except:
+    except KeyError:
         log.error("Could not find EVM_HOME environmental variable")
         raise SystemExit(1)
 
@@ -155,9 +156,7 @@ def evm_consensus(
                     start = splits[-1][1] + 1
                     end_position = len(fa[k])
                 else:
-                    end_position = int(
-                        (merged_loci[end_idx + 1][0] + merged_loci[end_idx][1]) / 2
-                    )
+                    end_position = int((merged_loci[end_idx + 1][0] + merged_loci[end_idx][1]) / 2)
                     if i == 0:
                         start = 1
                     else:
@@ -357,15 +356,11 @@ def cmd_splitter(
                 str(min_intron),
             ]
             if n_parts[contig] == 1:  # entire chromosome as parition
-                partout.write(
-                    "{}\t{}\t{}\n".format(contig, os.path.abspath(chrDir), "N")
-                )
+                partout.write("{}\t{}\t{}\n".format(contig, os.path.abspath(chrDir), "N"))
                 # write the fasta file
                 chrFasta = os.path.join(chrDir, "genome.fasta")
                 with open(chrFasta, "w") as fastaout:
-                    fastaout.write(
-                        ">{}\n{}\n".format(contig, softwrap(Genome[contig].seq))
-                    )
+                    fastaout.write(">{}\n{}\n".format(contig, softwrap(Genome[contig].seq)))
                 # write the gene predictions
                 genePred = os.path.join(chrDir, "gene_predictions.gff3")
                 dict2gff3(v["genes"], output=genePred, newline=True)

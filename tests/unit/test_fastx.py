@@ -3,13 +3,13 @@ Unit tests for the fastx module.
 """
 
 import os
-import pytest
+
 from funannotate2.fastx import (
-    softwrap,
+    annotate_fasta,
     countfasta,
     fasta2dict,
-    annotate_fasta,
     mergefasta,
+    softwrap,
 )
 
 
@@ -100,9 +100,7 @@ class TestAnnotateFasta:
 
         # Run the function with a custom annotation
         custom_annotation = "[custom=test]"
-        annotate_fasta(
-            fasta_file, output_file, ids=["contig2"], annotation=custom_annotation
-        )
+        annotate_fasta(fasta_file, output_file, ids=["contig2"], annotation=custom_annotation)
 
         # Check that the output file exists
         assert os.path.exists(output_file)

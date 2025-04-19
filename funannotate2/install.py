@@ -1,18 +1,20 @@
-import os
-import io
-import sys
-import hashlib
-import json
-import subprocess
 import datetime
-import requests
-import pyhmmer
-from urllib.request import urlopen
+import hashlib
+import io
+import json
+import os
+import subprocess
+import sys
 import xml.etree.cElementTree as cElementTree
-from .log import startLogging, system_info, finishLogging
+from urllib.request import urlopen
+
+import pyhmmer
+import requests
+
 from .config import env
-from .utilities import download, load_json, checkfile
 from .fastx import countfasta
+from .log import finishLogging, startLogging, system_info
+from .utilities import checkfile, download, load_json
 
 
 def install(args):
@@ -69,9 +71,7 @@ def install(args):
             for db_name, db_info in dbinfo.items():
                 display_info[db_name] = db_info.copy()
                 if "db" in display_info[db_name]:
-                    display_info[db_name]["db"] = os.path.basename(
-                        display_info[db_name]["db"]
-                    )
+                    display_info[db_name]["db"] = os.path.basename(display_info[db_name]["db"])
 
             # Print as formatted JSON
             logger.info("Currently installed databases:")
@@ -115,12 +115,8 @@ def install(args):
             ).text
         )["downloads"]
     except:  # noqa: E722
-        logger.error(
-            "Unable to download links from GitHub, using local copy from funannotate2"
-        )
-        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))[
-            "downloads"
-        ]
+        logger.error("Unable to download links from GitHub, using local copy from funannotate2")
+        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))["downloads"]
     logger.info(json.dumps(DBURL, indent=2))
 
     # let user know what you are doing
@@ -128,9 +124,7 @@ def install(args):
         if args.update is True:
             logger.info("Checking for newer versions of database files")
     else:
-        logger.info(
-            "--force option is passed, will re-download all database and re-format"
-        )
+        logger.info("--force option is passed, will re-download all database and re-format")
 
     # now go through installdbs and download/update/etc
     for x in db2install:
@@ -416,8 +410,8 @@ def calcmd5remote(url, timeout=60):
                 ftp_url = url.replace("https://", "ftp://")
                 print(f"Trying FTP fallback: {ftp_url}")
 
-                from urllib.request import urlopen
                 import socket
+                from urllib.request import urlopen
 
                 # Set a socket timeout for FTP connections
                 socket.setdefaulttimeout(timeout)
@@ -511,9 +505,9 @@ def uniprotDB(wget=False):
         for line in infile:
             if line.startswith("UniProtKB/Swiss-Prot Release"):
                 rest, datepart = line.split(" of ")
-                unidate = datetime.datetime.strptime(
-                    datepart.rstrip(), "%d-%b-%Y"
-                ).strftime("%Y-%m-%d")
+                unidate = datetime.datetime.strptime(datepart.rstrip(), "%d-%b-%Y").strftime(
+                    "%Y-%m-%d"
+                )
                 univers = rest.split(" ")[-1]
     # build diamond database
     cmd = ["diamond", "makedb", "--in", "uniprot_sprot.fasta", "--db", "uniprot"]
@@ -578,16 +572,12 @@ def pfamDB(wget=False):
     download(DBURL.get("pfam"), hmm + ".gz", wget=wget)
     download(DBURL.get("pfam-tsv"), familyinfo + ".gz", wget=wget)
     download(DBURL.get("pfam-log"), versionfile + ".gz", wget=wget)
-    subprocess.call(
-        ["gunzip", "-f", "Pfam-A.hmm.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"])
-    )
+    subprocess.call(["gunzip", "-f", "Pfam-A.hmm.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"]))
     subprocess.call(
         ["gunzip", "-f", "Pfam-A.clans.tsv.gz"],
         cwd=os.path.join(env["FUNANNOTATE2_DB"]),
     )
-    subprocess.call(
-        ["gunzip", "-f", "Pfam.version.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"])
-    )
+    subprocess.call(["gunzip", "-f", "Pfam.version.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"]))
     num_records = 0
     pfamdate = ""
     pfamvers = ""
@@ -707,9 +697,7 @@ def interproDB(wget=False):
     md5 = calcmd5remote(DBURL.get("interpro-tsv"))
     download(DBURL.get("interpro"), iprXML + ".gz", wget=wget)
     download(DBURL.get("interpro-tsv"), iprTSV, wget=wget)
-    subprocess.call(
-        ["gunzip", "-f", "interpro.xml.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"])
-    )
+    subprocess.call(["gunzip", "-f", "interpro.xml.gz"], cwd=os.path.join(env["FUNANNOTATE2_DB"]))
     num_records = ""
     version = ""
     iprdate = ""

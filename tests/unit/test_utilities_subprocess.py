@@ -3,6 +3,7 @@ Unit tests for the runSubprocess function in utilities.py.
 """
 
 import logging
+
 import funannotate2.utilities
 
 

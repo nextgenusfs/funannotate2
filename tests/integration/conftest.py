@@ -3,10 +3,9 @@ Pytest configuration file for integration tests.
 """
 
 import os
-import sys
 import tempfile
+
 import pytest
-from pathlib import Path
 
 
 @pytest.fixture(scope="session")

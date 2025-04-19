@@ -1,49 +1,51 @@
-import sys
-import os
-import json
-import shutil
 import gzip
+import json
+import os
+import shutil
+import sys
 from collections import OrderedDict
+
+from buscolite.busco import runbusco
+from gfftk.consensus import generate_consensus
+from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
+from gfftk.gff import dict2gff3, gff2dict
+from gfftk.stats import annotation_stats
+from gfftk.utils import check_file_type
 from natsort import natsorted
-from .utilities import (
-    create_directories,
-    create_tmpdir,
-    checkfile,
-    runProcessJob,
-    which_path,
-    lookup_taxonomy,
-    choose_best_busco_species,
-    load_json,
-    download,
-    runSubprocess,
-    naming_slug,
-    find_files,
-)
-from .log import startLogging, system_info, finishLogging
-from .fastx import (
-    analyzeAssembly,
-    simplify_headers_drop,
-    mergefasta,
-    annotate_fasta,
-    softmask_fasta,
-)
-from .align import align_transcripts, align_proteins, align_mito
-from .database import fetch_pretrained_species
+
 from .abinitio import (
-    run_snap,
-    run_glimmerhmm,
+    evidence2hints,
     run_augustus,
     run_genemark,
-    evidence2hints,
+    run_glimmerhmm,
+    run_snap,
     run_trnascan,
 )
+from .align import align_mito, align_proteins, align_transcripts
 from .config import env
-from gfftk.gff import gff2dict, dict2gff3
-from gfftk.stats import annotation_stats
-from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
-from gfftk.consensus import generate_consensus
-from buscolite.busco import runbusco
-from gfftk.utils import check_file_type
+from .database import fetch_pretrained_species
+from .fastx import (
+    analyzeAssembly,
+    annotate_fasta,
+    mergefasta,
+    simplify_headers_drop,
+    softmask_fasta,
+)
+from .log import finishLogging, startLogging, system_info
+from .utilities import (
+    checkfile,
+    choose_best_busco_species,
+    create_directories,
+    create_tmpdir,
+    download,
+    find_files,
+    load_json,
+    lookup_taxonomy,
+    naming_slug,
+    runProcessJob,
+    runSubprocess,
+    which_path,
+)
 
 
 def predict(args):
@@ -66,9 +68,7 @@ def predict(args):
     params = None
     if args.input_dir:  # then can parse some stuff
         if not args.params:
-            param_files = find_files(
-                os.path.join(args.input_dir, "train_results"), ".params.json"
-            )
+            param_files = find_files(os.path.join(args.input_dir, "train_results"), ".params.json")
             if len(param_files) == 1:
                 args.params = os.path.abspath(param_files[0])
                 with open(args.params, "r") as infile:
@@ -145,9 +145,7 @@ def predict(args):
         if os.path.isfile(args.params):
             with open(args.params, "r") as infile:
                 params = json.load(infile)
-    logger.info(
-        f"Loaded training params for {params['name']}: {list(params['abinitio'].keys())}"
-    )
+    logger.info(f"Loaded training params for {params['name']}: {list(params['abinitio'].keys())}")
 
     # create a tmpdir for some files
     tmp_dir = create_tmpdir(args.tmpdir, base="predict")
@@ -159,9 +157,7 @@ def predict(args):
     )
     mito_contigs, _ = align_mito(args.fasta, cpus=args.cpus)
     if mito_contigs is None:
-        logger.warning(
-            "Mitochondrial refseq database is not installed, unable to filter contigs"
-        )
+        logger.warning("Mitochondrial refseq database is not installed, unable to filter contigs")
     if mito_contigs:
         logger.info(
             f"Separating {len(mito_contigs)} mitochondrial contig(s) from the nuclear genome, will recombine at the end of predict\n{mito_contigs}"
@@ -191,9 +187,7 @@ def predict(args):
         bad_string = ""
         for x in nuc_errors:
             bad_string += f"{x[0]}: {x[1]}, "
-        logger.critical(
-            f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}"
-        )
+        logger.critical(f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}")
         raise SystemExit(1)
 
     # if no softmasking done, interject and do it with pytantan
@@ -241,9 +235,7 @@ def predict(args):
     ProtGenes = os.path.join(misc_dir, "predictions.miniprot-gene.gff3")
     Proteins = os.path.join(misc_dir, "proteins.to.align.fasta")
     # use funannotate db as default else add to
-    uniprot_db = os.path.abspath(
-        os.path.join(env.get("FUNANNOTATE2_DB"), "uniprot_sprot.fasta")
-    )
+    uniprot_db = os.path.abspath(os.path.join(env.get("FUNANNOTATE2_DB"), "uniprot_sprot.fasta"))
     # get full paths to inputs
     if args.proteins:
         args.proteins = [os.path.abspath(x) for x in args.proteins]
@@ -321,13 +313,9 @@ def predict(args):
             if ab == "augustus":  # split hiq and regular
                 gene_counts["augustus-hiq"] = 0
                 abinitio_preds.append(os.path.join(misc_dir, f"predictions.{ab}.gff3"))
-                abinitio_preds.append(
-                    os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3")
-                )
+                abinitio_preds.append(os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3"))
                 with open(os.path.join(misc_dir, f"predictions.{ab}.gff3"), "w") as aug:
-                    with open(
-                        os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3"), "w"
-                    ) as hiq:
+                    with open(os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3"), "w") as hiq:
                         aug.write("##gff-version 3\n")
                         hiq.write("##gff-version 3\n")
                         for f in natsorted(os.listdir(tmp_dir)):
@@ -347,9 +335,7 @@ def predict(args):
                                             aug.write(line)
             else:
                 abinitio_preds.append(os.path.join(misc_dir, f"predictions.{ab}.gff3"))
-                with open(
-                    os.path.join(misc_dir, f"predictions.{ab}.gff3"), "w"
-                ) as outfile:
+                with open(os.path.join(misc_dir, f"predictions.{ab}.gff3"), "w") as outfile:
                     outfile.write("##gff-version 3\n")
                     for f in natsorted(os.listdir(tmp_dir)):
                         if f.endswith(f"{ab}.gff3"):
@@ -364,9 +350,7 @@ def predict(args):
         # clean up
         shutil.rmtree(tmp_dir)
 
-        logger.info(
-            f"Ab initio predictions finished:\n{json.dumps(gene_counts, indent=2)}"
-        )
+        logger.info(f"Ab initio predictions finished:\n{json.dumps(gene_counts, indent=2)}")
 
     else:
         abinitio_preds = []
@@ -395,9 +379,7 @@ def predict(args):
     )
     busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_tax}_odb10")
     if not os.path.isdir(busco_model_path):
-        download_urls = load_json(
-            os.path.join(os.path.dirname(__file__), "downloads.json")
-        )
+        download_urls = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))
         busco_url = download_urls["busco"][busco_tax][0]
         busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
         logger.info(f"Downloading {busco_tax}_odb10 model from {busco_url}")
@@ -420,9 +402,7 @@ def predict(args):
             abinitio_scores = json.load(infile)
     else:
         abinitio_scores = {}
-        logger.info(
-            "Measuring assembly completeness with buscolite for all ab initio predictions"
-        )
+        logger.info("Measuring assembly completeness with buscolite for all ab initio predictions")
         for ap in abinitio_preds:
             ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
             gene_models = gff2dict(ap, GenomeFasta)
@@ -436,9 +416,7 @@ def predict(args):
                     logger=logger,
                     verbosity=0,
                 )
-                cov = (stats["single-copy"] + stats["duplicated"]) / float(
-                    stats["total"]
-                )
+                cov = (stats["single-copy"] + stats["duplicated"]) / float(stats["total"])
             else:
                 cov = 0.00
             # measure completeness for each tool
@@ -458,9 +436,7 @@ def predict(args):
             json.dump(abinitio_scores, outfile, indent=2)
 
     logger.info(
-        "ab initio models scoring by algorithm:\n{}".format(
-            json.dumps(abinitio_scores, indent=2)
-        )
+        "ab initio models scoring by algorithm:\n{}".format(json.dumps(abinitio_scores, indent=2))
     )
 
     # now we want to calculate weight estimations based on these results
@@ -509,12 +485,8 @@ def predict(args):
     finalFA = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.fasta")
     finalTBL = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.tbl")
     finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
-    finalSummary = os.path.join(
-        res_dir, f"{naming_slug(args.species, args.strain)}.summary.json"
-    )
-    logger.info(
-        f"Merging all gene models, sorting, and renaming using locus_tag={args.name}"
-    )
+    finalSummary = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.summary.json")
+    logger.info(f"Merging all gene models, sorting, and renaming using locus_tag={args.name}")
     consensus_models = merge_rename_models(
         [Consensus, trna_predictions],
         GenomeFasta,
@@ -546,9 +518,7 @@ def predict(args):
 
     # get some stats for user
     consensus_stats = annotation_stats(consensus_models)
-    logger.info(
-        "Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2))
-    )
+    logger.info("Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2)))
     # we are finished here with coding sequences, lets check completeness
     ConsensusProts = os.path.join(misc_dir, "consensus.proteins.fasta")
     _dict2proteins(consensus_models, output=ConsensusProts)
@@ -650,9 +620,7 @@ def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}
 
     Genes = {}
     for gff in gffList:
-        Genes = gff2dict(
-            os.path.abspath(gff), os.path.abspath(genome), annotation=Genes
-        )
+        Genes = gff2dict(os.path.abspath(gff), os.path.abspath(genome), annotation=Genes)
 
     sGenes = natsorted(iter(Genes.items()), key=_sortDict)
     sortedGenes = OrderedDict(sGenes)
@@ -695,18 +663,14 @@ def abinitio_wrapper(contig, params, logger):
         run_snap(
             contig,
             params["abinitio"]["snap"]["location"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.snap.gff3"
-            ),
+            os.path.join(os.path.dirname(contig), f"{os.path.basename(contig)}.snap.gff3"),
             log=logger,
         )
     if "glimmerhmm" in params["abinitio"]:
         run_glimmerhmm(
             contig,
             params["abinitio"]["glimmerhmm"]["location"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.glimmerhmm.gff3"
-            ),
+            os.path.join(os.path.dirname(contig), f"{os.path.basename(contig)}.glimmerhmm.gff3"),
             log=logger,
         )
     if "genemark" in params["abinitio"]:
@@ -714,9 +678,7 @@ def abinitio_wrapper(contig, params, logger):
             run_genemark(
                 contig,
                 params["abinitio"]["genemark"]["location"],
-                os.path.join(
-                    os.path.dirname(contig), f"{os.path.basename(contig)}.genemark.gff3"
-                ),
+                os.path.join(os.path.dirname(contig), f"{os.path.basename(contig)}.genemark.gff3"),
                 log=logger,
             )
     if "augustus" in params["abinitio"]:
@@ -730,9 +692,7 @@ def abinitio_wrapper(contig, params, logger):
         run_augustus(
             contig,
             params["abinitio"]["augustus"]["species"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.augustus.gff3"
-            ),
+            os.path.join(os.path.dirname(contig), f"{os.path.basename(contig)}.augustus.gff3"),
             log=logger,
             hints=hints,
             config_path=params["abinitio"]["augustus"]["location"],
@@ -771,9 +731,7 @@ def calculate_weights(scores, cli_weights):
         if k in usr_weights:
             weights[k] = usr_weights.get(k)
         else:
-            if (
-                "train" not in v
-            ):  # these are either user entered or from gapmm2/miniprot
+            if "train" not in v:  # these are either user entered or from gapmm2/miniprot
                 # can only do augustus busco comparison here
                 if v["busco"] >= 0.99:
                     weights[k] = 2

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import unittest
 import tempfile
-from buscolite.busco import load_config, load_cutoffs, check_lineage
+import unittest
+
+from buscolite.busco import check_lineage, load_config, load_cutoffs
 
 
 class TestBuscoFunctions(unittest.TestCase):
@@ -63,9 +64,7 @@ class TestBuscoFunctions(unittest.TestCase):
 
         # Check busco2 values
         self.assertEqual(cutoffs["busco2"]["score"], 200.0)
-        self.assertEqual(
-            cutoffs["busco2"]["sigma"], 1
-        )  # Should be 1 because sigma was 0.0
+        self.assertEqual(cutoffs["busco2"]["sigma"], 1)  # Should be 1 because sigma was 0.0
         self.assertEqual(cutoffs["busco2"]["length"], 400)
 
     def test_check_lineage_valid(self):

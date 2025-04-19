@@ -25,6 +25,12 @@ Note this documentation was written entirely by augment code's Agent, expect som
 
    installation
    usage
+   clean
+   train
+   predict
+   annotate
+   install
+   species
    modules
    API
    tutorial

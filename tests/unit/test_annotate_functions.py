@@ -2,13 +2,12 @@
 Unit tests for specific functions in the annotate module.
 """
 
-import os
-import tempfile
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 import funannotate2.annotate
 import funannotate2.search
-import json
 
 
 class TestDigitizeSequences:
@@ -121,9 +120,7 @@ class TestParseAnnotations:
             for k, v in genes_dict.items():
                 n = v.copy()
                 for i, x in enumerate(n["ids"]):
-                    if (
-                        x in mock_json_load.return_value
-                    ):  # then functional annotation to add
+                    if x in mock_json_load.return_value:  # then functional annotation to add
                         fa = mock_json_load.return_value.get(x)
                         if "product" in fa:
                             n["product"][i] = fa["product"][0]
@@ -156,9 +153,7 @@ class TestParseAnnotations:
             assert len(result) == 1
             assert "gene1" in result
             assert result["gene1"]["product"][0] == "ATP synthase"
-            assert result["gene1"]["db_xref"][0] == [
-                ["InterPro:IPR000123", "PFAM:PF12345"]
-            ]
+            assert result["gene1"]["db_xref"][0] == [["InterPro:IPR000123", "PFAM:PF12345"]]
             assert result["gene1"]["name"] == "atp1"
             assert result["gene1"]["gene_synonym"] == []
             assert result["gene1"]["note"][0] == [["ATP synthase subunit 1"]]
@@ -208,9 +203,7 @@ class TestParseAnnotations:
             for k, v in genes_dict.items():
                 n = v.copy()
                 for i, x in enumerate(n["ids"]):
-                    if (
-                        x in mock_json_load.return_value
-                    ):  # then functional annotation to add
+                    if x in mock_json_load.return_value:  # then functional annotation to add
                         fa = mock_json_load.return_value.get(x)
                         if "product" in fa:
                             n["product"][i] = fa["product"][0]
@@ -249,9 +242,7 @@ class TestParseAnnotations:
             funannotate2.annotate.parse_annotations = original_parse_annotations
 
     @patch("funannotate2.annotate.json.load")
-    def test_parse_annotations_with_missing_transcript(
-        self, mock_json_load, mock_logger
-    ):
+    def test_parse_annotations_with_missing_transcript(self, mock_json_load, mock_logger):
         """Test parsing annotations with a missing transcript."""
         # Create sample data
         genes = {
@@ -294,9 +285,7 @@ class TestParseAnnotations:
             for k, v in genes_dict.items():
                 n = v.copy()
                 for i, x in enumerate(n["ids"]):
-                    if (
-                        x in mock_json_load.return_value
-                    ):  # then functional annotation to add
+                    if x in mock_json_load.return_value:  # then functional annotation to add
                         fa = mock_json_load.return_value.get(x)
                         if "product" in fa:
                             n["product"][i] = fa["product"][0]

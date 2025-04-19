@@ -3,18 +3,11 @@ Integration tests for the buscolite Python API.
 """
 
 import os
-import sys
-import json
-import tempfile
 import shutil
+import tempfile
+
 import pytest
-from pathlib import Path
-from buscolite.busco import (
-    runbusco,
-    check_lineage,
-    load_config,
-    load_cutoffs,
-)
+from buscolite.busco import check_lineage, load_config, load_cutoffs, runbusco
 
 
 class TestBUSCOliteAPI:

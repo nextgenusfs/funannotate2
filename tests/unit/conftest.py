@@ -3,9 +3,10 @@ Configuration file for pytest.
 """
 
 import os
-import pytest
-import tempfile
 import shutil
+import tempfile
+
+import pytest
 
 
 @pytest.fixture

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
-import sys
-import os
 import argparse
-from .__init__ import __version__
-from .help_formatter import MyParser, MyHelpFormatter
+import os
+import sys
 
+from .__init__ import __version__
 from .annotate import annotate
+from .clean import clean
+from .database import species
+from .help_formatter import MyHelpFormatter, MyParser
+from .install import install
+from .predict import predict
 
 # from .update import update
 from .train import train
-from .predict import predict
-from .clean import clean
-from .install import install
-from .database import species
 
 
 def main():
@@ -36,9 +36,7 @@ def main():
 
 def parse_args(args):
     description = "Funannotate: eukaryotic genome annotation pipeline"
-    parser = MyParser(
-        description=description, formatter_class=MyHelpFormatter, add_help=False
-    )
+    parser = MyParser(description=description, formatter_class=MyHelpFormatter, add_help=False)
     subparsers = parser.add_subparsers(title="Commands", dest="subparser_name")
     # add subtools here
     install_subparser(subparsers)
@@ -171,9 +169,7 @@ def predict_subparser(subparsers):
         help="genome in FASTA format (softmasked repeats)",
         metavar="",
     )
-    required_args.add_argument(
-        "-o", "--out", required=False, help="Output folder name", metavar=""
-    )
+    required_args.add_argument("-o", "--out", required=False, help="Output folder name", metavar="")
     required_args.add_argument(
         "-p",
         "--params",
@@ -302,19 +298,14 @@ def train_subparser(subparsers):
         add_help=False,
     )
     required_args = group.add_argument_group("Required arguments")
-    required_args.add_argument(
-        "-f", "--fasta", required=True, help="genome in FASTA format", metavar=""
-    )
+    required_args.add_argument("-f", "--fasta", required=True, help="genome in FASTA format")
     required_args.add_argument(
         "-s",
         "--species",
         required=True,
         help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
-        metavar="",
     )
-    required_args.add_argument(
-        "-o", "--out", required=True, help="Output folder name", metavar=""
-    )
+    required_args.add_argument("-o", "--out", required=True, help="Output folder name")
     optional_args = group.add_argument_group("Optional arguments")
     optional_args.add_argument(
         "-t",
@@ -409,9 +400,7 @@ def clean_subparser(subparsers):
         "--rename",
         help="Rename contigs largest to smallest with this basename, ie scaffold_",
     )
-    optional_args.add_argument(
-        "--cpus", default=2, type=int, help="Number of CPUs to use"
-    )
+    optional_args.add_argument("--cpus", default=2, type=int, help="Number of CPUs to use")
     optional_args.add_argument("--tmpdir", help="TMP directory to use")
     optional_args.add_argument(
         "--exhaustive",
@@ -473,9 +462,7 @@ def annotate_subparser(subparsers):
         help="genome annotation in GFF3 format",
         metavar="",
     )
-    required_args.add_argument(
-        "-o", "--out", required=False, help="Output folder name", metavar=""
-    )
+    required_args.add_argument("-o", "--out", required=False, help="Output folder name", metavar="")
     optional_args = group.add_argument_group("Optional arguments")
     optional_args.add_argument(
         "-a",
@@ -490,9 +477,7 @@ def annotate_subparser(subparsers):
         help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
         metavar="",
     )
-    optional_args.add_argument(
-        "-st", "--strain", help="Strain/isolate name", metavar=""
-    )
+    optional_args.add_argument("-st", "--strain", help="Strain/isolate name", metavar="")
     optional_args.add_argument(
         "--cpus", default=2, type=int, help="Number of CPUs to use", metavar=""
     )

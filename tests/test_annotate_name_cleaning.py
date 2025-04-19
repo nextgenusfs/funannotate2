@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
-import shutil
-import json
 
 from funannotate2.name_cleaner import NameCleaner
 
@@ -19,9 +18,7 @@ class TestAnnotateNameCleaning(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -59,9 +56,7 @@ class TestAnnotateNameCleaning(unittest.TestCase):
             },
             "gene4": {
                 "name": ["CDC42"],
-                "product": [
-                    "Required for cell division and establishment of cell polarity"
-                ],
+                "product": ["Required for cell division and establishment of cell polarity"],
                 "note": ["GTP-binding protein"],
                 "db_xref": ["UniProtKB:P19073"],
                 "ec_number": ["3.6.5.-"],
@@ -149,17 +144,13 @@ class TestAnnotateNameCleaning(unittest.TestCase):
 
         # Check that problematic products are replaced with curated ones
         self.assertEqual(cleaned_merged["gene4"]["name"], ["CDC42"])
-        self.assertEqual(
-            cleaned_merged["gene4"]["product"], ["Cell division control protein 42"]
-        )
+        self.assertEqual(cleaned_merged["gene4"]["product"], ["Cell division control protein 42"])
 
         # Check that other fields are preserved
         self.assertEqual(cleaned_merged["gene1"]["note"], ["Cytoskeletal protein"])
         self.assertEqual(cleaned_merged["gene1"]["db_xref"], ["UniProtKB:P60010"])
         self.assertEqual(cleaned_merged["gene1"]["ec_number"], ["3.6.4.-"])
-        self.assertEqual(
-            cleaned_merged["gene1"]["go_terms"], ["GO:0005524", "GO:0005856"]
-        )
+        self.assertEqual(cleaned_merged["gene1"]["go_terms"], ["GO:0005524", "GO:0005856"])
 
     def test_apply_annotations_to_genes(self):
         """Test applying cleaned annotations to genes."""
@@ -205,9 +196,7 @@ class TestAnnotateNameCleaning(unittest.TestCase):
         self.assertEqual(annotation["g3"]["product"][0], "Hypothetical protein")
         self.assertNotIn("name", annotation["g3"])
 
-        self.assertEqual(
-            annotation["g4"]["product"][0], "Cell division control protein 42"
-        )
+        self.assertEqual(annotation["g4"]["product"][0], "Cell division control protein 42")
         self.assertEqual(annotation["g4"]["name"], "CDC42")
 
         self.assertEqual(annotation["g5"]["product"][0], "Hypothetical protein")

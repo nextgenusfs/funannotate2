@@ -3,12 +3,9 @@ Integration tests for the buscolite CLI.
 """
 
 import os
-import sys
 import subprocess
-import tempfile
-import shutil
+
 import pytest
-from pathlib import Path
 
 
 class TestBUSCOliteCLI:
@@ -28,10 +25,7 @@ class TestBUSCOliteCLI:
             text=True,
         )
         assert result.returncode == 0
-        assert (
-            "BUSCOlite: simplified BUSCO analysis for genome annotation"
-            in result.stdout
-        )
+        assert "BUSCOlite: simplified BUSCO analysis for genome annotation" in result.stdout
 
     @pytest.mark.skip(reason="buscolite is not installed")
     def test_version_command(self):

@@ -2,13 +2,12 @@
 Integration tests for the buscolite workflow.
 """
 
-import os
-import sys
 import json
-import tempfile
+import os
 import shutil
+import tempfile
+
 import pytest
-from pathlib import Path
 from buscolite.busco import runbusco
 
 

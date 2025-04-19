@@ -1,9 +1,10 @@
-import sys
 import datetime
 import random
-from gfftk.gff import gff2dict
-from gfftk.fasta import fasta2dict
+import sys
+
 import gb_io
+from gfftk.fasta import fasta2dict
+from gfftk.gff import gff2dict
 
 
 def gff3_to_gbio(

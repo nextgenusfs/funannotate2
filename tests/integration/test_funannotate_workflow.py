@@ -2,13 +2,15 @@
 Integration tests for the funannotate2 workflow.
 """
 
-import os
 import json
-import tempfile
+import os
 import shutil
+import tempfile
+
 import pytest
-import funannotate2.clean as clean
+
 import funannotate2.annotate as annotate
+import funannotate2.clean as clean
 
 # import funannotate2.predict as predict  # Not used in this test file
 # import funannotate2.compare as compare  # Module doesn't exist yet
@@ -70,19 +72,11 @@ class TestFunannotateWorkflow:
         with open(gff_file, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
             f.write("contig2\tFunannotate\tgene\t1\t100\t.\t-\t.\tID=gene2\n")
-            f.write(
-                "contig2\tFunannotate\tmRNA\t1\t100\t.\t-\t.\tID=gene2-T1;Parent=gene2\n"
-            )
-            f.write(
-                "contig2\tFunannotate\tCDS\t1\t100\t.\t-\t0\tID=gene2-T1-CDS;Parent=gene2-T1\n"
-            )
+            f.write("contig2\tFunannotate\tmRNA\t1\t100\t.\t-\t.\tID=gene2-T1;Parent=gene2\n")
+            f.write("contig2\tFunannotate\tCDS\t1\t100\t.\t-\t0\tID=gene2-T1-CDS;Parent=gene2-T1\n")
         return gff_file
 
     @pytest.mark.skipif(
@@ -294,26 +288,16 @@ class TestFunannotateWorkflow:
         with open(gff1, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
 
         with open(gff2, "w") as f:
             f.write("##gff-version 3\n")
             f.write("contig1\tFunannotate\tgene\t1\t100\t.\t+\t.\tID=gene1\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n"
-            )
-            f.write(
-                "contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t1\t100\t.\t+\t.\tID=gene1-T1;Parent=gene1\n")
+            f.write("contig1\tFunannotate\tCDS\t1\t100\t.\t+\t0\tID=gene1-T1-CDS;Parent=gene1-T1\n")
             f.write("contig1\tFunannotate\tgene\t200\t300\t.\t+\t.\tID=gene2\n")
-            f.write(
-                "contig1\tFunannotate\tmRNA\t200\t300\t.\t+\t.\tID=gene2-T1;Parent=gene2\n"
-            )
+            f.write("contig1\tFunannotate\tmRNA\t200\t300\t.\t+\t.\tID=gene2-T1;Parent=gene2\n")
             f.write(
                 "contig1\tFunannotate\tCDS\t200\t300\t.\t+\t0\tID=gene2-T1-CDS;Parent=gene2-T1\n"
             )

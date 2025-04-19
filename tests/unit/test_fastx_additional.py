@@ -3,12 +3,12 @@ Additional unit tests for the fastx module.
 """
 
 import os
-import pytest
+
 from funannotate2.fastx import (
+    fasta2chunks,
+    list2groups,
     simplify_headers,
     simplify_headers_drop,
-    list2groups,
-    fasta2chunks,
 )
 
 

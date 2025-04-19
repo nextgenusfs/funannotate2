@@ -2,14 +2,12 @@
 End-to-end integration tests for buscolite.
 """
 
-import os
-import sys
 import json
-import subprocess
-import tempfile
+import os
 import shutil
+import subprocess
+
 import pytest
-from pathlib import Path
 
 
 class TestBUSCOliteEndToEnd:
@@ -63,16 +61,12 @@ class TestBUSCOliteEndToEnd:
         json_path = f"{output_prefix}.buscolite.json"
 
         assert os.path.exists(gff_path), f"GFF file {gff_path} does not exist"
-        assert os.path.exists(
-            summary_path
-        ), f"Summary file {summary_path} does not exist"
+        assert os.path.exists(summary_path), f"Summary file {summary_path} does not exist"
         assert os.path.exists(json_path), f"JSON file {json_path} does not exist"
 
         # Check that the output files are not empty
         assert os.path.getsize(gff_path) > 0, f"GFF file {gff_path} is empty"
-        assert (
-            os.path.getsize(summary_path) > 0
-        ), f"Summary file {summary_path} is empty"
+        assert os.path.getsize(summary_path) > 0, f"Summary file {summary_path} is empty"
         assert os.path.getsize(json_path) > 0, f"JSON file {json_path} is empty"
 
         # Check the content of the JSON file
@@ -121,15 +115,11 @@ class TestBUSCOliteEndToEnd:
         summary_path = f"{output_prefix}.buscolite.tsv"
         json_path = f"{output_prefix}.buscolite.json"
 
-        assert os.path.exists(
-            summary_path
-        ), f"Summary file {summary_path} does not exist"
+        assert os.path.exists(summary_path), f"Summary file {summary_path} does not exist"
         assert os.path.exists(json_path), f"JSON file {json_path} does not exist"
 
         # Check that the output files are not empty
-        assert (
-            os.path.getsize(summary_path) > 0
-        ), f"Summary file {summary_path} is empty"
+        assert os.path.getsize(summary_path) > 0, f"Summary file {summary_path} is empty"
         assert os.path.getsize(json_path) > 0, f"JSON file {json_path} is empty"
 
         # Check the content of the JSON file

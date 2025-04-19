@@ -1,10 +1,11 @@
-import sys
-import os
 import argparse
+import os
 import shutil
-from .__init__ import __version__
+import sys
 import textwrap as _textwrap
 
+# Import version if needed
+# from .__init__ import __version__
 
 END_FORMATTING = "\033[0m"
 BOLD = "\033[1m"
@@ -15,7 +16,8 @@ ZERO_OR_MORE = "*"
 ONE_OR_MORE = "+"
 PARSER = "A..."
 REMAINDER = "..."
-_UNRECOGNIZED_ARGS_ATTR = "_unrecognized_args"
+# Unused variable
+# _UNRECOGNIZED_ARGS_ATTR = "_unrecognized_args"
 
 
 class MyParser(argparse.ArgumentParser):
@@ -89,9 +91,7 @@ class MyHelpFormatter(argparse.HelpFormatter):
                 for subaction in get_subactions():
                     yield subaction
         else:
-            for subaction in super(MyHelpFormatter, self)._iter_indented_subactions(
-                action
-            ):
+            for subaction in super(MyHelpFormatter, self)._iter_indented_subactions(action):
                 yield subaction
 
     def _fill_text(self, text, width, indent):
@@ -100,9 +100,7 @@ class MyHelpFormatter(argparse.HelpFormatter):
         multiline_text = ""
         for paragraph in paragraphs:
             formatted_paragraph = (
-                _textwrap.fill(
-                    paragraph, width, initial_indent=indent, subsequent_indent=indent
-                )
+                _textwrap.fill(paragraph, width, initial_indent=indent, subsequent_indent=indent)
                 + "\n"
             )
             multiline_text = multiline_text + formatted_paragraph

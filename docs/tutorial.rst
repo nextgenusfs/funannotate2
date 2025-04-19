@@ -93,8 +93,7 @@ The next step is to train the ab initio prediction tools, to do that we'll use `
 .. code-block:: bash
 
    $ funannotate2 train -f GCF_000011425.1_ASM1142v1_genomic.fna.gz \
-      -g FGSCA4.gff3 -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 \
-      -o anid_f2
+      -s "Aspergillus nidulans" --strain FGSCA4 --cpus 8 -o anid_f2
 
 
 .. admonition:: See the full output of this command

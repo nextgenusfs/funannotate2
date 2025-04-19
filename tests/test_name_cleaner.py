@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import tempfile
 import unittest
 from unittest import mock
-import shutil
 
 from funannotate2.name_cleaner import (
     NameCleaner,
-    clean_annotations,
-    write_problematic_annotations,
-    write_new_valid_annotations,
-    number_present,
-    morethanXnumbers,
     capfirst,
+    clean_annotations,
+    morethanXnumbers,
+    number_present,
+    write_new_valid_annotations,
+    write_problematic_annotations,
 )
 
 
@@ -51,9 +51,7 @@ class TestNameCleaner(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -111,12 +109,8 @@ class TestNameCleaner(unittest.TestCase):
         )
 
         # Remove problematic phrases
-        self.assertEqual(
-            self.cleaner.clean_product("protein similar to CDC42"), "protein CDC42"
-        )
-        self.assertEqual(
-            self.cleaner.clean_product("domain-containing protein"), "domain protein"
-        )
+        self.assertEqual(self.cleaner.clean_product("protein similar to CDC42"), "protein CDC42")
+        self.assertEqual(self.cleaner.clean_product("domain-containing protein"), "domain protein")
 
         # Default for empty
         self.assertEqual(self.cleaner.clean_product(""), "hypothetical protein")
@@ -126,14 +120,10 @@ class TestNameCleaner(unittest.TestCase):
 
         # Problematic descriptions
         self.assertEqual(
-            self.cleaner.clean_product(
-                "Required for actin cytoskeleton organization", "ACT1"
-            ),
+            self.cleaner.clean_product("Required for actin cytoskeleton organization", "ACT1"),
             "Act1p",
         )
-        self.assertEqual(
-            self.cleaner.clean_product("Involved in cell division", "CDC42"), "Cdc42p"
-        )
+        self.assertEqual(self.cleaner.clean_product("Involved in cell division", "CDC42"), "Cdc42p")
 
     def test_get_curated_product(self):
         """Test getting curated product descriptions."""
@@ -180,9 +170,7 @@ class TestAnnotationFunctions(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         # Create a mock curated gene products file
-        self.curated_file = os.path.join(
-            self.test_dir, "ncbi_cleaned_gene_products.txt"
-        )
+        self.curated_file = os.path.join(self.test_dir, "ncbi_cleaned_gene_products.txt")
         with open(self.curated_file, "w") as f:
             f.write("# Curated gene names and products\n")
             f.write("ACT1\tActin\n")
@@ -199,9 +187,7 @@ class TestAnnotationFunctions(unittest.TestCase):
             "gene3": {"name": ["orf19.123"], "product": ["Hypothetical protein"]},
             "gene4": {
                 "name": ["CDC42"],
-                "product": [
-                    "Required for cell division and establishment of cell polarity"
-                ],
+                "product": ["Required for cell division and establishment of cell polarity"],
             },
             "gene5": {"product": ["Hypothetical protein"]},
         }
@@ -231,9 +217,7 @@ class TestAnnotationFunctions(unittest.TestCase):
 
         # Check that problematic products are replaced
         self.assertEqual(cleaned["gene4"]["name"], ["CDC42"])
-        self.assertEqual(
-            cleaned["gene4"]["product"], ["Cell division control protein 42"]
-        )
+        self.assertEqual(cleaned["gene4"]["product"], ["Cell division control protein 42"])
 
     def test_write_problematic_annotations(self):
         """Test writing problematic annotations to file."""
