@@ -68,11 +68,11 @@ Optional arguments:
 Training Ab Initio Gene Predictors
 -----------------------------
 
-Before predicting genes, you can train ab initio gene prediction algorithms to improve accuracy. This step is optional but recommended for best results, especially for non-model organisms.
+Before predicting genes, you can train ab initio gene prediction algorithms to improve accuracy. This step is optional but recommended for best results, especially for non-model organisms. You can re-use training data by passing a pretrained species slug or a params.json file.
 
 .. code-block:: bash
 
-    funannotate2 train -f cleaned_genome.fasta -s "Aspergillus fumigatus" -o train_results
+    funannotate2 train -f cleaned_genome.fasta -s "Aspergillus nidulans" -o anid_f2
 
 Required arguments:
 
@@ -104,7 +104,7 @@ After cleaning the genome and optionally training ab initio gene predictors, you
 
 .. code-block:: bash
 
-    funannotate2 predict -i predict_results -f cleaned_genome.fasta -o predict_results -p pretrained_species -s "Aspergillus fumigatus"
+    funannotate2 predict -i anid_f2
 
 Required arguments:
 
@@ -132,10 +132,10 @@ Optional arguments:
 
 1. The genome is analyzed for assembly statistics and softmasked regions
 2. If the genome is not softmasked, pytantan is used to quickly softmask repeats
-3. If protein evidence is provided, it is aligned to the genome using exonerate
-4. If transcript evidence is provided, it is aligned to the genome using minimap2
-5. Evidence alignments are converted to hints for ab initio gene predictors
-6. Ab initio gene predictors (Augustus, GeneMark, SNAP, GlimmerHMM) are run on the genome
+3. If protein evidence is provided, it is aligned to the genome using ``miniprot``
+4. If transcript evidence is provided, it is aligned to the genome using ``gapmm2``
+5. Evidence alignments are converted to hints for ``augustus``
+6. Ab initio gene predictors (Augustus, GeneMark [optional], SNAP, GlimmerHMM) are run on the genome
 7. tRNAscan-SE is run to identify tRNA genes
 8. The GFFtk consensus module is used to generate consensus gene models from all evidence and ab initio predictions
 9. The consensus gene models are filtered and annotated
@@ -150,7 +150,7 @@ After predicting genes, you can functionally annotate them:
 
 .. code-block:: bash
 
-    funannotate2 annotate -i predict_results -o annotate_results
+    funannotate2 annotate -i anid_f2
 
 Required arguments:
 
@@ -197,31 +197,23 @@ Here's an example workflow for annotating a fungal genome:
 
 .. code-block:: bash
 
-    # Install necessary databases
-    funannotate2 install -d all
-
     # Clean the genome
     funannotate2 clean -f raw_genome.fasta -o cleaned_genome.fasta -m 1000 -r scaffold_
 
     # Train ab initio gene predictors (optional)
-    funannotate2 train -f cleaned_genome.fasta -s "Aspergillus fumigatus" -o train_results --strain "Af293" --cpus 16
+    funannotate2 train -f cleaned_genome.fasta -s "Aspergillus fumigatus" -o f2_output --strain "Af293" --cpus 16
 
     # Predict genes using trained parameters
-    funannotate2 predict -f cleaned_genome.fasta -o predict_results -p train_results/params.json \
-        -s "Aspergillus fumigatus" --strain "Af293" \
-        -ps uniprot_fungi.fasta -ts rnaseq_transcripts.fasta -c 16
+    funannotate2 predict -i f2_output -ps uniprot_fungi.fasta -ts rnaseq_transcripts.fasta --cpus 16
 
     # Or predict genes using pretrained species
-    funannotate2 predict -f cleaned_genome.fasta -o predict_results -p aspergillus_fumigatus \
-        -s "Aspergillus fumigatus" --strain "Af293" \
-        -ps uniprot_fungi.fasta -ts rnaseq_transcripts.fasta -c 16
+    funannotate2 predict -i f2_output -p aspergillus_fumigatus -ps uniprot_fungi.fasta -ts rnaseq_transcripts.fasta --cpus 16
 
     # Functionally annotate genes
-    funannotate2 annotate -i predict_results -o annotate_results -c 16
+    funannotate2 annotate -i f2_output --cpus 16
 
-    # Add custom annotations (optional)
-    funannotate2 annotate -i predict_results -o annotate_results -c 16 \
-        --curated-names custom_annotations.txt
+    # Add custom gene/product annotations (optional)
+    funannotate2 annotate -i f2_output --cpus 16 --curated-names custom_annotations.txt
 
 For more detailed examples and explanations, see the :doc:`tutorial` page.
 
