@@ -31,13 +31,13 @@ Available Databases
 The following databases can be installed:
 
 * **all**: Install all databases
-* **merops**: MEROPS protease database
-* **uniprot**: UniProtKB/Swiss-Prot database
-* **dbCAN**: Database for Carbohydrate-active enzyme ANnotation
-* **pfam**: Pfam protein families database
-* **go**: Gene Ontology database
-* **mibig**: Minimum Information about a Biosynthetic Gene cluster
-* **interpro**: InterPro protein families database
+* **merops**: `MEROPS <https://www.ebi.ac.uk/merops/>`_ protease database
+* **uniprot**: `UniProtKB/Swiss-Prot <https://www.uniprot.org/>`_ database
+* **dbCAN**: `Database for Carbohydrate-active enzyme ANnotation <http://bcb.unl.edu/dbCAN2/>`_
+* **pfam**: `Pfam <http://pfam.xfam.org/>`_ protein families database
+* **go**: `Gene Ontology <http://geneontology.org/>`_ database
+* **mibig**: `Minimum Information about a Biosynthetic Gene cluster <https://mibig.secondarymetabolites.org/>`_
+* **interpro**: `InterPro <https://www.ebi.ac.uk/interpro/>`_ protein families database
 * **gene2product**: Curated gene names and product descriptions
 * **mito**: Mitochondrial genome database
 

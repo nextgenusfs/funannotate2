@@ -50,19 +50,19 @@ The ``train`` command performs the following steps:
 
 4. **Train Augustus**:
 
-   * Augustus is trained using the training set
+   * `Augustus <https://bioinf.uni-greifswald.de/augustus/>`_ is trained using the training set
    * The training process generates species-specific parameters for Augustus
    * The trained parameters are evaluated using the test set
 
 5. **Train SNAP**:
 
-   * SNAP is trained using the training set
+   * `SNAP <https://github.com/KorfLab/SNAP>`_ is trained using the training set
    * The training process generates species-specific parameters for SNAP
    * The trained parameters are evaluated using the test set
 
 6. **Train GlimmerHMM**:
 
-   * GlimmerHMM is trained using the training set
+   * `GlimmerHMM <https://ccb.jhu.edu/software/glimmerhmm/>`_ is trained using the training set
    * The training process generates species-specific parameters for GlimmerHMM
    * The trained parameters are evaluated using the test set
 

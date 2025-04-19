@@ -42,28 +42,29 @@ The ``predict`` command performs the following steps:
 1. **Prepare the genome**:
 
    * The genome is analyzed for assembly statistics and softmasked regions
-   * If the genome is not softmasked, pytantan is used to quickly softmask repeats
+   * If the genome is not softmasked, `pytantan <https://github.com/nextgenusfs/pytantan>`_ is used to quickly softmask repeats
    * The genome is split into contigs for parallel processing
 
 2. **Align evidence** (if provided):
 
-   * **Protein evidence**: Proteins are aligned to the genome using ``miniprot``
-   * **Transcript evidence**: Transcripts are aligned to the genome using ``gapmm2``
-   * Evidence alignments are converted to hints for ``augustus``
+   * **Protein evidence**: Proteins are aligned to the genome using `miniprot <https://github.com/lh3/miniprot>`_
+   * **Transcript evidence**: Transcripts are aligned to the genome using `gapmm2 <https://github.com/nextgenusfs/gapmm2>`_
+   * Evidence alignments are converted to hints for `augustus <https://bioinf.uni-greifswald.de/augustus/>`_
 
 3. **Run ab initio gene predictors**:
 
-   * **Augustus**: Uses species-specific parameters and evidence hints
-   * **GeneMark**: Uses self-training or species-specific parameters
-   * **SNAP**: Uses species-specific parameters
-   * **GlimmerHMM**: Uses species-specific parameters
-   * **tRNAscan-SE**: Identifies tRNA genes
+   * **`Augustus <https://bioinf.uni-greifswald.de/augustus/>`_**: Uses species-specific parameters and evidence hints
+   * **`GeneMark <http://exon.gatech.edu/GeneMark/>`_**: Uses self-training or species-specific parameters
+   * **`SNAP <https://github.com/KorfLab/SNAP>`_**: Uses species-specific parameters
+   * **`GlimmerHMM <https://ccb.jhu.edu/software/glimmerhmm/>`_**: Uses species-specific parameters
+   * **`tRNAscan-SE <http://lowelab.ucsc.edu/tRNAscan-SE/>`_**: Identifies tRNA genes
 
-   Note that you can run other ab initio predictors and they can be passed the :code:`--other_gff` option. I'd recommend the helixerlite tool as a logical add-on, its not included in the installation due to dependeny issues.
+   Note that you can run other ab initio predictors and they can be passed the :code:`--other_gff` option. For example, `helixerlite <https://github.com/nextgenusfs/helixerlite>`_ is a recommended add-on that uses machine learning for gene prediction, but it's not included in the default installation due to dependency issues.
+
 
 4. **Generate consensus gene models**:
 
-   * The GFFtk consensus module is used to integrate all evidence and ab initio predictions
+   * The `GFFtk <https://github.com/nextgenusfs/gfftk>`_ consensus module is used to integrate all evidence and ab initio predictions
    * Gene models are weighted based on the reliability of each source
    * Overlapping gene models are resolved based on evidence and prediction quality
    * Gene models are filtered based on various criteria (e.g., minimum protein length)
@@ -79,7 +80,7 @@ The ``predict`` command performs the following steps:
 Evidence-Based Prediction
 ----------------------
 
-For best results, provide protein and/or transcript evidence:
+For best results, provide protein and/or transcript evidence. By defualt, the UniProt/SwissProt database is used for protein evidence.
 
 .. code-block:: bash
 
@@ -105,8 +106,7 @@ You can provide external gene models in GFF3 format:
 
 .. code-block:: bash
 
-    funannotate2 predict -f genome.fasta -o predict_results -p pretrained_species -s "Aspergillus fumigatus" \
-        -e external_models.gff3
+    funannotate2 predict -f genome.fasta -o f2_output -p pretrained_species -s "Aspergillus fumigatus" -e external_models.gff3
 
 External gene models can be from:
 

@@ -47,7 +47,7 @@ The ``clean`` command performs the following steps:
 
 3. **Check for duplicated contigs**:
 
-   * Starting with the smallest contigs, each contig is aligned against all larger contigs using minimap2
+   * Starting with the smallest contigs, each contig is aligned against all larger contigs using `minimap2 <https://github.com/lh3/minimap2>`_
    * If a contig is found to be duplicated elsewhere in the genome (based on percent identity and coverage thresholds), it is marked for removal
    * By default, the process stops at the N50 contig size to save time, as larger contigs are less likely to be duplicated
    * If the ``--exhaustive`` option is used, all contigs are checked for duplication

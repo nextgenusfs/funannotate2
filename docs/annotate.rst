@@ -38,11 +38,11 @@ The ``annotate`` command performs the following steps:
 2. Extracts protein sequences from the gene models
 3. Searches the proteins against various databases:
 
-   * **Pfam-A**: Identifies protein domains using pyhmmer
-   * **dbCAN**: Identifies carbohydrate-active enzymes (CAZymes) using pyhmmer
-   * **UniProtKB/Swiss-Prot**: Identifies protein function using diamond
-   * **MEROPS**: Identifies proteases using diamond
-   * **BUSCOlite**: Identifies conserved orthologs
+   * **`Pfam-A <http://pfam.xfam.org/>`_**: Identifies protein domains using `pyhmmer <https://github.com/althonos/pyhmmer>`_
+   * **`dbCAN <http://bcb.unl.edu/dbCAN2/>`_**: Identifies carbohydrate-active enzymes (CAZymes) using pyhmmer
+   * **`UniProtKB/Swiss-Prot <https://www.uniprot.org/>`_**: Identifies protein function using `diamond <https://github.com/bbuchfink/diamond>`_
+   * **`MEROPS <https://www.ebi.ac.uk/merops/>`_**: Identifies proteases using diamond
+   * **`BUSCOlite <https://github.com/nextgenusfs/buscolite>`_**: Identifies conserved orthologs
 
 4. Cleans gene names and product descriptions using a curated database
 5. Merges all annotations into the gene models
