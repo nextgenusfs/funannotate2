@@ -1139,7 +1139,7 @@ busco_taxonomy = {
         "class": "Mammalia",
         "order": "Carnivora",
     },
-    "cetartiodactyla": {
+    "artiodactyla": {
         "superkingdom": "Eukaryota",
         "kingdom": "Metazoa",
         "phylum": "Chordata",
@@ -1200,7 +1200,7 @@ busco_taxonomy = {
         "phylum": "Chordata",
         "class": "Mammalia",
     },
-    "eudicots": {
+    "eudicotyledons": {
         "superkingdom": "Eukaryota",
         "kingdom": "Viridiplantae",
         "phylum": "Streptophyta",
@@ -1433,4 +1433,33 @@ busco_taxonomy = {
         "phylum": "Chordata",
     },
     "viridiplantae": {"superkingdom": "Eukaryota", "kingdom": "Viridiplantae"},
+    "amoebozoa": {"superkingdom": "Eukaryota", "kingdom": "Amoebozoa"},
+    "bacillariophyta": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Stramenopiles",
+        "phylum": "Bacillariophyta",
+    },
+    "chytridiomycota": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Fungi",
+        "phylum": "Chytridiomycota",
+    },
+    "ciliophora": {"superkingdom": "Eukaryota", "phylum": "Ciliophora"},
+    "cnidaria": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Metazoa",
+        "phylum": "Cnidaria",
+    },
+    "crustacea": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Metazoa",
+        "phylum": "Arthropoda",
+        "subphylum": "Crustacea",
+    },
+    "oomycota": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Stramenopiles",
+        "phylum": "Oomycota",
+    },
+    "rhodophyta": {"superkingdom": "Eukaryota", "phylum": "Rhodophyta"},
 }

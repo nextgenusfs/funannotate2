@@ -20,272 +20,304 @@
   },
   "busco": {
     "aconoidasida": [
-      "https://busco-data.ezlab.org/v5/data/lineages/aconoidasida_odb10.2024-01-08.tar.gz",
-      "aconoidasida_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/aconoidasida_odb12.2025-04-11.tar.gz",
+      "aconoidasida_odb12"
     ],
     "actinopterygii": [
-      "https://busco-data.ezlab.org/v5/data/lineages/actinopterygii_odb10.2024-01-08.tar.gz",
-      "actinopterygii_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/actinopterygii_odb12.2025-04-11.tar.gz",
+      "actinopterygii_odb12"
     ],
     "agaricales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/agaricales_odb10.2024-01-08.tar.gz",
-      "agaricales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/agaricales_odb12.2025-04-11.tar.gz",
+      "agaricales_odb12"
     ],
     "agaricomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/agaricomycetes_odb10.2024-01-08.tar.gz",
-      "agaricomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/agaricomycetes_odb12.2025-04-11.tar.gz",
+      "agaricomycetes_odb12"
     ],
     "alveolata": [
-      "https://busco-data.ezlab.org/v5/data/lineages/alveolata_odb10.2024-01-08.tar.gz",
-      "alveolata_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/alveolata_odb12.2025-04-11.tar.gz",
+      "alveolata_odb12"
     ],
     "apicomplexa": [
-      "https://busco-data.ezlab.org/v5/data/lineages/apicomplexa_odb10.2024-01-08.tar.gz",
-      "apicomplexa_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/apicomplexa_odb12.2025-04-11.tar.gz",
+      "apicomplexa_odb12"
     ],
     "arachnida": [
-      "https://busco-data.ezlab.org/v5/data/lineages/arachnida_odb10.2024-01-08.tar.gz",
-      "arachnida_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/arachnida_odb12.2025-04-11.tar.gz",
+      "arachnida_odb12"
     ],
     "arthropoda": [
-      "https://busco-data.ezlab.org/v5/data/lineages/arthropoda_odb10.2024-01-08.tar.gz",
-      "arthropoda_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/arthropoda_odb12.2025-04-11.tar.gz",
+      "arthropoda_odb12"
     ],
     "ascomycota": [
-      "https://busco-data.ezlab.org/v5/data/lineages/ascomycota_odb10.2024-01-08.tar.gz",
-      "ascomycota_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/ascomycota_odb12.2025-04-11.tar.gz",
+      "ascomycota_odb12"
     ],
     "aves": [
-      "https://busco-data.ezlab.org/v5/data/lineages/aves_odb10.2024-01-08.tar.gz",
-      "aves_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/aves_odb12.2025-04-11.tar.gz",
+      "aves_odb12"
     ],
     "basidiomycota": [
-      "https://busco-data.ezlab.org/v5/data/lineages/basidiomycota_odb10.2024-01-08.tar.gz",
-      "basidiomycota_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/basidiomycota_odb12.2025-04-11.tar.gz",
+      "basidiomycota_odb12"
     ],
     "boletales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/boletales_odb10.2024-01-08.tar.gz",
-      "boletales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/boletales_odb12.2025-04-11.tar.gz",
+      "boletales_odb12"
     ],
     "brassicales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/brassicales_odb10.2024-01-08.tar.gz",
-      "brassicales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/brassicales_odb12.2025-04-11.tar.gz",
+      "brassicales_odb12"
     ],
     "capnodiales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/capnodiales_odb10.2024-01-08.tar.gz",
-      "capnodiales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/capnodiales_odb12.2025-04-11.tar.gz",
+      "capnodiales_odb12"
     ],
     "carnivora": [
-      "https://busco-data.ezlab.org/v5/data/lineages/carnivora_odb10.2024-01-08.tar.gz",
-      "carnivora_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/carnivora_odb12.2025-04-11.tar.gz",
+      "carnivora_odb12"
     ],
     "cetartiodactyla": [
-      "https://busco-data.ezlab.org/v5/data/lineages/cetartiodactyla_odb10.2024-01-08.tar.gz",
-      "cetartiodactyla_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/artiodactyla_odb12.2025-04-11.tar.gz",
+      "artiodactyla_odb12"
     ],
     "chaetothyriales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/chaetothyriales_odb10.2024-01-08.tar.gz",
-      "chaetothyriales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/chaetothyriales_odb12.2025-04-11.tar.gz",
+      "chaetothyriales_odb12"
     ],
     "chlorophyta": [
-      "https://busco-data.ezlab.org/v5/data/lineages/chlorophyta_odb10.2024-01-08.tar.gz",
-      "chlorophyta_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/chlorophyta_odb12.2025-04-11.tar.gz",
+      "chlorophyta_odb12"
     ],
     "coccidia": [
-      "https://busco-data.ezlab.org/v5/data/lineages/coccidia_odb10.2024-01-08.tar.gz",
-      "coccidia_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/coccidia_odb12.2025-04-11.tar.gz",
+      "coccidia_odb12"
     ],
     "cyprinodontiformes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/cyprinodontiformes_odb10.2024-01-08.tar.gz",
-      "cyprinodontiformes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/cyprinodontiformes_odb12.2025-04-11.tar.gz",
+      "cyprinodontiformes_odb12"
     ],
     "diptera": [
-      "https://busco-data.ezlab.org/v5/data/lineages/diptera_odb10.2024-01-08.tar.gz",
-      "diptera_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/diptera_odb12.2025-04-11.tar.gz",
+      "diptera_odb12"
     ],
     "dothideomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/dothideomycetes_odb10.2024-01-08.tar.gz",
-      "dothideomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/dothideomycetes_odb12.2025-04-11.tar.gz",
+      "dothideomycetes_odb12"
     ],
     "embryophyta": [
-      "https://busco-data.ezlab.org/v5/data/lineages/embryophyta_odb10.2024-01-08.tar.gz",
-      "embryophyta_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/embryophyta_odb12.2025-04-11.tar.gz",
+      "embryophyta_odb12"
     ],
     "endopterygota": [
-      "https://busco-data.ezlab.org/v5/data/lineages/endopterygota_odb10.2024-01-08.tar.gz",
-      "endopterygota_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/endopterygota_odb12.2025-04-11.tar.gz",
+      "endopterygota_odb12"
     ],
     "euarchontoglires": [
-      "https://busco-data.ezlab.org/v5/data/lineages/euarchontoglires_odb10.2024-01-08.tar.gz",
-      "euarchontoglires_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/euarchontoglires_odb12.2025-04-11.tar.gz",
+      "euarchontoglires_odb12"
     ],
     "eudicots": [
-      "https://busco-data.ezlab.org/v5/data/lineages/eudicots_odb10.2024-01-08.tar.gz",
-      "eudicots_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/eudicotyledons_odb12.2025-04-11.tar.gz",
+      "eudicotyledons_odb12"
     ],
     "euglenozoa": [
-      "https://busco-data.ezlab.org/v5/data/lineages/euglenozoa_odb10.2024-01-08.tar.gz",
-      "euglenozoa_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/euglenozoa_odb12.2025-04-11.tar.gz",
+      "euglenozoa_odb12"
     ],
     "eukaryota": [
-      "https://busco-data.ezlab.org/v5/data/lineages/eukaryota_odb10.2024-01-08.tar.gz",
-      "eukaryota_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/eukaryota_odb12.2025-04-11.tar.gz",
+      "eukaryota_odb12"
     ],
     "eurotiales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/eurotiales_odb10.2024-01-08.tar.gz",
-      "eurotiales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/eurotiales_odb12.2025-04-11.tar.gz",
+      "eurotiales_odb12"
     ],
     "eurotiomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/eurotiomycetes_odb10.2024-01-08.tar.gz",
-      "eurotiomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/eurotiomycetes_odb12.2025-04-11.tar.gz",
+      "eurotiomycetes_odb12"
     ],
     "eutheria": [
-      "https://busco-data.ezlab.org/v5/data/lineages/eutheria_odb10.2024-01-08.tar.gz",
-      "eutheria_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/eutheria_odb12.2025-04-11.tar.gz",
+      "eutheria_odb12"
     ],
     "fabales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/fabales_odb10.2024-01-08.tar.gz",
-      "fabales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/fabales_odb12.2025-04-11.tar.gz",
+      "fabales_odb12"
     ],
     "fungi": [
-      "https://busco-data.ezlab.org/v5/data/lineages/fungi_odb10.2024-01-08.tar.gz",
-      "fungi_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/fungi_odb12.2025-04-11.tar.gz",
+      "fungi_odb12"
     ],
     "glires": [
-      "https://busco-data.ezlab.org/v5/data/lineages/glires_odb10.2024-01-08.tar.gz",
-      "glires_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/glires_odb12.2025-04-11.tar.gz",
+      "glires_odb12"
     ],
     "glomerellales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/glomerellales_odb10.2024-01-08.tar.gz",
-      "glomerellales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/glomerellales_odb12.2025-04-11.tar.gz",
+      "glomerellales_odb12"
     ],
     "helotiales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/helotiales_odb10.2024-01-08.tar.gz",
-      "helotiales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/helotiales_odb12.2025-04-11.tar.gz",
+      "helotiales_odb12"
     ],
     "hemiptera": [
-      "https://busco-data.ezlab.org/v5/data/lineages/hemiptera_odb10.2024-01-08.tar.gz",
-      "hemiptera_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/hemiptera_odb12.2025-04-11.tar.gz",
+      "hemiptera_odb12"
     ],
     "hymenoptera": [
-      "https://busco-data.ezlab.org/v5/data/lineages/hymenoptera_odb10.2024-01-08.tar.gz",
-      "hymenoptera_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/hymenoptera_odb12.2025-04-11.tar.gz",
+      "hymenoptera_odb12"
     ],
     "hypocreales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/hypocreales_odb10.2024-01-08.tar.gz",
-      "hypocreales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/hypocreales_odb12.2025-04-11.tar.gz",
+      "hypocreales_odb12"
     ],
     "insecta": [
-      "https://busco-data.ezlab.org/v5/data/lineages/insecta_odb10.2024-01-08.tar.gz",
-      "insecta_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/insecta_odb12.2025-04-11.tar.gz",
+      "insecta_odb12"
     ],
     "laurasiatheria": [
-      "https://busco-data.ezlab.org/v5/data/lineages/laurasiatheria_odb10.2024-01-08.tar.gz",
-      "laurasiatheria_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/laurasiatheria_odb12.2025-04-11.tar.gz",
+      "laurasiatheria_odb12"
     ],
     "leotiomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/leotiomycetes_odb10.2024-01-08.tar.gz",
-      "leotiomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/leotiomycetes_odb12.2025-04-11.tar.gz",
+      "leotiomycetes_odb12"
     ],
     "lepidoptera": [
-      "https://busco-data.ezlab.org/v5/data/lineages/lepidoptera_odb10.2024-01-08.tar.gz",
-      "lepidoptera_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/lepidoptera_odb12.2025-04-11.tar.gz",
+      "lepidoptera_odb12"
     ],
     "liliopsida": [
-      "https://busco-data.ezlab.org/v5/data/lineages/liliopsida_odb10.2024-01-08.tar.gz",
-      "liliopsida_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/liliopsida_odb12.2025-04-11.tar.gz",
+      "liliopsida_odb12"
     ],
     "mammalia": [
-      "https://busco-data.ezlab.org/v5/data/lineages/mammalia_odb10.2024-01-08.tar.gz",
-      "mammalia_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/mammalia_odb12.2025-04-11.tar.gz",
+      "mammalia_odb12"
     ],
     "metazoa": [
-      "https://busco-data.ezlab.org/v5/data/lineages/metazoa_odb10.2024-01-08.tar.gz",
-      "metazoa_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/metazoa_odb12.2025-04-11.tar.gz",
+      "metazoa_odb12"
     ],
     "microsporidia": [
-      "https://busco-data.ezlab.org/v5/data/lineages/microsporidia_odb10.2024-01-08.tar.gz",
-      "microsporidia_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/microsporidia_odb12.2025-04-11.tar.gz",
+      "microsporidia_odb12"
     ],
     "mollusca": [
-      "https://busco-data.ezlab.org/v5/data/lineages/mollusca_odb10.2024-01-08.tar.gz",
-      "mollusca_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/mollusca_odb12.2025-04-11.tar.gz",
+      "mollusca_odb12"
     ],
     "mucorales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/mucorales_odb10.2024-01-08.tar.gz",
-      "mucorales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/mucorales_odb12.2025-04-11.tar.gz",
+      "mucorales_odb12"
     ],
     "mucoromycota": [
-      "https://busco-data.ezlab.org/v5/data/lineages/mucoromycota_odb10.2024-01-08.tar.gz",
-      "mucoromycota_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/mucoromycota_odb12.2025-04-11.tar.gz",
+      "mucoromycota_odb12"
     ],
     "nematoda": [
-      "https://busco-data.ezlab.org/v5/data/lineages/nematoda_odb10.2024-01-08.tar.gz",
-      "nematoda_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/nematoda_odb12.2025-04-11.tar.gz",
+      "nematoda_odb12"
     ],
     "onygenales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/onygenales_odb10.2024-01-08.tar.gz",
-      "onygenales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/onygenales_odb12.2025-04-11.tar.gz",
+      "onygenales_odb12"
     ],
     "passeriformes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/passeriformes_odb10.2024-01-08.tar.gz",
-      "passeriformes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/passeriformes_odb12.2025-04-11.tar.gz",
+      "passeriformes_odb12"
     ],
     "plasmodium": [
-      "https://busco-data.ezlab.org/v5/data/lineages/plasmodium_odb10.2024-01-08.tar.gz",
-      "plasmodium_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/plasmodium_odb12.2025-04-11.tar.gz",
+      "plasmodium_odb12"
     ],
     "pleosporales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/pleosporales_odb10.2024-01-08.tar.gz",
-      "pleosporales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/pleosporales_odb12.2025-04-11.tar.gz",
+      "pleosporales_odb12"
     ],
     "poales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/poales_odb10.2024-01-08.tar.gz",
-      "poales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/poales_odb12.2025-04-11.tar.gz",
+      "poales_odb12"
     ],
     "polyporales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/polyporales_odb10.2024-01-08.tar.gz",
-      "polyporales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/polyporales_odb12.2025-04-11.tar.gz",
+      "polyporales_odb12"
     ],
     "primates": [
-      "https://busco-data.ezlab.org/v5/data/lineages/primates_odb10.2024-01-08.tar.gz",
-      "primates_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/primates_odb12.2025-04-11.tar.gz",
+      "primates_odb12"
     ],
     "saccharomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/saccharomycetes_odb10.2024-01-08.tar.gz",
-      "saccharomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/saccharomycetes_odb12.2025-04-11.tar.gz",
+      "saccharomycetes_odb12"
     ],
     "sauropsida": [
-      "https://busco-data.ezlab.org/v5/data/lineages/sauropsida_odb10.2024-01-08.tar.gz",
-      "sauropsida_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/sauropsida_odb12.2025-04-11.tar.gz",
+      "sauropsida_odb12"
     ],
     "solanales": [
-      "https://busco-data.ezlab.org/v5/data/lineages/solanales_odb10.2024-01-08.tar.gz",
-      "solanales_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/solanales_odb12.2025-04-11.tar.gz",
+      "solanales_odb12"
     ],
     "sordariomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/sordariomycetes_odb10.2024-01-08.tar.gz",
-      "sordariomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/sordariomycetes_odb12.2025-04-11.tar.gz",
+      "sordariomycetes_odb12"
     ],
     "stramenopiles": [
-      "https://busco-data.ezlab.org/v5/data/lineages/stramenopiles_odb10.2024-01-08.tar.gz",
-      "stramenopiles_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/stramenopiles_odb12.2025-04-11.tar.gz",
+      "stramenopiles_odb12"
     ],
     "tetrapoda": [
-      "https://busco-data.ezlab.org/v5/data/lineages/tetrapoda_odb10.2024-01-08.tar.gz",
-      "tetrapoda_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/tetrapoda_odb12.2025-04-11.tar.gz",
+      "tetrapoda_odb12"
     ],
     "tremellomycetes": [
-      "https://busco-data.ezlab.org/v5/data/lineages/tremellomycetes_odb10.2024-01-08.tar.gz",
-      "tremellomycetes_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/tremellomycetes_odb12.2025-04-11.tar.gz",
+      "tremellomycetes_odb12"
     ],
     "vertebrata": [
-      "https://busco-data.ezlab.org/v5/data/lineages/vertebrata_odb10.2024-01-08.tar.gz",
-      "vertebrata_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/vertebrata_odb12.2025-04-11.tar.gz",
+      "vertebrata_odb12"
     ],
     "viridiplantae": [
-      "https://busco-data.ezlab.org/v5/data/lineages/viridiplantae_odb10.2024-01-08.tar.gz",
-      "viridiplantae_odb10"
+      "https://busco-data.ezlab.org/v5/data/lineages/viridiplantae_odb12.2025-04-11.tar.gz",
+      "viridiplantae_odb12"
+    ],
+    "amoebozoa": [
+      "https://busco-data.ezlab.org/v5/data/lineages/amoebozoa_odb12.2025-04-11.tar.gz",
+      "amoebozoa_odb12"
+    ],
+    "bacillariophyta": [
+      "https://busco-data.ezlab.org/v5/data/lineages/bacillariophyta_odb12.2025-04-11.tar.gz",
+      "bacillariophyta_odb12"
+    ],
+    "chytridiomycota": [
+      "https://busco-data.ezlab.org/v5/data/lineages/chytridiomycota_odb12.2025-04-11.tar.gz",
+      "chytridiomycota_odb12"
+    ],
+    "ciliophora": [
+      "https://busco-data.ezlab.org/v5/data/lineages/ciliophora_odb12.2025-04-11.tar.gz",
+      "ciliophora_odb12"
+    ],
+    "cnidaria": [
+      "https://busco-data.ezlab.org/v5/data/lineages/cnidaria_odb12.2025-04-11.tar.gz",
+      "cnidaria_odb12"
+    ],
+    "crustacea": [
+      "https://busco-data.ezlab.org/v5/data/lineages/crustacea_odb12.2025-04-11.tar.gz",
+      "crustacea_odb12"
+    ],
+    "oomycota": [
+      "https://busco-data.ezlab.org/v5/data/lineages/oomycota_odb12.2025-04-11.tar.gz",
+      "oomycota_odb12"
+    ],
+    "rhodophyta": [
+      "https://busco-data.ezlab.org/v5/data/lineages/rhodophyta_odb12.2025-04-11.tar.gz",
+      "rhodophyta_odb12"
     ]
   }
 }
