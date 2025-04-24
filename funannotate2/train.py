@@ -93,7 +93,7 @@ def train(args):
 
     # choose best busco species
     busco_species = choose_best_busco_species(taxonomy)
-    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb10")
+    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb12")
 
     # run buscolite on genome to get training set
     filt_train_models = os.path.join(misc_dir, "training-models.final.gff3")
@@ -108,7 +108,7 @@ def train(args):
                     )
                     busco_url = download_urls["busco"][busco_species][0]
                     busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
-                    logger.info(f"Downloading {busco_species}_odb10 model from {busco_url}")
+                    logger.info(f"Downloading {busco_species}_odb12 model from {busco_url}")
                     download(busco_url, busco_tgz, wget=False)
                     if os.path.isfile(busco_tgz):
                         runSubprocess(

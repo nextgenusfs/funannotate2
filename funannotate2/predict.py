@@ -377,12 +377,12 @@ def predict(args):
     busco_tax = choose_best_busco_species(
         {"superkingdom": taxonomy["superkingdom"], "kingdom": taxonomy["kingdom"]}
     )
-    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_tax}_odb10")
+    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_tax}_odb12")
     if not os.path.isdir(busco_model_path):
         download_urls = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))
         busco_url = download_urls["busco"][busco_tax][0]
         busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
-        logger.info(f"Downloading {busco_tax}_odb10 model from {busco_url}")
+        logger.info(f"Downloading {busco_tax}_odb12 model from {busco_url}")
         download(busco_url, busco_tgz, wget=False)
         if os.path.isfile(busco_tgz):
             runSubprocess(

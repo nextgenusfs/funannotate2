@@ -241,7 +241,7 @@ def annotate(args):
 
         # choose best busco species
         busco_species = choose_best_busco_species(taxonomy)
-        busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb10")
+        busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb12")
 
         # run busco proteome screen
         logger.info(f"BUSCOlite [conserved ortholog] search using {busco_species} models")
