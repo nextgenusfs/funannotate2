@@ -1,0 +1,26 @@
+#!/bin/bash
+# Pre-commit hook to update CITATION.cff when version changes
+
+# Check if pyproject.toml is being modified
+if git diff --cached --name-only | grep -q "pyproject.toml"; then
+    # Extract the version from pyproject.toml
+    VERSION=$(grep -E 'version\s*=\s*"[^"]+"' pyproject.toml | head -1 | sed -E 's/.*version\s*=\s*"([^"]+)".*/\1/')
+    
+    if [ -n "$VERSION" ]; then
+        # Get current date in YYYY-MM-DD format
+        TODAY=$(date +"%Y-%m-%d")
+        
+        # Update version and date in CITATION.cff
+        sed -i.bak -E "s/version: .*/version: $VERSION/" CITATION.cff
+        sed -i.bak -E "s/date-released: .*/date-released: '$TODAY'/" CITATION.cff
+        rm CITATION.cff.bak
+        
+        # Add the updated CITATION.cff to the commit
+        git add CITATION.cff
+        
+        echo "Updated CITATION.cff to version $VERSION and date $TODAY"
+    fi
+fi
+
+# Continue with the commit
+exit 0

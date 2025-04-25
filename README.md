@@ -140,3 +140,10 @@ To install the most up to date code from this repo, you can run:
 ```
 python -m pip install git+https://github.com/nextgenusfs/funannotate2.git --upgrade --force --no-deps
 ```
+
+### Citation
+
+Funannotate2 includes a CITATION.cff file that provides citation information for the software. The version and release date in this file are automatically updated when a new release is created.
+
+To cite funannotate2 in your work, you can use the citation information from the CITATION.cff file or generate a citation in your preferred format using tools like [citeas.org](https://citeas.org/).
+
