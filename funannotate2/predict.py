@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 from buscolite.busco import runbusco
 from gfftk.consensus import generate_consensus
-from gfftk.convert import _dict2proteins, gff2tbl, tbl2gbff
+from gfftk.convert import _dict2proteins, _dict2transcripts, gff2tbl, tbl2gbff
 from gfftk.gff import dict2gff3, gff2dict
 from gfftk.stats import annotation_stats
 from gfftk.utils import check_file_type
@@ -486,6 +486,10 @@ def predict(args):
     finalTBL = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.tbl")
     finalGBK = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.gbk")
     finalSummary = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.summary.json")
+    finalProteins = os.path.join(res_dir, f"{naming_slug(args.species, args.strain)}.proteins.fa")
+    finalTranscripts = os.path.join(
+        res_dir, f"{naming_slug(args.species, args.strain)}.transcripts.fa"
+    )
     logger.info(f"Merging all gene models, sorting, and renaming using locus_tag={args.name}")
     consensus_models = merge_rename_models(
         [Consensus, trna_predictions],
@@ -515,16 +519,17 @@ def predict(args):
         strain=args.strain,
         table=1,
     )
+    # write remaining output files
+    _dict2proteins(consensus_models, output=finalProteins, strip_stop=True)
+    _dict2transcripts(consensus_models, output=finalTranscripts)
 
     # get some stats for user
     consensus_stats = annotation_stats(consensus_models)
     logger.info("Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2)))
     # we are finished here with coding sequences, lets check completeness
-    ConsensusProts = os.path.join(misc_dir, "consensus.proteins.fasta")
-    _dict2proteins(consensus_models, output=ConsensusProts)
     logger.info("Measuring assembly completeness with buscolite")
     d, m, stats, cfg = runbusco(
-        ConsensusProts,
+        finalProteins,
         busco_model_path,
         mode="proteins",
         cpus=args.cpus,

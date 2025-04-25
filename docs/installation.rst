@@ -56,16 +56,17 @@ Once that is working, you can then install most of the remaining dependencies wi
 .. code-block:: bash
 
     # first install most of the dependencies
-    mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.12" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair
+    mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.13" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair "mkl<2022" pytantan
 
     # we can then add the required FUNANNOTATE2_DB env variable to the conda environment, note need to reactivate to use it
     conda activate funannotate2
     conda env config vars set FUNANNOTATE2_DB=/path/to/funannotate2-db
+    conda env config vars set AUGUSTUS_CONFIG_PATH=/path/to/augustus-3.5.0/config
     conda deactivate
 
     # now reactivate environment, and install the remaining python dependencies with pip
     conda activate funannotate2
-    python -m pip install buscolite funannotate2
+    python -m pip install buscolite git+https://github.com/nextgenusfs/funannotate2.git
 
     # now we can install the databases
     funannotate2 install -d all
@@ -102,11 +103,9 @@ This should display the version of Funannotate2.
 Installing Databases
 -------------------
 
-Funannotate2 requires several databases to be installed. The funannotate2 scripts expect the $FUNANNOTATE2_DB environment variable to be set. These can be installed using the following command:
+Funannotate2 requires several databases to be installed. Note: funannotate2 scripts expect the $FUNANNOTATE2_DB environment variable to be set. These can be installed using the following command:
 
 .. code-block:: bash
-
-    export FUNANNOTATE2_DB=/path/to/funannotate2_db
 
     funannotate2 install -d all
 
@@ -120,3 +119,4 @@ GeneMark-ES/ET must be installed manually due to licensing restrictions:
 1. Register and download GeneMark-ES/ET from the `GeneMark website <http://exon.gatech.edu/GeneMark/license_download.cgi>`_
 2. Follow the installation instructions provided with the download
 3. Make sure the GeneMark executables are in your PATH
+4. You may also need to install GeneMark specific perl libraries, specifically ``perl-hash-merge`` and ``perl-mce`` have been mentioned by users adding to the existing conda environment.

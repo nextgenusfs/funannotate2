@@ -27,20 +27,21 @@ https://github.com/nextgenusfs/dockerized-augustus
 
 https://github.com/nextgenusfs/dockerized-genemark
 
-Once that is working, you can then install most of the remaining dependencies with conda, although we need to leave out both `buscolite` and `funannotate2` because they have `augustus` as a dependency, instead we will install those python packages with pip.
+Once that is working, you can then install most of the remaining dependencies with conda, although we need to leave out both `buscolite` and `funannotate2` because they have `augustus` as a dependency, instead we will install those python packages with pip.  The conda mkl<2022 is to avoid an annoying warning on apple silicon with the intel mkl package.
 
 ```shell
 # first install most of the dependencies
-mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.12" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair
+mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.13" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair pytantan "mkl<2022"
 
 # we can then add the required FUNANNOTATE2_DB env variable to the conda environment, note need to reactivate to use it
 conda activate funannotate2
 conda env config vars set FUNANNOTATE2_DB=/path/to/funannotate2-db
+conda env config vars set AUGUSTUS_CONFIG_PATH=/path/to/augustus-3.5.0/config
 conda deactivate
 
 # now reactivate environment, and install the remaining python dependencies with pip
 conda activate funannotate2
-python -m pip install buscolite funannotate2
+python -m pip install buscolite git+https://github.com/nextgenusfs/funannotate2.git
 
 # now we can install the databases
 funannotate2 install -d all
