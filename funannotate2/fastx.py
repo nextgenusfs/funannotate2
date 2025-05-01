@@ -137,7 +137,9 @@ def mergefasta(fasta_files, outfile):
     return o, n
 
 
-def annotate_fasta(fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"):
+def annotate_fasta(
+    fasta_file, outfile, ids=[], annotation="[mcode=4] [location=mitochondrion]"
+):
     """
     Annotate specific sequences in a FASTA file with custom information.
 
@@ -191,7 +193,7 @@ def fasta2chunks(fasta_file, chunks, outputdir, prefix="prots_", suffix=".fa"):
     for i, x in enumerate(range(0, len(fa), n_per_chunk)):
         steps.append((i, x, x + n_per_chunk))
     for step in steps:
-        outname = os.path.join(outputdir, f"{prefix}{step[0]+1}{suffix}")
+        outname = os.path.join(outputdir, f"{prefix}{step[0] + 1}{suffix}")
         files.append(outname)
         with open(outname, "w") as outfile:
             for idx in range(step[1], step[2]):
@@ -220,8 +222,8 @@ def simplify_headers(inputfile, outputfile, base="contig_"):
     names = {}
     with open(outputfile, "w") as outfile:
         for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
-            names[f"{base}{i+1}"] = title
-            outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
+            names[f"{base}{i + 1}"] = title
+            outfile.write(f">{base}{i + 1}\n{softwrap(seq)}\n")
     return names
 
 
@@ -246,12 +248,14 @@ def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]
     names = {}
     with open(keepfile, "w") as outfile:
         with open(dropfile, "w") as dropout:
-            for i, (title, seq) in enumerate(pyfastx.Fasta(inputfile, build_index=False)):
+            for i, (title, seq) in enumerate(
+                pyfastx.Fasta(inputfile, build_index=False)
+            ):
                 if title in drop:
                     dropout.write(f">{title}\n{softwrap(seq)}\n")
                 else:
-                    names[f"{base}{i+1}"] = title
-                    outfile.write(f">{base}{i+1}\n{softwrap(seq)}\n")
+                    names[f"{base}{i + 1}"] = title
+                    outfile.write(f">{base}{i + 1}\n{softwrap(seq)}\n")
     return names
 
 
@@ -302,7 +306,6 @@ def contig_analysis(title, seq):
         if nuc.islower():
             masked.append(i)
         if nuc in ["N", "n"]:
-            masked.append(i)
             gaps.append(i)
     mask_grouped = list(list2groups(masked))
     gaps_grouped = list(list2groups(gaps))
@@ -414,7 +417,9 @@ def analyzeAssembly(
             for k, v in natsorted(list(asmgaps.items())):
                 for item in v:
                     if len(item) == 2:
-                        gapout.write(f"{k}\t{item[0]}\t{item[1]}\tassembly-gap_{counter2}\n")
+                        gapout.write(
+                            f"{k}\t{item[0]}\t{item[1]}\tassembly-gap_{counter2}\n"
+                        )
                         counter2 += 1
 
     # build stats

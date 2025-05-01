@@ -142,24 +142,6 @@ def annotate(args):
     # Write protein sequences
     _dict2proteins(Genes, output=Proteins, strip_stop=True)
 
-    # split input protein files for parallel processing steps
-    """
-    if args.cpus < 2:
-        cpu_count = 2
-    else:
-        cpu_count = args.cpus
-    prot_files = fasta2chunks(
-        Proteins,
-        cpu_count - 1,
-        os.path.join(misc_dir, "prots"),
-        prefix="prots_",
-        suffix=".fa",
-    )
-    logger.info(
-        f"Gene models were split into {len(prot_files)} chunk(s) for parallel processing."
-    )
-    """
-
     # for pyhmmer load query sequences into digitized list
     # will not use chunked because pyhmmer is plenty fast and parallized natively
     digital_seqs = digitize_sequences(Proteins)
