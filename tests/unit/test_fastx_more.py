@@ -24,8 +24,9 @@ class TestContigAnalysis:
 
         # Check masked regions (lowercase and N's)
         # The function groups consecutive masked regions together
-        assert len(masked) == 1
-        assert (6, 22) in masked  # combined lowercase and N's region
+        assert len(masked) == 2
+        assert (6, 13) in masked
+        assert (19, 22) in masked  # 0-based indexing
 
         # Check gaps (only N's)
         assert len(gaps) == 1
