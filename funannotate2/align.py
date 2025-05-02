@@ -164,7 +164,7 @@ def align_proteins(
     os.remove(mini_tmp)
 
 
-def align_mito(query, cpus=1, min_cov=0.5, min_qual=50, debug=False):
+def align_mito(query, cpus=1, min_cov=0.65, min_qual=50, debug=False):
     """
     Align a query genome against the RefSeq mitochondrial database to identify putative mitochondrial contigs.
 
@@ -173,7 +173,7 @@ def align_mito(query, cpus=1, min_cov=0.5, min_qual=50, debug=False):
     Args:
         query (str): Path to the query genome file.
         cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
-        min_cov (float, optional): Minimum coverage threshold for alignment. Defaults to 0.5.
+        min_cov (float, optional): Minimum coverage threshold for alignment. Defaults to 0.65.
         min_qual (int, optional): Minimum alignment quality score. Defaults to 50.
 
     Returns:
