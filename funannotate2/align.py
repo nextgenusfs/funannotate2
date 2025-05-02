@@ -33,7 +33,11 @@ def split_evidence_and_genes(gff, fasta, evidence, genes, gff_format="alignment"
     gseen = set()
     for k, v in aligns.items():
         if "mRNA" in v["type"]:
-            if False in v["partialStart"] and False in v["partialStop"] and v["pseudo"] is False:
+            if (
+                False in v["partialStart"]
+                and False in v["partialStop"]
+                and v["pseudo"] is False
+            ):
                 # we don't want multiple of the same gene model
                 unique_str = f"{v['contig']}_{v['strand']}_{v['location'][0]}_{v['location'][1]}_{len(v['CDS'][0])}"
                 if unique_str not in gseen:
@@ -160,7 +164,7 @@ def align_proteins(
     os.remove(mini_tmp)
 
 
-def align_mito(query, cpus=1, min_cov=0.5, min_qual=50):
+def align_mito(query, cpus=1, min_cov=0.5, min_qual=50, debug=False):
     """
     Align a query genome against the RefSeq mitochondrial database to identify putative mitochondrial contigs.
 
@@ -200,9 +204,13 @@ def align_mito(query, cpus=1, min_cov=0.5, min_qual=50):
                     }
                 else:
                     if data[5] not in d[data[0]]["alignments"]:
-                        d[data[0]]["alignments"][data[5]] = [(int(data[2]), int(data[3]))]
+                        d[data[0]]["alignments"][data[5]] = [
+                            (int(data[2]), int(data[3]))
+                        ]
                     else:
-                        d[data[0]]["alignments"][data[5]].append((int(data[2]), int(data[3])))
+                        d[data[0]]["alignments"][data[5]].append(
+                            (int(data[2]), int(data[3]))
+                        )
         # now we can go through each data set and calc coverage
         for contig, results in d.items():
             r = {}

@@ -29,24 +29,26 @@ def merge_coordinates(intervals):
     """
     Merge overlapping intervals from a list of intervals.
 
-    This function takes a list of intervals, each represented as a list of two integers [start, end],
+    This function takes a list of intervals, each represented as a list or tuple of two integers [start, end],
     and merges all overlapping intervals. The resulting list contains non-overlapping intervals sorted
     by their starting points.
 
     Parameters:
-    - intervals (List[List[int]]): A list of intervals to be merged.
+    - intervals (List[Union[List[int], Tuple[int, int]]]): A list of intervals to be merged.
 
     Returns:
     - List[List[int]]: A list of merged intervals.
 
     Example:
     merge_coordinates([[1, 3], [2, 6], [8, 10], [15, 18]]) -> [[1, 6], [8, 10], [15, 18]]
+    merge_coordinates([(1, 3), (2, 6), (8, 10), (15, 18)]) -> [[1, 6], [8, 10], [15, 18]]
     """
     if not intervals:
         return []
     # Sort the intervals based on the starting points
-    intervals.sort(key=lambda x: x[0])
-    merged_intervals = [intervals[0]]
+    intervals = sorted(intervals, key=lambda x: x[0])
+    # Convert first interval to a list to make it mutable
+    merged_intervals = [[intervals[0][0], intervals[0][1]]]
     for current in intervals[1:]:
         last_merged = merged_intervals[-1]
         # If the current interval overlaps with the last merged interval, merge them
@@ -54,7 +56,7 @@ def merge_coordinates(intervals):
             last_merged[1] = max(last_merged[1], current[1])
         else:
             # Otherwise, add the current interval to the merged list
-            merged_intervals.append(current)
+            merged_intervals.append([current[0], current[1]])
     return merged_intervals
 
 
@@ -314,7 +316,9 @@ def lookup_taxonomy(name):
         return False
 
 
-def pretty_taxonomy(obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]):
+def pretty_taxonomy(
+    obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]
+):
     """
     Extract specified taxonomy levels from a taxonomy object.
 
@@ -679,9 +683,9 @@ def runSubprocess(
         logfile.debug(" ".join(cmd))
     except AttributeError:
         pass
-    with process_handle(stdout) as p_out, process_handle(stderr) as p_error, process_handle(
-        stdin, mode="r"
-    ) as p_in:
+    with process_handle(stdout) as p_out, process_handle(
+        stderr
+    ) as p_error, process_handle(stdin, mode="r") as p_in:
         if not env:
             process = subprocess.run(
                 cmd,
@@ -752,7 +756,10 @@ def runThreadJob(func, argList, cpus=2, progress=True):
             sys.stdout.write(
                 f"  Progress: {tasks_completed}/{tasks_total} complete, {tasks_failed} failed, {tasks_total - tasks_completed} remaining        \r"
             )
-            if tasks_total - tasks_completed == 0 and tasks_completed + tasks_failed == tasks_total:
+            if (
+                tasks_total - tasks_completed == 0
+                and tasks_completed + tasks_failed == tasks_total
+            ):
                 sys.stdout.write("\r")
 
     def _exit_threads(executor):
@@ -837,9 +844,13 @@ def runProcessJob(function, inputList, cpus=2):
     results = []
     for i in inputList:
         if isinstance(i, list):
-            p.apply_async(function, args=(i,), callback=update, error_callback=handle_error)
+            p.apply_async(
+                function, args=(i,), callback=update, error_callback=handle_error
+            )
         else:
-            p.apply_async(function, args=(i), callback=update, error_callback=handle_error)
+            p.apply_async(
+                function, args=(i), callback=update, error_callback=handle_error
+            )
     p.close()
     p.join()
     return results
@@ -1036,7 +1047,9 @@ def print_table(
                 )
                 wrapped_row.append(wrapper.wrap(col))
         else:
-            wrapper = textwrap.TextWrapper(subsequent_indent=subsequent_indent, width=max_col_width)
+            wrapper = textwrap.TextWrapper(
+                subsequent_indent=subsequent_indent, width=max_col_width
+            )
             wrapped_row = [wrapper.wrap(x) for x in row]
 
         row_rows = max(len(x) for x in wrapped_row)
