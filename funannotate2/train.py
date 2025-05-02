@@ -30,6 +30,7 @@ from .utilities import (
     naming_slug,
     runSubprocess,
     which_path,
+    get_odb_version,
 )
 
 
@@ -64,7 +65,9 @@ def train(args):
     shutil.copyfile(args.fasta, original_genome)
     # set max header high as going to simplify below if no other issues
     logger.info("Loading genome assembly and running QC checks")
-    stats, bad_names, nuc_errors = analyzeAssemblySimple(args.fasta, header_max=args.header_length)
+    stats, bad_names, nuc_errors = analyzeAssemblySimple(
+        args.fasta, header_max=args.header_length
+    )
     if len(bad_names) > 0:
         bad_string = ", ".join(bad_names)
         logger.critical(
@@ -75,7 +78,9 @@ def train(args):
         bad_string = ""
         for x in nuc_errors:
             bad_string += f"{x[0]}: {x[1]}, "
-        logger.critical(f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}")
+        logger.critical(
+            f"{len(nuc_errors)} contigs contain non-IUPAC characters\n{bad_string}"
+        )
         raise SystemExit(1)
     logger.info(f"Genome stats:\n{json.dumps(stats, indent=2)}")
 
@@ -93,7 +98,13 @@ def train(args):
 
     # choose best busco species
     busco_species = choose_best_busco_species(taxonomy)
-    busco_model_path = os.path.join(env["FUNANNOTATE2_DB"], f"{busco_species}_odb12")
+    # pull the latest odb version from downloads link
+    odb_version = get_odb_version(
+        os.path.join(os.path.dirname(__file__), "downloads.json")
+    )
+    busco_model_path = os.path.join(
+        env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
+    )
 
     # run buscolite on genome to get training set
     filt_train_models = os.path.join(misc_dir, "training-models.final.gff3")
@@ -101,14 +112,20 @@ def train(args):
         if args.training_set is None:
             args.training_set = os.path.join(misc_dir, "busco_training_set.gff3")
             if not os.path.isfile(args.training_set):
-                logger.info(f"Choosing best busco species based on taxonomy: {busco_species}")
+                logger.info(
+                    f"Choosing best busco species based on taxonomy: {busco_species}"
+                )
                 if not os.path.isdir(busco_model_path):
                     download_urls = load_json(
                         os.path.join(os.path.dirname(__file__), "downloads.json")
                     )
                     busco_url = download_urls["busco"][busco_species][0]
-                    busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
-                    logger.info(f"Downloading {busco_species}_odb12 model from {busco_url}")
+                    busco_tgz = os.path.join(
+                        env["FUNANNOTATE2_DB"], os.path.basename(busco_url)
+                    )
+                    logger.info(
+                        f"Downloading {busco_species}_{odb_version} model from {busco_url}"
+                    )
                     download(busco_url, busco_tgz, wget=False)
                     if os.path.isfile(busco_tgz):
                         runSubprocess(
@@ -134,9 +151,13 @@ def train(args):
                 logger.info(f"Existing BUSCO results found: {args.training_set}")
         # load  GFF3 training set, load with gfftk
         train_set = gff2dict(args.training_set, GenomeFasta)
-        logger.info(f"Training set [{args.training_set}] loaded with {len(train_set)} gene models")
+        logger.info(
+            f"Training set [{args.training_set}] loaded with {len(train_set)} gene models"
+        )
         if len(train_set) == 0:
-            logger.critical(f"No gene models found in training set: {args.training_set}")
+            logger.critical(
+                f"No gene models found in training set: {args.training_set}"
+            )
             raise SystemExit(1)
 
         # now filter training set
@@ -176,7 +197,9 @@ def train(args):
 
     # run snap training functions
     logger.info("Training snap using training set")
-    snap_train = train_snap(GenomeFasta, train_models, test_models, folder=misc_dir, log=logger)
+    snap_train = train_snap(
+        GenomeFasta, train_models, test_models, folder=misc_dir, log=logger
+    )
     snap_train["training_set"] = filt_train_models_final
 
     # run glimmerHMM training functions
@@ -421,7 +444,9 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                                 len(v["CDS"][0]),
                             )
                         )
-                        protout.write(f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n")
+                        protout.write(
+                            f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n"
+                        )
                 else:
                     gene_inter[v["contig"]].add(
                         (
@@ -432,7 +457,9 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                             len(v["CDS"][0]),
                         )
                     )
-                    protout.write(f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n")
+                    protout.write(
+                        f">{k}___{len(v['CDS'][0])}\n{softwrap(v['protein'][0])}\n"
+                    )
 
     # make sure gene models are unique, so do pairwise diamond search @ 80% identity
     cmd = ["diamond", "makedb", "--in", proteins, "--db", augdmnddb]
@@ -501,7 +528,9 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
     sGenes = sorted(iter(GenesPass.items()), key=_sortDict, reverse=True)
     sortedGenes = OrderedDict(sGenes)
     logger.info(
-        "{:,} of {:,} models pass training parameters".format(len(sortedGenes), len(train_dict))
+        "{:,} of {:,} models pass training parameters".format(
+            len(sortedGenes), len(train_dict)
+        )
     )
     # normalize the names, but also write each gene +/- 1 kb to file
     fa = fasta2dict(genome)

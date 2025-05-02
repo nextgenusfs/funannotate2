@@ -136,6 +136,28 @@ def load_json(filename):
     return data
 
 
+def get_odb_version(downloads_json_file):
+    """
+    Extract BUSCO ODB version from the downloads JSON.
+
+    This function parses the provided downloads JSON to extract the BUSCO ODB version
+    for each specified taxonomy. It returns a dictionary mapping taxonomies to their
+    corresponding ODB versions.
+
+    Parameters:
+    - downloads_json_file (file): The JSON file data containing download information.
+
+    Returns:
+    - str: The latest ODB version.
+    """
+    odb_versions = set()
+    du = load_json(downloads_json_file)
+    for taxon, info in du["busco"].items():
+        if "_" in info[1]:
+            odb_versions.add(info[1].rsplit("_", 1)[1])
+    return sorted(odb_versions, reverse=True)[0]
+
+
 def download(url, name, wget=False, timeout=60, retries=3):
     """
     Download a file from a given URL with improved error handling and retries.
