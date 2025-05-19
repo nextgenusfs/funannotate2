@@ -338,9 +338,7 @@ def lookup_taxonomy(name):
         return False
 
 
-def pretty_taxonomy(
-    obj, levels=["superkingdom", "kingdom", "phylum", "order", "class", "family"]
-):
+def pretty_taxonomy(obj, levels):
     """
     Extract specified taxonomy levels from a taxonomy object.
 
@@ -357,11 +355,7 @@ def pretty_taxonomy(
     - list: A list of taxonomy levels extracted from the object.
     """
     # traverse taxonomy object and return list of taxonomy
-    tax = []
-    for t in levels:
-        if t in obj:
-            tax.append(obj[t])
-    return tax
+    return [obj.get(lvl) for lvl in levels]
 
 
 def choose_best_augustus_species(query_tax):
@@ -387,52 +381,45 @@ def best_taxonomy(query, ref):
     Returns:
     - str or list: The key of the best matching taxonomy in the reference dictionary, or an empty list if no match is found.
     """
-    query_list = pretty_taxonomy(
-        query,
-        levels=[
-            "superkingdom",
-            "kingdom",
-            "phylum",
-            "order",
-            "class",
-            "family",
-            "genus",
-            "species",
-        ],
-    )
+    levels = [
+        "superkingdom",
+        "kingdom",
+        "phylum",
+        "order",
+        "class",
+        "family",
+        "genus",
+        "species",
+    ]
+    # Convert query keys to lowercase for case-insensitive matching
+    query_tax = {k.lower(): v for k, v in query.items()}
+    query_list = pretty_taxonomy(query_tax, levels)
+
     ref_tax = {}
     for k, v in ref.items():
-        simpletax = pretty_taxonomy(
-            v,
-            levels=[
-                "superkingdom",
-                "kingdom",
-                "phylum",
-                "order",
-                "class",
-                "family",
-                "genus",
-                "species",
-            ],
-        )
-        res = [i for i, j in zip(query_list, simpletax) if i == j]
-        if len(res) > 0:
-            pos = simpletax.index(res[-1])
-            ref_tax[k] = (len(res), len(simpletax[pos:]))
-    # what is the max value
+        # Convert reference keys to lowercase
+        ref_list = pretty_taxonomy({rk.lower(): rv for rk, rv in v.items()}, levels)
+
+        # Match only non-None entries at matching positions
+        res = [q for q, r in zip(query_list, ref_list) if q and r and q == r]
+        if res:
+            pos = ref_list.index(res[-1])
+            ref_tax[k] = (len(res), len(ref_list[pos:]))
+
+    # Check if we found any matches
+    if not ref_tax:
+        return []
+
+    # Find the maximum number of matching levels
     iMax = max(ref_tax.items(), key=lambda x: x[1][0])[1][0]
-    # now get a list of all of those keys
-    best = {}
-    for k, v in ref_tax.items():
-        if v[0] == iMax:
-            best[k] = v
-    # finally we want the minimal value for ref tax
+    # Get all matches with the maximum number of matching levels
+    best = {k: v for k, v in ref_tax.items() if v[0] == iMax}
+    # Find the minimum remaining levels (most specific match)
     iMin = min(best.items(), key=lambda x: x[1][1])[1][1]
-    keepers = []
-    for k, v in best.items():
-        if v[1] == iMin:
-            keepers.append(k)
-    # here we can just take random
+    # Get all matches with the minimum remaining levels
+    keepers = [k for k, v in best.items() if v[1] == iMin]
+
+    # Return a random match if there are multiple, or the single match, or an empty list
     if len(keepers) > 1:
         return random.choice(keepers)
     elif len(keepers) == 1:
