@@ -299,7 +299,7 @@ def lookup_taxonomy(name):
     This function retrieves a taxonomy dictionary for a specified organism by querying
     an external taxonomy service. If the species name is valid, it returns a dictionary
     containing taxonomic levels and names. If the name is invalid or an error occurs,
-    it returns False.
+    it returns False. EDIT: JGI changed superkingdom to domain, so map it.
 
     Parameters:
     - name (str): The name of the organism to fetch, e.g., 'Aspergillus nidulans'.
@@ -321,7 +321,7 @@ def lookup_taxonomy(name):
             # reformat result to simpler version
             data = {}
             for i in [
-                "superkingdom",
+                "domain",
                 "kingdom",
                 "phylum",
                 "class",
@@ -331,7 +331,10 @@ def lookup_taxonomy(name):
                 "species",
             ]:
                 if i in result:
-                    data[i] = result[i]["name"]
+                    if i == "domain":
+                        data["superkingdom"] = result[i]["name"]
+                    else:
+                        data[i] = result[i]["name"]
             return data
     except requests.exceptions.RequestException as e:
         print("ERROR in taxonomy lookup: {}".format(e))
