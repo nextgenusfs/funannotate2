@@ -45,6 +45,7 @@ from .utilities import (
     load_json,
     lookup_taxonomy,
     naming_slug,
+    get_odb_version,
 )
 
 
@@ -228,6 +229,9 @@ def annotate(args):
     # busco proteome analysis
     busco_all = os.path.join(misc_dir, "busco.results.json")
     busco_annots = os.path.join(misc_dir, "annotations.busco.tsv")
+    odb_version = get_odb_version(
+        os.path.join(os.path.dirname(__file__), "downloads.json")
+    )
     if not checkfile(busco_annots):
         if not taxonomy:
             # get taxonomy information
@@ -236,7 +240,7 @@ def annotate(args):
         # choose best busco species
         busco_species = choose_best_busco_species(taxonomy)
         busco_model_path = os.path.join(
-            env["FUNANNOTATE2_DB"], f"{busco_species}_odb12"
+            env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
         )
 
         # run busco proteome screen
