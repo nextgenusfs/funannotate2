@@ -366,10 +366,10 @@ def choose_best_augustus_species(query_tax):
 
 
 def choose_best_busco_species(query_tax):
-    return best_taxonomy(query_tax, busco_taxonomy)
+    return best_taxonomy(query_tax, busco_taxonomy, exact=True)
 
 
-def best_taxonomy(query, ref):
+def best_taxonomy(query, reference, exact=False):
     """
     Find the best matching taxonomy in a reference dictionary based on a query taxonomy.
 
@@ -380,6 +380,7 @@ def best_taxonomy(query, ref):
     Parameters:
     - query (dict): The query taxonomy object to compare.
     - ref (dict): The reference taxonomy dictionary to search for matches.
+    - exact (boolean): If True, return the most specific match that fully defines a taxonomic level.
 
     Returns:
     - str or list: The key of the best matching taxonomy in the reference dictionary, or an empty list if no match is found.
@@ -388,47 +389,46 @@ def best_taxonomy(query, ref):
         "superkingdom",
         "kingdom",
         "phylum",
-        "order",
         "class",
+        "order",
         "family",
         "genus",
         "species",
     ]
-    # Convert query keys to lowercase for case-insensitive matching
-    query_tax = {k.lower(): v for k, v in query.items()}
-    query_list = pretty_taxonomy(query_tax, levels)
 
-    ref_tax = {}
-    for k, v in ref.items():
-        # Convert reference keys to lowercase
-        ref_list = pretty_taxonomy({rk.lower(): rv for rk, rv in v.items()}, levels)
+    def normalize(value):
+        return (
+            value.lower() if isinstance(value, str) else value
+        )  # Ensure strings are lowercase
 
-        # Match only non-None entries at matching positions
-        res = [q for q, r in zip(query_list, ref_list) if q and r and q == r]
-        if res:
-            pos = ref_list.index(res[-1])
-            ref_tax[k] = (len(res), len(ref_list[pos:]))
+    def similarity_score(query, ref):
+        return sum(
+            1
+            for level in levels
+            if level in query
+            and level in ref
+            and normalize(query[level]) == normalize(ref[level])
+        )
 
-    # Check if we found any matches
-    if not ref_tax:
-        return []
+    # Special case: If query fully defines a taxonomic level, return it directly
+    if exact:
+        for level in reversed(levels):  # Start from deepest and move upward
+            if level in query and any(
+                normalize(query[level]) == normalize(reference[name].get(level, ""))
+                for name in reference
+            ):
+                return normalize(query[level])  # Return first valid match found
 
-    # Find the maximum number of matching levels
-    iMax = max(ref_tax.items(), key=lambda x: x[1][0])[1][0]
-    # Get all matches with the maximum number of matching levels
-    best = {k: v for k, v in ref_tax.items() if v[0] == iMax}
-    # Find the minimum remaining levels (most specific match)
-    iMin = min(best.items(), key=lambda x: x[1][1])[1][1]
-    # Get all matches with the minimum remaining levels
-    keepers = [k for k, v in best.items() if v[1] == iMin]
-
-    # Return a random match if there are multiple, or the single match, or an empty list
-    if len(keepers) > 1:
-        return random.choice(keepers)
-    elif len(keepers) == 1:
-        return keepers[0]
-    else:
-        return []
+    best_matches = []
+    highest_score = -1
+    for name, attributes in reference.items():
+        score = similarity_score(query, attributes)
+        if score > highest_score:
+            highest_score = score
+            best_matches = [name]
+        elif score == highest_score:
+            best_matches.append(name)
+    return random.choice(best_matches) if best_matches else None
 
 
 def which_path(file_name):
