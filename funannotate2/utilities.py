@@ -1156,3 +1156,33 @@ def readBlocks2(source, startpattern, endpattern):
         else:
             buffer.append(line)
     yield buffer
+
+
+def rename_gff_contigs(gff, output, contigHeaderMap):
+    """
+    Rename contigs in a GFF3 file based on a provided mapping.
+
+    This function reads a GFF3 file line by line and renames the contigs based on a provided
+    mapping. The mapping is a dictionary where the keys are the original contig names and
+    the values are the new names. The renamed GFF3 content is written to the specified output file.
+
+    Parameters:
+    - gff (str): The path to the input GFF3 file.
+    - output (str): The path to the output GFF3 file.
+    - contigHeaderMap (dict): A dictionary mapping original contig names to new names.
+
+    Returns:
+    - None
+    """
+    with open(output, "w") as outfile:
+        with open(gff, "r") as infile:
+            for line in infile:
+                if line.startswith(">"):
+                    continue
+                if line.startswith("#"):
+                    outfile.write(line)
+                else:
+                    cols = line.split("\t")
+                    if cols[0] in contigHeaderMap:
+                        cols[0] = contigHeaderMap[cols[0]]
+                    outfile.write("\t".join(cols))

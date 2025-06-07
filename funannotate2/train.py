@@ -31,6 +31,7 @@ from .utilities import (
     runSubprocess,
     which_path,
     get_odb_version,
+    rename_gff_contigs,
 )
 
 
@@ -86,7 +87,7 @@ def train(args):
 
     # to circumvent any downstream issues, rename headers
     GenomeFasta = os.path.join(misc_dir, "genome.fasta")
-    simplify_headers(args.fasta, GenomeFasta, base="contig_")
+    contigHeaderMap = simplify_headers(args.fasta, GenomeFasta, base="contig_")
 
     # get taxonomy information
     taxonomy = lookup_taxonomy(args.species)
@@ -149,8 +150,22 @@ def train(args):
                     raise SystemExit(1)
             else:
                 logger.info(f"Existing BUSCO results found: {args.training_set}")
+        else:
+            # however, first we need to change the contig names to the temporary ones
+            train_temp = os.path.join(misc_dir, "training-set.temp.gff3")
+            # need to invert contigHeaderMap
+            gffRenameMap = {v: k for k, v in contigHeaderMap.items()}
+            rename_gff_contigs(args.training_set, train_temp, gffRenameMap)
+            args.training_set = train_temp
+
         # load  GFF3 training set, load with gfftk
-        train_set = gff2dict(args.training_set, GenomeFasta)
+        raw_train_set = gff2dict(args.training_set, GenomeFasta)
+        # user might pass in a training set that has other models, we only want protein coding, so filter
+        train_set = {
+            k: v
+            for k, v in raw_train_set.items()
+            if "mRNA" in v["type"] and len(v["CDS"][0]) > 0
+        }
         logger.info(
             f"Training set [{args.training_set}] loaded with {len(train_set)} gene models"
         )
@@ -238,6 +253,10 @@ def train(args):
         )
         genemark_train["training_set"] = "self training"
         train_data["genemark"] = genemark_train
+    else:
+        logger.info(
+            f"GeneMark-ES not installed, skipping training: gmes_petap.pl in PATH={which_path('gmes_petap.pl')}; gmhmme3 in PATH={which_path('gmhmme3')}"
+        )
 
     # now lets get these data together and save as parameters.json file
     name_slug = naming_slug(args.species, args.strain)

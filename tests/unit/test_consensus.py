@@ -4,11 +4,13 @@ Unit tests for the consensus module.
 
 from gfftk.consensus import (
     auto_score_threshold,
+    cluster_interlap,
     contained,
     ensure_unique_names,
     fasta_length,
     get_overlap,
 )
+from gfftk import interlap
 
 
 class TestConsensusHelpers:
@@ -67,6 +69,46 @@ class TestConsensusHelpers:
         b = [10, 20]
         result = contained(a, b)
         assert result is False
+
+    def test_cluster_interlap_no_duplicate_genes(self):
+        """Test that cluster_interlap doesn't assign the same gene to multiple loci."""
+        # Create an interlap object with overlapping gene models
+        inter = interlap.InterLap()
+
+        # Add gene models that reproduce the bug scenario
+        # Gene models that should be in locus 1 (304791-308038)
+        inter.add([304968, 307781, "gene1", "source1", [], 1])
+        inter.add([307838, 307861, "gene2", "source2", [], 1])
+        inter.add([308015, 308038, "gene3", "source3", [], 1])
+
+        # Gene model that spans across loci (308249-309835) - this was causing the bug
+        inter.add([308249, 309835, "problematic_gene", "helixer", [], 1])
+
+        # Gene models that should be in locus 2 (308038-310019)
+        inter.add([308954, 309835, "gene4", "source4", [], 1])
+        inter.add([309000, 310019, "gene5", "source5", [], 1])
+
+        # Cluster the genes
+        clusters = cluster_interlap(inter)
+
+        # Collect all gene IDs from all clusters
+        all_gene_ids = []
+        for cluster in clusters:
+            for gene in cluster["genes"]:
+                gene_id = gene[0]  # Gene ID is first element
+                all_gene_ids.append(gene_id)
+
+        # Check that no gene appears in multiple clusters
+        unique_gene_ids = set(all_gene_ids)
+        assert len(all_gene_ids) == len(unique_gene_ids), (
+            f"Duplicate genes found: {all_gene_ids}"
+        )
+
+        # Verify that the problematic gene appears only once
+        problematic_gene_count = all_gene_ids.count("problematic_gene")
+        assert problematic_gene_count == 1, (
+            f"Problematic gene appears {problematic_gene_count} times, should be 1"
+        )
 
     def test_auto_score_threshold(self):
         """Test the auto_score_threshold function."""
