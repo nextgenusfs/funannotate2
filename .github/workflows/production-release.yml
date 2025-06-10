@@ -59,11 +59,44 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Create and push tag
+    - name: Update CITATION.cff and create tag
       run: |
+        # Get current date in YYYY-MM-DD format
+        TODAY=$(date +"%Y-%m-%d")
+
+        # Extract version without 'v' prefix
+        VERSION="${{ needs.validate-tag.outputs.tag }}"
+        VERSION=${VERSION#v}
+
+        # Update version and date in CITATION.cff
+        python -c "
+        import re
+        with open('CITATION.cff', 'r') as f:
+            content = f.read()
+
+        # Update version
+        content = re.sub(r'version: \".*\"', f'version: \"$VERSION\"', content)
+
+        # Update date-released
+        content = re.sub(r'date-released: \'.*\'', f'date-released: \'$TODAY\'', content)
+
+        with open('CITATION.cff', 'w') as f:
+            f.write(content)
+        "
+
+        # Configure git
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Commit CITATION.cff changes if any
+        if ! git diff --quiet CITATION.cff; then
+          git add CITATION.cff
+          git commit -m "Update CITATION.cff to version $VERSION [skip ci]"
+        fi
+
+        # Create and push tag
         git tag ${{ needs.validate-tag.outputs.tag }}
+        git push origin HEAD
         git push origin ${{ needs.validate-tag.outputs.tag }}
 
   build:
