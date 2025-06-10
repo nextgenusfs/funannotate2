@@ -50,16 +50,17 @@ jobs:
           echo "exists=false" >> $GITHUB_OUTPUT
         fi
 
-  create-tag:
-    name: Create tag if needed
+  update-citation:
+    name: Update CITATION.cff
     needs: validate-tag
     runs-on: ubuntu-latest
-    if: needs.validate-tag.outputs.tag_exists == 'false' && github.event.inputs.create_tag == 'true'
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for tags
 
-    - name: Update CITATION.cff and create tag
+    - name: Update CITATION.cff
       run: |
         # Get current date in YYYY-MM-DD format
         TODAY=$(date +"%Y-%m-%d")
@@ -92,23 +93,43 @@ jobs:
         if ! git diff --quiet CITATION.cff; then
           git add CITATION.cff
           git commit -m "Update CITATION.cff to version $VERSION [skip ci]"
+          git push origin HEAD
+        else
+          echo "No changes to CITATION.cff"
         fi
+
+  create-tag:
+    name: Create tag if needed
+    needs: [validate-tag, update-citation]
+    runs-on: ubuntu-latest
+    if: needs.validate-tag.outputs.tag_exists == 'false' && github.event.inputs.create_tag == 'true'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main  # Get the latest main branch with CITATION.cff updates
+
+    - name: Create and push tag
+      run: |
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
         # Create and push tag
         git tag ${{ needs.validate-tag.outputs.tag }}
-        git push origin HEAD
         git push origin ${{ needs.validate-tag.outputs.tag }}
 
   build:
     name: Build distribution 📦
-    needs: [validate-tag, create-tag]
-    if: always() && needs.validate-tag.result == 'success' && (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    needs: [validate-tag, update-citation, create-tag]
+    if: always() && needs.validate-tag.result == 'success' && needs.update-citation.result == 'success' && (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: ${{ needs.validate-tag.outputs.tag }}
+        # If tag exists, use it; otherwise use main branch with updated CITATION.cff
+        ref: ${{ needs.validate-tag.outputs.tag_exists == 'true' && needs.validate-tag.outputs.tag || 'main' }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
