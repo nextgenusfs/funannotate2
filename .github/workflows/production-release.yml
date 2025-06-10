@@ -1,0 +1,228 @@
+name: Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0 or 25.5.28)'
+        required: true
+        type: string
+      create_tag:
+        description: 'Create tag if it does not exist'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  validate-tag:
+    name: Validate and prepare tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      tag_exists: ${{ steps.check.outputs.exists }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for tags
+
+    - name: Validate tag format
+      id: tag
+      run: |
+        TAG="${{ github.event.inputs.tag }}"
+        if [[ ! "$TAG" =~ ^(v?[0-9]+\.[0-9]+\.[0-9]+|[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          echo "Error: Tag must be in format v1.0.0, 1.0.0, or CalVer like 25.5.28"
+          exit 1
+        fi
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+    - name: Check if tag exists
+      id: check
+      run: |
+        if git rev-parse "refs/tags/${{ steps.tag.outputs.tag }}" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+  create-tag:
+    name: Create tag if needed
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    if: needs.validate-tag.outputs.tag_exists == 'false' && github.event.inputs.create_tag == 'true'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Create and push tag
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag ${{ needs.validate-tag.outputs.tag }}
+        git push origin ${{ needs.validate-tag.outputs.tag }}
+
+  build:
+    name: Build distribution 📦
+    needs: [validate-tag, create-tag]
+    if: always() && needs.validate-tag.result == 'success' && (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-tag.outputs.tag }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build
+
+    - name: Build distribution
+      run: python -m build
+
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI 🚀
+    needs: [validate-tag, build]
+    if: always() && needs.validate-tag.result == 'success' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/funannotate2
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download distribution packages
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      id: pypi_publish
+      uses: pypa/gh-action-pypi-publish@release/v1
+      continue-on-error: true
+
+    - name: Check PyPI publish result
+      run: |
+        if [ "${{ steps.pypi_publish.outcome }}" == "failure" ]; then
+          echo "⚠️ PyPI upload failed - this is expected if version already exists"
+          echo "Checking if version exists on PyPI..."
+
+          # Check if package exists on PyPI
+          if curl -s "https://pypi.org/pypi/funannotate2/${{ needs.validate-tag.outputs.tag }}/json" | grep -q "Not Found"; then
+            echo "❌ Version does not exist on PyPI - this is a real error"
+            exit 1
+          else
+            echo "✅ Version already exists on PyPI - continuing with GitHub release"
+          fi
+        else
+          echo "✅ PyPI upload successful"
+        fi
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [validate-tag, build, publish-to-pypi]
+    if: always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' && (needs.publish-to-pypi.result == 'success' || needs.publish-to-pypi.result == 'failure')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Required for creating releases
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-tag.outputs.tag }}
+        fetch-depth: 0
+
+    - name: Download distribution packages
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 ${{ needs.validate-tag.outputs.tag }}^)
+
+        echo "Generating release notes for ${{ needs.validate-tag.outputs.tag }}"
+        echo "Previous tag: $PREV_TAG"
+        echo ""
+
+        # Generate changelog
+        echo "## Changes" > release_notes.md
+        echo "" >> release_notes.md
+
+        # Get all commits between previous tag and current tag, excluding version bump commits
+        git log --pretty=format:"- %s (%h)" $PREV_TAG..${{ needs.validate-tag.outputs.tag }} \
+          --grep="bump version" --grep="version bump" --grep="update version" \
+          --invert-grep >> release_notes.md
+
+        # Check if we have any commits
+        if [ ! -s release_notes.md ] || [ $(wc -l < release_notes.md) -le 2 ]; then
+          echo "## Changes" > release_notes.md
+          echo "" >> release_notes.md
+          echo "- No significant changes since previous release" >> release_notes.md
+        fi
+
+        echo "" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ needs.validate-tag.outputs.tag }}" >> release_notes.md
+
+        echo "Generated release notes:"
+        cat release_notes.md
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.validate-tag.outputs.tag }}
+        name: funannotate2 ${{ needs.validate-tag.outputs.tag }}
+        body_path: release_notes.md
+        files: dist/*
+        prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+        generate_release_notes: false
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
+    - name: Fallback - Create Release with GitHub CLI
+      if: steps.create_release.outcome == 'failure'
+      run: |
+        echo "Action failed, trying with GitHub CLI..."
+
+        # Create release
+        if [ "${{ github.event.inputs.prerelease }}" == "true" ]; then
+          PRERELEASE_FLAG="--prerelease"
+        else
+          PRERELEASE_FLAG=""
+        fi
+
+        gh release create "${{ needs.validate-tag.outputs.tag }}" \
+          --title "funannotate2 ${{ needs.validate-tag.outputs.tag }}" \
+          --notes-file release_notes.md \
+          $PRERELEASE_FLAG \
+          dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

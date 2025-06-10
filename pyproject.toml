@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "funannotate2"
-version = "25.6.7"
+version = "25.6.9"
 description = "Funannotate2: eukarytoic genome annotation pipeline"
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
@@ -15,7 +15,7 @@ dependencies = [
     "natsort",
     "numpy",
     "mappy",
-    "gfftk>=24.10.29",
+    "gfftk>=25.6.10",
     "buscolite>=25.4.24",
     "gapmm2>=25.4.13",
     "pyhmmer>=0.10.15",
