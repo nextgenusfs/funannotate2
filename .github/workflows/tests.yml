@@ -18,14 +18,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]  # Temporarily disable macOS due to mappy build issues
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
-        exclude:
-          # Exclude problematic combinations where mappy fails to build
+        include:
+          # Add one macOS test with conda-based installation
           - os: macos-latest
-            python-version: '3.12'
-          - os: macos-latest
-            python-version: '3.13'
+            python-version: '3.11'
+            use_conda: true
 
     steps:
     - uses: actions/checkout@v4
@@ -43,20 +42,39 @@ jobs:
           sudo apt-get install -y build-essential zlib1g-dev
         fi
 
+    - name: Setup conda (macOS only)
+      if: matrix.use_conda == true
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniforge-version: latest
+        activate-environment: test
+        python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install pytest pytest-cov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        python -m pip install -e .
+        if [[ "${{ matrix.use_conda }}" == "true" ]]; then
+          # Use conda for macOS to avoid mappy build issues
+          conda install -c conda-forge -c bioconda mappy numpy pytest pytest-cov -y
+          pip install natsort gfftk buscolite gapmm2 pyhmmer pyfastx requests gb-io json-repair pytantan
+          pip install -e . --no-deps
+        else
+          # Linux - use pip as normal
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install -e .
+        fi
+      shell: bash -l {0}
 
     - name: Run unit tests
       run: |
         pytest tests/unit/ -v --cov=funannotate2 --cov-report=xml
+      shell: bash -l {0}
 
     - name: Run integration tests without external dependencies
       run: |
         pytest tests/integration/test_funannotate_cli.py -v
+      shell: bash -l {0}
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5

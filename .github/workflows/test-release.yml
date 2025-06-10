@@ -39,8 +39,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ['3.9', '3.11']  # Test on min and stable versions (avoid mappy build issues)
+        os: [ubuntu-latest]  # Focus on Linux for release testing
+        python-version: ['3.9', '3.11']  # Test on min and stable versions
 
     steps:
     - name: Set up Python ${{ matrix.python-version }}
