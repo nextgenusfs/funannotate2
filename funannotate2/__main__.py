@@ -199,7 +199,7 @@ def predict_subparser(subparsers):
         "--external",
         required=False,
         nargs="+",
-        help="External gene moddels/annotation in GFF3 format.",
+        help="External gene models/annotation in GFF3 format.",
         metavar="",
     )
     optional_args.add_argument(
@@ -353,7 +353,7 @@ def train_subparser(subparsers):
 def clean_subparser(subparsers):
     group = subparsers.add_parser(
         "clean",
-        description="The script sorts contigs by size, starting with shortest contigs it uses minimap2 to find contigs duplicated elsewhere, and then removes duplicated contigs.",
+        description="The script sfunannotate2/__main__.pyorts contigs by size, starting with shortest contigs it uses minimap2 to find contigs duplicated elsewhere, and then removes duplicated contigs.",
         help="Find and remove duplicated contigs, sort by size, rename headers.",
         formatter_class=MyHelpFormatter,
         add_help=False,
