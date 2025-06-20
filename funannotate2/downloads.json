@@ -318,6 +318,226 @@
     "rhodophyta": [
       "https://busco-data.ezlab.org/v5/data/lineages/rhodophyta_odb12.2025-04-11.tar.gz",
       "rhodophyta_odb12"
+    ],
+    "aspergillus": [
+      "https://busco-data.ezlab.org/v5/data/lineages/aspergillus_odb12.2025-04-11.tar.gz",
+      "aspergillus_odb12"
+    ],
+    "penicillium": [
+      "https://busco-data.ezlab.org/v5/data/lineages/penicillium_odb12.2025-04-11.tar.gz",
+      "penicillium_odb12"
+    ],
+    "cryptosporidium": [
+      "https://busco-data.ezlab.org/v5/data/lineages/cryptosporidium_odb12.2025-04-11.tar.gz",
+      "cryptosporidium_odb12"
+    ],
+    "trypanosoma": [
+      "https://busco-data.ezlab.org/v5/data/lineages/trypanosoma_odb12.2025-04-11.tar.gz",
+      "trypanosoma_odb12"
+    ],
+    "phytophthora": [
+      "https://busco-data.ezlab.org/v5/data/lineages/phytophthora_odb12.2025-04-11.tar.gz",
+      "phytophthora_odb12"
+    ],
+    "drosophila": [
+      "https://busco-data.ezlab.org/v5/data/lineages/drosophila_odb12.2025-04-11.tar.gz",
+      "drosophila_odb12"
+    ],
+    "drosophilidae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/drosophilidae_odb12.2025-04-11.tar.gz",
+      "drosophilidae_odb12"
+    ],
+    "anopheles": [
+      "https://busco-data.ezlab.org/v5/data/lineages/anopheles_odb12.2025-04-11.tar.gz",
+      "anopheles_odb12"
+    ],
+    "culicidae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/culicidae_odb12.2025-04-11.tar.gz",
+      "culicidae_odb12"
+    ],
+    "coleoptera": [
+      "https://busco-data.ezlab.org/v5/data/lineages/coleoptera_odb12.2025-04-11.tar.gz",
+      "coleoptera_odb12"
+    ],
+    "artiodactyla": [
+      "https://busco-data.ezlab.org/v5/data/lineages/artiodactyla_odb12.2025-04-11.tar.gz",
+      "artiodactyla_odb12"
+    ],
+    "rodentia": [
+      "https://busco-data.ezlab.org/v5/data/lineages/rodentia_odb12.2025-04-11.tar.gz",
+      "rodentia_odb12"
+    ],
+    "squamata": [
+      "https://busco-data.ezlab.org/v5/data/lineages/squamata_odb12.2025-04-11.tar.gz",
+      "squamata_odb12"
+    ],
+    "galloanserae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/galloanserae_odb12.2025-04-11.tar.gz",
+      "galloanserae_odb12"
+    ],
+    "anthozoa": [
+      "https://busco-data.ezlab.org/v5/data/lineages/anthozoa_odb12.2025-04-11.tar.gz",
+      "anthozoa_odb12"
+    ],
+    "chromadorea": [
+      "https://busco-data.ezlab.org/v5/data/lineages/chromadorea_odb12.2025-04-11.tar.gz",
+      "chromadorea_odb12"
+    ],
+    "acari": [
+      "https://busco-data.ezlab.org/v5/data/lineages/acari_odb12.2025-04-11.tar.gz",
+      "acari_odb12"
+    ],
+    "araneae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/araneae_odb12.2025-04-11.tar.gz",
+      "araneae_odb12"
+    ],
+    "hexapoda": [
+      "https://busco-data.ezlab.org/v5/data/lineages/hexapoda_odb12.2025-04-11.tar.gz",
+      "hexapoda_odb12"
+    ],
+    "lophotrochozoa": [
+      "https://busco-data.ezlab.org/v5/data/lineages/lophotrochozoa_odb12.2025-04-11.tar.gz",
+      "lophotrochozoa_odb12"
+    ],
+    "piroplasmida": [
+      "https://busco-data.ezlab.org/v5/data/lineages/piroplasmida_odb12.2025-04-11.tar.gz",
+      "piroplasmida_odb12"
+    ],
+    "leishmaniinae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/leishmaniinae_odb12.2025-04-11.tar.gz",
+      "leishmaniinae_odb12"
+    ],
+    "eudicotyledons": [
+      "https://busco-data.ezlab.org/v5/data/lineages/eudicotyledons_odb12.2025-04-11.tar.gz",
+      "eudicotyledons_odb12"
+    ],
+    "rosaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/rosaceae_odb12.2025-04-11.tar.gz",
+      "rosaceae_odb12"
+    ],
+    "rosales": [
+      "https://busco-data.ezlab.org/v5/data/lineages/rosales_odb12.2025-04-11.tar.gz",
+      "rosales_odb12"
+    ],
+    "malpighiales": [
+      "https://busco-data.ezlab.org/v5/data/lineages/malpighiales_odb12.2025-04-11.tar.gz",
+      "malpighiales_odb12"
+    ],
+    "lamiales": [
+      "https://busco-data.ezlab.org/v5/data/lineages/lamiales_odb12.2025-04-11.tar.gz",
+      "lamiales_odb12"
+    ],
+    "chlorophyceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/chlorophyceae_odb12.2025-04-11.tar.gz",
+      "chlorophyceae_odb12"
+    ],
+    "trebouxiophyceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/trebouxiophyceae_odb12.2025-04-11.tar.gz",
+      "trebouxiophyceae_odb12"
+    ],
+    "saprolegniaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/saprolegniaceae_odb12.2025-04-11.tar.gz",
+      "saprolegniaceae_odb12"
+    ],
+    "debaryomycetaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/debaryomycetaceae_odb12.2025-04-11.tar.gz",
+      "debaryomycetaceae_odb12"
+    ],
+    "pichiaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/pichiaceae_odb12.2025-04-11.tar.gz",
+      "pichiaceae_odb12"
+    ],
+    "saccharomycetaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/saccharomycetaceae_odb12.2025-04-11.tar.gz",
+      "saccharomycetaceae_odb12"
+    ],
+    "nectriaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/nectriaceae_odb12.2025-04-11.tar.gz",
+      "nectriaceae_odb12"
+    ],
+    "clavicipitaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/clavicipitaceae_odb12.2025-04-11.tar.gz",
+      "clavicipitaceae_odb12"
+    ],
+    "cordycipitaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/cordycipitaceae_odb12.2025-04-11.tar.gz",
+      "cordycipitaceae_odb12"
+    ],
+    "ophiocordycipitaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/ophiocordycipitaceae_odb12.2025-04-11.tar.gz",
+      "ophiocordycipitaceae_odb12"
+    ],
+    "hypocreaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/hypocreaceae_odb12.2025-04-11.tar.gz",
+      "hypocreaceae_odb12"
+    ],
+    "mycosphaerellaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/mycosphaerellaceae_odb12.2025-04-11.tar.gz",
+      "mycosphaerellaceae_odb12"
+    ],
+    "pleosporaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/pleosporaceae_odb12.2025-04-11.tar.gz",
+      "pleosporaceae_odb12"
+    ],
+    "ajellomycetaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/ajellomycetaceae_odb12.2025-04-11.tar.gz",
+      "ajellomycetaceae_odb12"
+    ],
+    "pseudeurotiaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/pseudeurotiaceae_odb12.2025-04-11.tar.gz",
+      "pseudeurotiaceae_odb12"
+    ],
+    "polyporaceae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/polyporaceae_odb12.2025-04-11.tar.gz",
+      "polyporaceae_odb12"
+    ],
+    "sordariales": [
+      "https://busco-data.ezlab.org/v5/data/lineages/sordariales_odb12.2025-04-11.tar.gz",
+      "sordariales_odb12"
+    ],
+    "xylariales": [
+      "https://busco-data.ezlab.org/v5/data/lineages/xylariales_odb12.2025-04-11.tar.gz",
+      "xylariales_odb12"
+    ],
+    "pucciniomycetes": [
+      "https://busco-data.ezlab.org/v5/data/lineages/pucciniomycetes_odb12.2025-04-11.tar.gz",
+      "pucciniomycetes_odb12"
+    ],
+    "ustilaginomycetes": [
+      "https://busco-data.ezlab.org/v5/data/lineages/ustilaginomycetes_odb12.2025-04-11.tar.gz",
+      "ustilaginomycetes_odb12"
+    ],
+    "microbotryomycetes": [
+      "https://busco-data.ezlab.org/v5/data/lineages/microbotryomycetes_odb12.2025-04-11.tar.gz",
+      "microbotryomycetes_odb12"
+    ],
+    "aculeata": [
+      "https://busco-data.ezlab.org/v5/data/lineages/aculeata_odb12.2025-04-11.tar.gz",
+      "aculeata_odb12"
+    ],
+    "apoidea": [
+      "https://busco-data.ezlab.org/v5/data/lineages/apoidea_odb12.2025-04-11.tar.gz",
+      "apoidea_odb12"
+    ],
+    "formicidae": [
+      "https://busco-data.ezlab.org/v5/data/lineages/formicidae_odb12.2025-04-11.tar.gz",
+      "formicidae_odb12"
+    ],
+    "papilionoidea": [
+      "https://busco-data.ezlab.org/v5/data/lineages/papilionoidea_odb12.2025-04-11.tar.gz",
+      "papilionoidea_odb12"
+    ],
+    "brachycera": [
+      "https://busco-data.ezlab.org/v5/data/lineages/brachycera_odb12.2025-04-11.tar.gz",
+      "brachycera_odb12"
+    ],
+    "nematocera": [
+      "https://busco-data.ezlab.org/v5/data/lineages/nematocera_odb12.2025-04-11.tar.gz",
+      "nematocera_odb12"
+    ],
+    "polyphaga": [
+      "https://busco-data.ezlab.org/v5/data/lineages/polyphaga_odb12.2025-04-11.tar.gz",
+      "polyphaga_odb12"
     ]
   }
 }
