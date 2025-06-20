@@ -36,7 +36,9 @@ def main():
 
 def parse_args(args):
     description = "Funannotate: eukaryotic genome annotation pipeline"
-    parser = MyParser(description=description, formatter_class=MyHelpFormatter, add_help=False)
+    parser = MyParser(
+        description=description, formatter_class=MyHelpFormatter, add_help=False
+    )
     subparsers = parser.add_subparsers(title="Commands", dest="subparser_name")
     # add subtools here
     install_subparser(subparsers)
@@ -169,7 +171,9 @@ def predict_subparser(subparsers):
         help="genome in FASTA format (softmasked repeats)",
         metavar="",
     )
-    required_args.add_argument("-o", "--out", required=False, help="Output folder name", metavar="")
+    required_args.add_argument(
+        "-o", "--out", required=False, help="Output folder name", metavar=""
+    )
     required_args.add_argument(
         "-p",
         "--params",
@@ -298,7 +302,9 @@ def train_subparser(subparsers):
         add_help=False,
     )
     required_args = group.add_argument_group("Required arguments")
-    required_args.add_argument("-f", "--fasta", required=True, help="genome in FASTA format")
+    required_args.add_argument(
+        "-f", "--fasta", required=True, help="genome in FASTA format"
+    )
     required_args.add_argument(
         "-s",
         "--species",
@@ -353,7 +359,7 @@ def train_subparser(subparsers):
 def clean_subparser(subparsers):
     group = subparsers.add_parser(
         "clean",
-        description="The script sfunannotate2/__main__.pyorts contigs by size, starting with shortest contigs it uses minimap2 to find contigs duplicated elsewhere, and then removes duplicated contigs.",
+        description="The script sorts contigs by size, starting with shortest contigs it uses minimap2 to find contigs duplicated elsewhere, and then removes duplicated contigs.",
         help="Find and remove duplicated contigs, sort by size, rename headers.",
         formatter_class=MyHelpFormatter,
         add_help=False,
@@ -400,7 +406,9 @@ def clean_subparser(subparsers):
         "--rename",
         help="Rename contigs largest to smallest with this basename, ie scaffold_",
     )
-    optional_args.add_argument("--cpus", default=2, type=int, help="Number of CPUs to use")
+    optional_args.add_argument(
+        "--cpus", default=2, type=int, help="Number of CPUs to use"
+    )
     optional_args.add_argument("--tmpdir", help="TMP directory to use")
     optional_args.add_argument(
         "--exhaustive",
@@ -462,7 +470,9 @@ def annotate_subparser(subparsers):
         help="genome annotation in GFF3 format",
         metavar="",
     )
-    required_args.add_argument("-o", "--out", required=False, help="Output folder name", metavar="")
+    required_args.add_argument(
+        "-o", "--out", required=False, help="Output folder name", metavar=""
+    )
     optional_args = group.add_argument_group("Optional arguments")
     optional_args.add_argument(
         "-a",
@@ -477,7 +487,9 @@ def annotate_subparser(subparsers):
         help='Species name, use quotes for binomial, e.g. "Aspergillus fumigatus"',
         metavar="",
     )
-    optional_args.add_argument("-st", "--strain", help="Strain/isolate name", metavar="")
+    optional_args.add_argument(
+        "-st", "--strain", help="Strain/isolate name", metavar=""
+    )
     optional_args.add_argument(
         "--cpus", default=2, type=int, help="Number of CPUs to use", metavar=""
     )
