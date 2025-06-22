@@ -33,6 +33,33 @@ from .utilities import (
     get_odb_version,
     rename_gff_contigs,
 )
+from .config import augustus_species, busco_taxonomy
+
+
+def validate_augustus_species(species_name):
+    """
+    Validate that the provided Augustus species is available in the config.
+
+    Parameters:
+    - species_name (str): The Augustus species name to validate
+
+    Returns:
+    - bool: True if valid, False otherwise
+    """
+    return species_name in augustus_species
+
+
+def validate_busco_lineage(lineage_name):
+    """
+    Validate that the provided BUSCO lineage is available in the config.
+
+    Parameters:
+    - lineage_name (str): The BUSCO lineage name to validate
+
+    Returns:
+    - bool: True if valid, False otherwise
+    """
+    return lineage_name in busco_taxonomy
 
 
 def train(args):
@@ -93,12 +120,34 @@ def train(args):
     taxonomy = lookup_taxonomy(args.species)
     logger.info(f"Getting taxonomy information\n{json.dumps(taxonomy, indent=2)}")
 
-    # choose best augustus species based on taxonomy
-    aug_species = choose_best_augustus_species(taxonomy)
-    logger.info(f"Choosing best augustus species based on taxonomy: {aug_species}")
+    # validate and set augustus species
+    if args.augustus_species:
+        if not validate_augustus_species(args.augustus_species):
+            logger.critical(f"Invalid Augustus species: {args.augustus_species}")
+            logger.critical(
+                f"Valid options are: {', '.join(sorted(augustus_species.keys()))}"
+            )
+            raise SystemExit(1)
+        aug_species = args.augustus_species
+        logger.info(f"Using user-specified Augustus species: {aug_species}")
+    else:
+        # choose best augustus species based on taxonomy
+        aug_species = choose_best_augustus_species(taxonomy)
+        logger.info(f"Choosing best augustus species based on taxonomy: {aug_species}")
 
-    # choose best busco species
-    busco_species = choose_best_busco_species(taxonomy)
+    # validate and set busco lineage
+    if args.busco_lineage:
+        if not validate_busco_lineage(args.busco_lineage):
+            logger.critical(f"Invalid BUSCO lineage: {args.busco_lineage}")
+            logger.critical(
+                f"Valid options are: {', '.join(sorted(busco_taxonomy.keys()))}"
+            )
+            raise SystemExit(1)
+        busco_species = args.busco_lineage
+        logger.info(f"Using user-specified BUSCO lineage: {busco_species}")
+    else:
+        # choose best busco species
+        busco_species = choose_best_busco_species(taxonomy)
     # pull the latest odb version from downloads link
     odb_version = get_odb_version(
         os.path.join(os.path.dirname(__file__), "downloads.json")

@@ -338,6 +338,18 @@ def train_subparser(subparsers):
         help="Max length for fasta headers",
         metavar="",
     )
+    optional_args.add_argument(
+        "--busco-lineage",
+        dest="busco_lineage",
+        help="BUSCO lineage to use, over-rides default auto selection",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "--augustus-species",
+        dest="augustus_species",
+        help="Pre-trained augustus species to use as initial parameters for BUSCO, over-rides default auto selection",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",
