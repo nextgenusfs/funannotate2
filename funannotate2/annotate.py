@@ -46,7 +46,9 @@ from .utilities import (
     lookup_taxonomy,
     naming_slug,
     get_odb_version,
+    validate_busco_lineage,
 )
+from .config import busco_taxonomy
 
 
 def _sortDict(d):
@@ -237,8 +239,19 @@ def annotate(args):
             # get taxonomy information
             taxonomy = lookup_taxonomy(args.species)
 
-        # choose best busco species
-        busco_species = choose_best_busco_species(taxonomy)
+        # validate and set busco lineage
+        if args.busco_lineage:
+            if not validate_busco_lineage(args.busco_lineage):
+                logger.critical(f"Invalid BUSCO lineage: {args.busco_lineage}")
+                logger.critical(
+                    f"Valid options are: {', '.join(sorted(busco_taxonomy.keys()))}"
+                )
+                raise SystemExit(1)
+            busco_species = args.busco_lineage
+            logger.info(f"Using user-specified BUSCO lineage: {busco_species}")
+        else:
+            # choose best busco species
+            busco_species = choose_best_busco_species(taxonomy)
         busco_model_path = os.path.join(
             env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
         )

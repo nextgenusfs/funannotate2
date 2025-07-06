@@ -292,6 +292,32 @@ def _download_ftp(url, file_name, timeout=60):
         return False
 
 
+def validate_augustus_species(species_name):
+    """
+    Validate that the provided Augustus species is available in the config.
+
+    Parameters:
+    - species_name (str): The Augustus species name to validate
+
+    Returns:
+    - bool: True if valid, False otherwise
+    """
+    return species_name in augustus_species
+
+
+def validate_busco_lineage(lineage_name):
+    """
+    Validate that the provided BUSCO lineage is available in the config.
+
+    Parameters:
+    - lineage_name (str): The BUSCO lineage name to validate
+
+    Returns:
+    - bool: True if valid, False otherwise
+    """
+    return lineage_name in busco_taxonomy
+
+
 def lookup_taxonomy(name):
     """
     Fetch taxonomy information for a given organism species name.

@@ -430,7 +430,7 @@ def predict(args):
     else:
         abinitio_scores = {}
         logger.info(
-            "Measuring assembly completeness with buscolite for all ab initio predictions"
+            f"Measuring assembly completeness with buscolite [lineage={os.path.basename(busco_model_path)}] for all ab initio predictions"
         )
         for ap in abinitio_preds:
             ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
@@ -568,7 +568,9 @@ def predict(args):
         "Annotation statistics:\n{}".format(json.dumps(consensus_stats, indent=2))
     )
     # we are finished here with coding sequences, lets check completeness
-    logger.info("Measuring assembly completeness with buscolite")
+    logger.info(
+        f"Measuring assembly completeness with buscolite [lineage={os.path.basename(busco_model_path)}]"
+    )
     d, m, stats, cfg = runbusco(
         finalProteins,
         busco_model_path,

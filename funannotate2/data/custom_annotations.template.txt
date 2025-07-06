@@ -1,0 +1,24 @@
+# Custom annotations for specific genes/transcripts
+# This file can be used with funannotate2 annotate --curated-names
+# Format: gene_id<tab>annotation_type<tab>annotation_value
+#
+# Annotation types:
+#   name - Gene name (replaces existing name)
+#   product - Product description (replaces existing product)
+#   note - Additional information (added to existing notes)
+#   go_term - Gene Ontology term (added to existing GO terms)
+#   ec_number - Enzyme Commission number (added to existing EC numbers)
+#   db_xref - Database cross-reference (added to existing db_xrefs)
+#
+# Note: For name and product, custom values replace existing ones
+# For other annotation types, custom values are added to existing ones
+#
+# Examples:
+gene123	name	ACT1
+gene123	product	Actin
+gene123	note	Manually curated annotation
+gene456	name	CDC42
+gene456	product	Cell division control protein 42
+gene789	go_term	GO:0005524
+gene789	ec_number	3.6.4.13
+# Add your custom annotations below:

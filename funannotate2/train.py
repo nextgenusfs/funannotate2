@@ -32,34 +32,10 @@ from .utilities import (
     which_path,
     get_odb_version,
     rename_gff_contigs,
+    validate_busco_lineage,
+    validate_augustus_species,
 )
-from .config import augustus_species, busco_taxonomy
-
-
-def validate_augustus_species(species_name):
-    """
-    Validate that the provided Augustus species is available in the config.
-
-    Parameters:
-    - species_name (str): The Augustus species name to validate
-
-    Returns:
-    - bool: True if valid, False otherwise
-    """
-    return species_name in augustus_species
-
-
-def validate_busco_lineage(lineage_name):
-    """
-    Validate that the provided BUSCO lineage is available in the config.
-
-    Parameters:
-    - lineage_name (str): The BUSCO lineage name to validate
-
-    Returns:
-    - bool: True if valid, False otherwise
-    """
-    return lineage_name in busco_taxonomy
+from .config import busco_taxonomy, augustus_species
 
 
 def train(args):
@@ -458,7 +434,9 @@ def count_multi_CDS_genes(indict):
     return len(indict), counter
 
 
-def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
+def selectTrainingModels(
+    genome, train_dict, tmpdir="/tmp", flank_length=1000, mult_cds_threshold=0.65
+):
     """
     Filter and sort gene models from a GFF3 file based on completeness, non-overlapping nature, and number of exons.
 
@@ -472,13 +450,17 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
     - train_dict (dict): A dictionary containing gene models from a GFF3 file.
     - tmpdir (str, optional): Temporary directory for intermediate files (default is "/tmp").
     - flank_length (int, optional): Length of flanking regions to include (default is 1000).
+    - mult_cds_threshold (float, optional): Threshold for ratio of multi-CDS genes (default is 0.65).
 
     Returns:
     - dict: A dictionary of filtered and sorted gene models ready for training.
     """
 
-    def _sortDict(d):
+    def _sortDictCDS(d):
         return len(d[1]["CDS"][0])
+
+    def _sortDict(d):
+        return (d[1]["contig"], d[1]["location"][0])
 
     # setup interlap object
     gene_inter = defaultdict(InterLap)
@@ -492,9 +474,14 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
     countGenes, countGenesCDS = count_multi_CDS_genes(train_dict)
     logger.debug(f"{countGenes} training set genes; {countGenesCDS} have multi-CDS")
 
+    # calculate ratio of multi-CDS genes
+    multiCDSratio = countGenesCDS / countGenes
     multiCDScheck = False
-    if countGenesCDS >= 20000:
+    if multiCDSratio >= mult_cds_threshold:
         multiCDScheck = True
+        logger.debug(
+            f"multi-CDS ratio is high ({multiCDSratio:.2f}), filtering out single-CDS genes for training"
+        )
 
     with open(proteins, "w") as protout:
         for k, v in natsorted(list(train_dict.items())):
@@ -592,8 +579,11 @@ def selectTrainingModels(genome, train_dict, tmpdir="/tmp", flank_length=1000):
                 else:
                     GenesPass[k] = v
 
-    # now sort dictionary number of exons
-    sGenes = sorted(iter(GenesPass.items()), key=_sortDict, reverse=True)
+    # now sort dictionary number of exons if multiCDScheck else just location
+    if multiCDScheck:
+        sGenes = sorted(iter(GenesPass.items()), key=_sortDictCDS, reverse=True)
+    else:
+        sGenes = sorted(iter(GenesPass.items()), key=_sortDict)
     sortedGenes = OrderedDict(sGenes)
     logger.info(
         "{:,} of {:,} models pass training parameters".format(

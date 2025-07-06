@@ -7,3 +7,5 @@ tests/unit/__pycache__*
 tests/__pycache__*
 tests/integration/__pycache__*
 output.json
+.coverage
+annotations.txt

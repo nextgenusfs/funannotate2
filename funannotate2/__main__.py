@@ -514,6 +514,12 @@ def annotate_subparser(subparsers):
         help="Path to custom file with gene-specific annotations (tab-delimited: gene_id\tannotation_type\tannotation_value)",
         metavar="",
     )
+    optional_args.add_argument(
+        "--busco-lineage",
+        dest="busco_lineage",
+        help="BUSCO lineage to use, over-rides default auto selection",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",
