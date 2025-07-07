@@ -223,32 +223,45 @@ jobs:
     - name: Generate release notes
       id: release_notes
       run: |
-        # Get the previous tag
-        PREV_TAG=$(git describe --tags --abbrev=0 ${{ needs.validate-tag.outputs.tag }}^)
+        # Try to get the previous tag, handle case where this is the first tag
+        PREV_TAG=$(git describe --tags --abbrev=0 ${{ needs.validate-tag.outputs.tag }}^ 2>/dev/null || echo "")
 
         echo "Generating release notes for ${{ needs.validate-tag.outputs.tag }}"
-        echo "Previous tag: $PREV_TAG"
-        echo ""
 
         # Generate changelog
         echo "## Changes" > release_notes.md
         echo "" >> release_notes.md
 
-        # Get all commits between previous tag and current tag, excluding version bump commits
-        git log --pretty=format:"- %s (%h)" $PREV_TAG..${{ needs.validate-tag.outputs.tag }} \
-          --grep="bump version" --grep="version bump" --grep="update version" \
-          --invert-grep >> release_notes.md
+        if [ -n "$PREV_TAG" ]; then
+          echo "Previous tag: $PREV_TAG"
+          # Get all commits between previous tag and current tag, excluding version bump commits
+          git log --pretty=format:"- %s (%h)" $PREV_TAG..${{ needs.validate-tag.outputs.tag }} \
+            --grep="bump version" --grep="version bump" --grep="update version" \
+            --invert-grep >> release_notes.md
+
+          # Add full changelog link
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ needs.validate-tag.outputs.tag }}" >> release_notes.md
+        else
+          echo "This is the first release"
+          # Get all commits up to this tag, excluding version bump commits
+          git log --pretty=format:"- %s (%h)" ${{ needs.validate-tag.outputs.tag }} \
+            --grep="bump version" --grep="version bump" --grep="update version" \
+            --invert-grep >> release_notes.md
+
+          # Add repository link
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Repository**: https://github.com/${{ github.repository }}" >> release_notes.md
+        fi
 
         # Check if we have any commits
         if [ ! -s release_notes.md ] || [ $(wc -l < release_notes.md) -le 2 ]; then
           echo "## Changes" > release_notes.md
           echo "" >> release_notes.md
-          echo "- No significant changes since previous release" >> release_notes.md
+          echo "- Initial release of funannotate2" >> release_notes.md
         fi
-
-        echo "" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ needs.validate-tag.outputs.tag }}" >> release_notes.md
 
         echo "Generated release notes:"
         cat release_notes.md
