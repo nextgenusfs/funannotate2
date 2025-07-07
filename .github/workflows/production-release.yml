@@ -55,10 +55,14 @@ jobs:
     needs: validate-tag
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write  # Required for pushing commits
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch all history for tags
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Update CITATION.cff
       run: |
