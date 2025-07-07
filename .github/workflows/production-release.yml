@@ -208,8 +208,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: ${{ needs.validate-tag.outputs.tag }}
         fetch-depth: 0
+
+    - name: Checkout tag
+      run: |
+        git checkout ${{ needs.validate-tag.outputs.tag }}
 
     - name: Download distribution packages
       uses: actions/download-artifact@v4
