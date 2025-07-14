@@ -1076,18 +1076,8 @@ def runProcessJob(
     def handle_error(error):
         print(f"Error: {error}", flush=True)
 
-    # Handle memory monitoring by modifying the input arguments instead of using a wrapper
-    if monitor_memory:
-        # Modify the input arguments to include monitor_memory flag
-        modified_inputList = []
-        for i in inputList:
-            if isinstance(i, (list, tuple)):
-                # Convert to list and add monitor_memory as keyword argument
-                # We'll handle this in the function call by unpacking properly
-                modified_inputList.append(list(i) + [monitor_memory])
-            else:
-                modified_inputList.append((i, monitor_memory))
-        inputList = modified_inputList
+    # Note: monitor_memory is now handled by the individual functions themselves
+    # No need to modify inputList here since functions receive monitor_memory as a parameter
 
     actual_function = function
 
@@ -1096,43 +1086,20 @@ def runProcessJob(
     # setup results and split over cpus
     results = []
     for i in inputList:
-        if isinstance(i, list):
-            if monitor_memory and len(i) >= 4:
-                # Handle the case where monitor_memory was added as the 4th argument
-                # Call function with monitor_memory as keyword argument
-                args = i[:-1]  # All arguments except the last one (monitor_memory)
-                kwargs = {"monitor_memory": i[-1]}
-                p.apply_async(
-                    actual_function,
-                    args=args,
-                    kwds=kwargs,
-                    callback=update,
-                    error_callback=handle_error,
-                )
-            else:
-                p.apply_async(
-                    actual_function,
-                    args=i,
-                    callback=update,
-                    error_callback=handle_error,
-                )
+        if isinstance(i, (list, tuple)):
+            p.apply_async(
+                actual_function,
+                args=i,
+                callback=update,
+                error_callback=handle_error,
+            )
         else:
-            if monitor_memory and isinstance(i, tuple) and len(i) == 2:
-                # Handle the case where monitor_memory was added as the 2nd argument
-                p.apply_async(
-                    actual_function,
-                    args=(i[0],),
-                    kwds={"monitor_memory": i[1]},
-                    callback=update,
-                    error_callback=handle_error,
-                )
-            else:
-                p.apply_async(
-                    actual_function,
-                    args=(i,),
-                    callback=update,
-                    error_callback=handle_error,
-                )
+            p.apply_async(
+                actual_function,
+                args=(i,),
+                callback=update,
+                error_callback=handle_error,
+            )
     p.close()
     p.join()
     return results

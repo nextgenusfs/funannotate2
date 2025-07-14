@@ -304,14 +304,14 @@ def predict(args):
             logger.info("Parsing alignments and generating hintsfile for augustus")
             evidence2hints(ProtAlign, TranAlign, contigs, tmp_dir)
 
-        # now run ab intio in parallel
-        abinit_cmds = []
-        for c in contigs:
-            abinit_cmds.append((c, params, logger))
-
         # Check if memory monitoring is enabled
         monitor_memory = getattr(args, "monitor_memory", False)
         memory_limit = getattr(args, "memory_limit", None)
+
+        # now run ab intio in parallel
+        abinit_cmds = []
+        for c in contigs:
+            abinit_cmds.append((c, params, logger, monitor_memory))
 
         if monitor_memory:
             logger.info("Memory monitoring enabled for ab initio predictions")
@@ -375,8 +375,6 @@ def predict(args):
             abinitio_wrapper,
             abinit_cmds,
             cpus=args.cpus,
-            monitor_memory=monitor_memory,
-            memory_limit_gb=memory_limit,
         )
 
         # get all predictions
