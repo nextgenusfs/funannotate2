@@ -309,8 +309,75 @@ def predict(args):
         for c in contigs:
             abinit_cmds.append((c, params, logger))
 
+        # Check if memory monitoring is enabled
+        monitor_memory = getattr(args, "monitor_memory", False)
+        memory_limit = getattr(args, "memory_limit", None)
+
+        if monitor_memory:
+            logger.info("Memory monitoring enabled for ab initio predictions")
+            if memory_limit:
+                logger.info(f"Memory limit set to {memory_limit} GB")
+
+            # Set environment variable so memory monitoring knows where to write files
+            os.environ["FUNANNOTATE2_OUTPUT_DIR"] = args.out
+
+            # Estimate total memory usage and suggest CPU allocation
+            try:
+                from .memory import (
+                    estimate_total_memory_usage,
+                    get_system_memory_info,
+                    suggest_cpu_allocation,
+                )
+
+                # Get list of tools that will be run
+                tools = list(params["abinitio"].keys())
+                memory_estimate = estimate_total_memory_usage(contigs, tools)
+
+                logger.info(
+                    f"Memory usage estimate for {len(contigs)} contigs with tools {tools}:"
+                )
+                logger.info(
+                    f"Total estimated peak memory: {memory_estimate['total_predicted_peak_mb']:.1f} MB"
+                )
+
+                # Get system memory info
+                memory_info = get_system_memory_info()
+                if "error" not in memory_info:
+                    logger.info(
+                        f"System memory: {memory_info['available_gb']:.1f} GB available"
+                    )
+
+                    # Suggest CPU allocation if memory limit is set
+                    if memory_limit:
+                        avg_memory_per_contig = memory_estimate[
+                            "total_predicted_peak_mb"
+                        ] / len(contigs)
+                        suggestion = suggest_cpu_allocation(
+                            avg_memory_per_contig, memory_limit, args.cpus
+                        )
+
+                        if suggestion["memory_limited"]:
+                            logger.warning(
+                                f"Memory constraint detected: reducing CPUs from {args.cpus} to {suggestion['suggested_cpus']}"
+                            )
+                            logger.info(
+                                f"Estimated memory utilization: {suggestion['memory_utilization_percent']:.1f}%"
+                            )
+
+            except ImportError:
+                logger.warning(
+                    "Memory monitoring requested but memory module dependencies not available"
+                )
+                monitor_memory = False
+
         logger.info(f"Running ab initio gene predictions using {args.cpus} cpus")
-        runProcessJob(abinitio_wrapper, abinit_cmds, cpus=args.cpus)
+        runProcessJob(
+            abinitio_wrapper,
+            abinit_cmds,
+            cpus=args.cpus,
+            monitor_memory=monitor_memory,
+            memory_limit_gb=memory_limit,
+        )
 
         # get all predictions
         gene_counts = external_counts
@@ -370,6 +437,12 @@ def predict(args):
         logger.info(
             f"Ab initio predictions finished:\n{json.dumps(gene_counts, indent=2)}"
         )
+
+        # Log memory monitoring file location if monitoring was enabled
+        if monitor_memory:
+            memory_log_file = os.path.join(log_dir, "memory-monitoring.jsonl")
+            if os.path.exists(memory_log_file):
+                logger.info(f"Memory monitoring data written to: {memory_log_file}")
 
     else:
         abinitio_preds = []
@@ -691,7 +764,7 @@ def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}
     return renamedGenes
 
 
-def abinitio_wrapper(contig, params, logger):
+def abinitio_wrapper(contig, params, logger, monitor_memory=False):
     """
     Run ab initio predictions for a given contig based on the specified parameters.
 
@@ -704,57 +777,155 @@ def abinitio_wrapper(contig, params, logger):
     - contig (str): Path to the contig file.
     - params (dict): Dictionary containing ab initio prediction parameters.
     - logger: Logger object for logging messages.
+    - monitor_memory (bool): Whether to monitor memory usage of ab initio tools.
 
     Returns:
-    - None
+    - dict: Memory statistics if monitoring is enabled, None otherwise.
     """
+    memory_stats = {}
+    contig_name = os.path.basename(contig)
+
+    # Get contig length for memory prediction if monitoring is enabled
+    if monitor_memory:
+        try:
+            from .memory import get_contig_length, predict_memory_usage
+
+            contig_length = get_contig_length(contig)
+
+            # Log contig processing message
+            log_message = (
+                f"Processing contig {contig_name} (length: {contig_length:,} bp)"
+            )
+            try:
+                if hasattr(logger, "info"):
+                    logger.info(log_message)
+                elif callable(logger):
+                    logger(log_message + "\n")
+                else:
+                    print(log_message)
+            except Exception:
+                print(log_message)
+        except ImportError:
+            warning_message = (
+                "Memory monitoring requested but memory module not available"
+            )
+            try:
+                if hasattr(logger, "warning"):
+                    logger.warning(warning_message)
+                elif callable(logger):
+                    logger(f"WARNING: {warning_message}\n")
+                else:
+                    print(f"WARNING: {warning_message}")
+            except Exception:
+                print(f"WARNING: {warning_message}")
+            monitor_memory = False
+
+    # Create a logger function that ab initio tools can use
+    def log_func(message):
+        if hasattr(logger, "info"):
+            logger.info(message.rstrip())
+        elif callable(logger):
+            logger(message)
+        else:
+            print(message.rstrip())
+
     # run ab initio predictions now
     if "snap" in params["abinitio"]:
+        if monitor_memory:
+            prediction = predict_memory_usage("snap", contig_length)
+            log_message = f"SNAP memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
+            try:
+                if hasattr(logger, "info"):
+                    logger.info(log_message)
+                elif callable(logger):
+                    logger(log_message + "\n")
+                else:
+                    print(log_message)
+            except Exception:
+                print(log_message)
+
         run_snap(
             contig,
             params["abinitio"]["snap"]["location"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.snap.gff3"
-            ),
-            log=logger,
+            os.path.join(os.path.dirname(contig), f"{contig_name}.snap.gff3"),
+            log=log_func,
         )
+
     if "glimmerhmm" in params["abinitio"]:
+        if monitor_memory:
+            prediction = predict_memory_usage("glimmerhmm", contig_length)
+            log_message = f"GlimmerHMM memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
+            try:
+                if hasattr(logger, "info"):
+                    logger.info(log_message)
+                elif callable(logger):
+                    logger(log_message + "\n")
+                else:
+                    print(log_message)
+            except Exception:
+                print(log_message)
+
         run_glimmerhmm(
             contig,
             params["abinitio"]["glimmerhmm"]["location"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.glimmerhmm.gff3"
-            ),
-            log=logger,
+            os.path.join(os.path.dirname(contig), f"{contig_name}.glimmerhmm.gff3"),
+            log=log_func,
         )
+
     if "genemark" in params["abinitio"]:
         if which_path("gmhmme3"):
+            if monitor_memory:
+                prediction = predict_memory_usage("genemark", contig_length)
+                log_message = f"GeneMark memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
+                try:
+                    if hasattr(logger, "info"):
+                        logger.info(log_message)
+                    elif callable(logger):
+                        logger(log_message + "\n")
+                    else:
+                        print(log_message)
+                except Exception:
+                    print(log_message)
+
             run_genemark(
                 contig,
                 params["abinitio"]["genemark"]["location"],
-                os.path.join(
-                    os.path.dirname(contig), f"{os.path.basename(contig)}.genemark.gff3"
-                ),
-                log=logger,
+                os.path.join(os.path.dirname(contig), f"{contig_name}.genemark.gff3"),
+                log=log_func,
             )
+
     if "augustus" in params["abinitio"]:
         hints = False
         hintsfile = os.path.join(
             os.path.dirname(contig),
-            f"{os.path.basename(contig)}.hintsfile",
+            f"{contig_name}.hintsfile",
         )
         if os.path.isfile(hintsfile):
             hints = hintsfile
+
+        if monitor_memory:
+            prediction = predict_memory_usage("augustus", contig_length)
+            log_message = f"Augustus memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
+            try:
+                if hasattr(logger, "info"):
+                    logger.info(log_message)
+                elif callable(logger):
+                    logger(log_message + "\n")
+                else:
+                    print(log_message)
+            except Exception:
+                print(log_message)
+
         run_augustus(
             contig,
             params["abinitio"]["augustus"]["species"],
-            os.path.join(
-                os.path.dirname(contig), f"{os.path.basename(contig)}.augustus.gff3"
-            ),
-            log=logger,
+            os.path.join(os.path.dirname(contig), f"{contig_name}.augustus.gff3"),
+            log=log_func,
             hints=hints,
             config_path=params["abinitio"]["augustus"]["location"],
         )
+
+    return memory_stats if monitor_memory else None
 
 
 def calculate_weights(scores, cli_weights):

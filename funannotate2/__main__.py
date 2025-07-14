@@ -275,6 +275,17 @@ def predict_subparser(subparsers):
     optional_args.add_argument(
         "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
     )
+    optional_args.add_argument(
+        "--monitor-memory",
+        action="store_true",
+        help="Monitor memory usage of ab initio prediction tools",
+    )
+    optional_args.add_argument(
+        "--memory-limit",
+        type=float,
+        help="Memory limit in GB to adjust CPU allocation",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",

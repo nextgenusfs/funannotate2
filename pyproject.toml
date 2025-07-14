@@ -23,7 +23,8 @@ dependencies = [
     "requests",
     "gb-io>=0.3.2",
     "json-repair",
-    "pytantan"
+    "pytantan",
+    "psutil"
 ]
 license = {file = "LICENSE"}
 classifiers = [

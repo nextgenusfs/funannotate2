@@ -334,7 +334,9 @@ def train_glimmerhmm(
     # generate glimmer training input
     # load gff3 into dictionary
     if isinstance(train_gff, str):
-        Genes = gff2dict(os.path.abspath(train_gff), os.path.abspath(genome), logger=log)
+        Genes = gff2dict(
+            os.path.abspath(train_gff), os.path.abspath(genome), logger=log
+        )
     elif isinstance(train_gff, dict):
         Genes = train_gff
     glimmExons = os.path.join(tmpdir, "glimmer.exons")
@@ -450,7 +452,7 @@ def train_glimmerhmm(
     final_train = test_training(TrainData, test_models, tmpdir, tool="glimmerhmm")
     optimize_end = time.time()
     optimize_elapsed = time.strftime("%H:%M:%S", time.gmtime(optimize_end - train_end))
-    log.info(
+    log(
         "Initial training completed in {} and parameter optimization completed in {}s\n{}".format(
             train_elapsed,
             optimize_elapsed,
@@ -461,7 +463,9 @@ def train_glimmerhmm(
     return {"location": TrainData, "train_results": final_train}
 
 
-def run_glimmerhmm(genome, train_data, predictions, folder="/tmp", log=sys.stderr.write):
+def run_glimmerhmm(
+    genome, train_data, predictions, folder="/tmp", log=sys.stderr.write
+):
     """
     Run GlimmerHMM on the input genome to predict genes and output the results in GFF3 format.
 
@@ -629,7 +633,14 @@ def run_glimmerhmm(genome, train_data, predictions, folder="/tmp", log=sys.stder
         "1",
     ]
     with tempfile.TemporaryDirectory() as tmpdirname:
-        runSubprocess(cmd, log, cwd=tmpdirname, stdout=glimmerRaw)
+        runSubprocess(
+            cmd,
+            log,
+            cwd=tmpdirname,
+            stdout=glimmerRaw,
+            monitor_memory=True,
+            process_name=f"glimmerhmm-{os.path.basename(genome)}",
+        )
     # now convert to proper GFF3 format
     _glimmer2gff3(glimmerRaw, predictions)
 
@@ -675,7 +686,9 @@ def train_genemark(
 
     # define training model
     genemark_mod = os.path.join(tmpdir, "gmhmm.mod")
-    if os.path.abspath(genome) != os.path.abspath(os.path.join(folder, os.path.basename(genome))):
+    if os.path.abspath(genome) != os.path.abspath(
+        os.path.join(folder, os.path.basename(genome))
+    ):
         shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
     cmd = [
         "gmes_petap.pl",
@@ -702,7 +715,7 @@ def train_genemark(
         )
         train_end = time.time()
         train_elapsed = time.strftime("%H:%M:%S", time.gmtime(train_end - train_start))
-        log.info(
+        log(
             "Initial training completed in {}s\n{}".format(
                 train_elapsed, json.dumps(init_train, indent=2, default=str)
             )
@@ -748,7 +761,13 @@ def run_genemark(genome, train_data, predictions, folder="/tmp", log=sys.stderr.
     genemark_mod = os.path.join(workdir, os.path.basename(train_data))
     if not checkfile(genemark_mod):
         shutil.copy(os.path.abspath(train_data), genemark_mod)
-    runSubprocess(cmd, log, cwd=workdir)
+    runSubprocess(
+        cmd,
+        log,
+        cwd=workdir,
+        monitor_memory=True,
+        process_name=f"genemark-{os.path.basename(genome)}",
+    )
     Genes = gtf2dict(os.path.join(workdir, tmpout), genome)
     Cleaned = {}
     for k, v in natsorted(Genes.items()):
@@ -805,15 +824,21 @@ def train_snap(
                                 end = c[0]
                             if num == 0:
                                 outfile.write(
-                                    "Einit\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
+                                    "Einit\t{:}\t{:}\t{:}\n".format(
+                                        start, end, gd["ids"][i]
+                                    )
                                 )
                             elif num == len(gd["CDS"][i]) - 1:
                                 outfile.write(
-                                    "Eterm\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
+                                    "Eterm\t{:}\t{:}\t{:}\n".format(
+                                        start, end, gd["ids"][i]
+                                    )
                                 )
                             else:
                                 outfile.write(
-                                    "Exon\t{:}\t{:}\t{:}\n".format(start, end, gd["ids"][i])
+                                    "Exon\t{:}\t{:}\t{:}\n".format(
+                                        start, end, gd["ids"][i]
+                                    )
                                 )
 
     # generate training directory ontop of the dir that is passed
@@ -850,7 +875,9 @@ def train_snap(
 
     # get only scaffolds that have gene models for training
     log.debug(
-        "{:} gene models to train snap on {:} scaffolds".format(len(sGenes), len(scaff2genes))
+        "{:} gene models to train snap on {:} scaffolds".format(
+            len(sGenes), len(scaff2genes)
+        )
     )
     trainingFasta = os.path.join(tmpdir, "snap-training.scaffolds.fasta")
     with open(trainingFasta, "w") as outfile:
@@ -888,7 +915,7 @@ def train_snap(
     # now we can test the trained model
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - train_start))
     init_train = test_training(snapHMM, test_models, tmpdir, tool="snap")
-    log.info(
+    log(
         "Initial training completed in {}s\n{}".format(
             train_elapsed, json.dumps(init_train, indent=2, default=str)
         )
@@ -999,7 +1026,32 @@ def run_snap(genome, train_data, predictions, folder="/tmp", log=sys.stderr.writ
         # translate, check partial, etc
         SeqRecords = fasta2dict(fasta)
         # loop through and make sure CDS and exons are properly sorted and codon_start is correct, translate to protein space
-        Genes = validate_models(Genes, SeqRecords, logger=log, table=1, gap_filter=False)
+
+        # Create a logger object for validate_models since it expects a logger object, not a function
+        import logging
+
+        temp_logger = logging.getLogger("temp_validate")
+        temp_logger.setLevel(logging.INFO)
+        if not temp_logger.handlers:
+            # Create a handler that uses our log function
+            class FunctionHandler(logging.Handler):
+                def __init__(self, log_func):
+                    super().__init__()
+                    self.log_func = log_func
+
+                def emit(self, record):
+                    try:
+                        msg = self.format(record)
+                        self.log_func(msg)
+                    except Exception:
+                        pass
+
+            handler = FunctionHandler(log)
+            temp_logger.addHandler(handler)
+
+        Genes = validate_models(
+            Genes, SeqRecords, logger=temp_logger, table=1, gap_filter=False
+        )
         # now write to GFF3
         dict2gff3(Genes, output)
         return 0
@@ -1018,7 +1070,14 @@ def run_snap(genome, train_data, predictions, folder="/tmp", log=sys.stderr.writ
         os.path.abspath(genome),
     ]
     with tempfile.TemporaryDirectory() as tmpdirname:
-        runSubprocess(cmd, log, stdout=snapRaw, cwd=tmpdirname)
+        runSubprocess(
+            cmd,
+            log,
+            stdout=snapRaw,
+            cwd=tmpdirname,
+            monitor_memory=True,
+            process_name=f"snap-{os.path.basename(genome)}",
+        )
     # convert zff to proper gff3
     gene_stats = _rawgff2gff3(snapRaw, genome, predictions)
     # clean up raw
@@ -1069,7 +1128,14 @@ def run_augustus(
     cmd.append(os.path.abspath(genome))
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        runSubprocess(cmd, log, stdout=predictions, cwd=tmpdirname)
+        runSubprocess(
+            cmd,
+            log,
+            stdout=predictions,
+            cwd=tmpdirname,
+            monitor_memory=True,
+            process_name=f"augustus-{os.path.basename(genome)}",
+        )
     # finally parse the combined output and be done
     parse_augustus_gff3(predictions)
 
@@ -1152,11 +1218,8 @@ def run_augustus_join(
     parse_augustus_gff3(predictions)
     elapsed = time.time() - time_start
     elapsed_str = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
-    if isinstance(log, types.BuiltinFunctionType):
-        logger = log
-    else:
-        logger = log.debug
-    logger(f"Augustus took {elapsed_str} to predict genes on {genome}")
+    # Log the completion message using the provided log function
+    log(f"Augustus took {elapsed_str} to predict genes on {genome}")
     return 0
 
 
@@ -1238,7 +1301,11 @@ def parse_augustus_gff3(aug, hiq_support=90):
                         support = line.split(" ")[-1]
                         values.append(support)
                     elif not line.startswith("#"):
-                        if "\tgene\t" in line or "\ttranscript\t" in line or "\tCDS\t" in line:
+                        if (
+                            "\tgene\t" in line
+                            or "\ttranscript\t" in line
+                            or "\tCDS\t" in line
+                        ):
                             gfflines.append(line.split("\t"))
                 ex_count = 0
                 for x in gfflines:
@@ -1375,8 +1442,10 @@ def train_augustus(
                 os.rename(x, x.replace(optimize, species))
         # see what initial results are
         aug_init_training = os.path.join(tmpdir, "augustus.initial.training.txt")
-        init_train = test_augustus_predictions(tmpdir, species, trainingset, aug_init_training)
-        log.info(f"Augustus initial training results:\n{init_train}")
+        init_train = test_augustus_predictions(
+            tmpdir, species, trainingset, aug_init_training
+        )
+        log(f"Augustus initial training results:\n{init_train}")
         # so idea here is to copy over existing and then run optimize augustus on it
         optimize_cmd = [
             OPTIMIZE,
@@ -1388,7 +1457,7 @@ def train_augustus(
             f"{os.path.basename(trainingset)}",
         ]
         with open(train_log, "w") as logfile:
-            log.debug(f"{' '.join(optimize_cmd)}")
+            log(f"{' '.join(optimize_cmd)}")
             subprocess.run(optimize_cmd, cwd=tmpdir, stdout=logfile, stderr=logfile)
     else:
         new_species_cmd = [
@@ -1412,8 +1481,10 @@ def train_augustus(
         # see if optimize is True
         if optimize and optimize is True:
             aug_init_training = os.path.join(tmpdir, "augustus.initial.training.txt")
-            init_train = test_augustus_predictions(tmpdir, species, trainingset, aug_init_training)
-            log.info(f"Augustus initial training results:\n{init_train}")
+            init_train = test_augustus_predictions(
+                tmpdir, species, trainingset, aug_init_training
+            )
+            log(f"Augustus initial training results:\n{init_train}")
             # so idea here is to copy over existing and then run optimize augustus on it
             optimize_cmd = [
                 OPTIMIZE,
@@ -1430,9 +1501,11 @@ def train_augustus(
 
     # now predict the test to see accuracy
     # now we can test the trained model
-    init_train = test_training(species, test_models, tmpdir, tool="augustus", aug_config_dir=tmpdir)
+    init_train = test_training(
+        species, test_models, tmpdir, tool="augustus", aug_config_dir=tmpdir
+    )
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - train_start))
-    log.info(
+    log(
         "Initial training completed in {}s\n{}".format(
             train_elapsed, json.dumps(init_train, indent=2, default=str)
         )
@@ -1901,7 +1974,9 @@ def evidence2hints(prot, tran, all_contigs, outdir):
                 p = subprocess.Popen([JOINHINTS], stdin=subprocess.PIPE, stdout=outfile)
                 for h in natsorted(cHints, key=lambda x: (x[3], x[4], x[2], x[1])):
                     try:
-                        p.stdin.write("{}\n".format("\t".join([str(x) for x in h])).encode())
+                        p.stdin.write(
+                            "{}\n".format("\t".join([str(x) for x in h])).encode()
+                        )
                     except IOError as e:
                         if e.errno == errno.EPIPE or e.errno == errno.EINVAL:
                             # Stop loop on "Invalid pipe" or "Invalid argument".
@@ -2121,7 +2196,9 @@ def test_training(
                                             "strand": strand,
                                         }
                                     else:
-                                        preds[cols[0]][gID]["coords"].append((start, end))
+                                        preds[cols[0]][gID]["coords"].append(
+                                            (start, end)
+                                        )
         elif tool == "snap":
             cmd = ["snap", os.path.abspath(train_data), os.path.abspath(c)]
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -2201,10 +2278,14 @@ def test_training(
                                             "strand": strand,
                                         }
                                     else:
-                                        preds[cols[0]][gID]["coords"].append((start, end))
+                                        preds[cols[0]][gID]["coords"].append(
+                                            (start, end)
+                                        )
         elif tool == "genemark":
             # need to copy over the mod file as has to be in same directory
-            shutil.copyfile(train_data, os.path.join(tmpdir, "test", os.path.basename(train_data)))
+            shutil.copyfile(
+                train_data, os.path.join(tmpdir, "test", os.path.basename(train_data))
+            )
             g_out = os.path.join(tmpdir, "test", os.path.basename(c) + ".gtf")
             cmd = [
                 "gmhmme3",
@@ -2250,7 +2331,9 @@ def test_training(
                                                 "strand": strand,
                                             }
                                         else:
-                                            preds[cols[0]][gID]["coords"].append((start, end))
+                                            preds[cols[0]][gID]["coords"].append(
+                                                (start, end)
+                                            )
 
     # preds is keyed by gene name, and the value is keyed by gene model name, and the value is a dict of coords and strand
     data = {
@@ -2341,7 +2424,8 @@ def test_training(
         / len(data["nucleotide_sensitivity"]),
         "nucleotide_precision": sum(data["nucleotide_precision"])
         / len(data["nucleotide_precision"]),
-        "exon_sensitivity": sum(data["exon_sensitivity"]) / len(data["exon_sensitivity"]),
+        "exon_sensitivity": sum(data["exon_sensitivity"])
+        / len(data["exon_sensitivity"]),
         "exon_precision": sum(data["exon_precision"]) / len(data["exon_precision"]),
         "gene_sensitivity": gene_sens,
         "gene_precision": gene_prec,

@@ -677,6 +677,8 @@ def runSubprocess(
     only_failed=False,
     raise_not_exit=False,
     env=False,
+    monitor_memory=False,
+    process_name=None,
 ):
     """
     Run a command using subprocess and direct output and stderr.
@@ -717,22 +719,51 @@ def runSubprocess(
         if process_result.stderr:
             logname(process.stderr)
 
+    # Log the command being executed
     try:
-        logfile.debug(" ".join(cmd))
+        if hasattr(logfile, "debug"):
+            logfile.debug(" ".join(cmd))
+        elif callable(logfile):
+            # For function-based loggers, just skip command logging
+            pass
     except AttributeError:
         pass
+    memory_stats = None
     with process_handle(stdout) as p_out, process_handle(
         stderr
     ) as p_error, process_handle(stdin, mode="r") as p_in:
         if not env:
-            process = subprocess.run(
-                cmd,
-                cwd=cwd,
-                stdin=p_in,
-                stdout=p_out,
-                stderr=p_error,
-                universal_newlines=True,
-            )
+            if monitor_memory:
+                # Use Popen for memory monitoring
+                process = subprocess.Popen(
+                    cmd,
+                    cwd=cwd,
+                    stdin=p_in,
+                    stdout=p_out,
+                    stderr=p_error,
+                    universal_newlines=True,
+                )
+                # Monitor memory usage
+                try:
+                    from .memory import MemoryMonitor
+
+                    monitor = MemoryMonitor()
+                    memory_stats = monitor.monitor_process(
+                        process, process_name or " ".join(cmd[:2])
+                    )
+                    process.wait()
+                except ImportError:
+                    # Fallback if memory module not available
+                    process.communicate()
+            else:
+                process = subprocess.run(
+                    cmd,
+                    cwd=cwd,
+                    stdin=p_in,
+                    stdout=p_out,
+                    stderr=p_error,
+                    universal_newlines=True,
+                )
         else:
             process = subprocess.Popen(
                 cmd,
@@ -743,18 +774,154 @@ def runSubprocess(
                 universal_newlines=True,
                 env=env,
             )
+            if monitor_memory:
+                # Monitor memory usage
+                try:
+                    from .memory import MemoryMonitor
+
+                    monitor = MemoryMonitor()
+                    memory_stats = monitor.monitor_process(
+                        process, process_name or " ".join(cmd[:2])
+                    )
+                except ImportError:
+                    # Fallback if memory module not available
+                    pass
             process.communicate()
     try:
-        process.check_returncode()  # Will raise a CalledProcessError if return code != 0
+        # Handle return code checking for both subprocess.run and subprocess.Popen
+        if hasattr(process, "check_returncode"):
+            process.check_returncode()  # subprocess.run case
+        else:
+            # subprocess.Popen case - check returncode manually
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, cmd)
+
         if not only_failed:
-            logoutput(logfile.debug, process)
+            # Handle different logger types for output logging
+            if hasattr(logfile, "debug"):
+                logoutput(logfile.debug, process)
+            elif callable(logfile):
+                # For function-based loggers, skip detailed output logging
+                pass
+        # Log memory stats if available
+        if memory_stats:
+            from .memory import format_memory_report
+
+            memory_report = f"Memory usage for {process_name or 'subprocess'}:\n{format_memory_report(memory_stats)}"
+
+            # Try different logging methods with error handling
+            try:
+                if hasattr(logfile, "info"):
+                    logfile.info(memory_report)
+                elif hasattr(logfile, "debug"):
+                    logfile.debug(memory_report)
+                elif callable(logfile):
+                    # Handle function-based loggers like sys.stderr.write
+                    logfile(memory_report + "\n")
+                else:
+                    # Fallback to print
+                    print(memory_report)
+            except Exception:
+                # If all else fails, just print it
+                print(memory_report)
+
+            # Also write to dedicated memory monitoring file
+            try:
+                import os
+                import json
+                from datetime import datetime
+
+                # Try to determine the output directory from environment or current working directory
+                output_dir = os.environ.get("FUNANNOTATE2_OUTPUT_DIR", os.getcwd())
+                logs_dir = os.path.join(output_dir, "logs")
+
+                # Create logs directory if it doesn't exist
+                if not os.path.exists(logs_dir):
+                    try:
+                        os.makedirs(logs_dir)
+                    except:
+                        logs_dir = output_dir  # Fallback to output directory
+
+                memory_log_file = os.path.join(logs_dir, "memory-monitoring.jsonl")
+
+                # Extract additional metadata for prediction model improvement
+                tool_name = None
+                contig_length = None
+                contig_name = None
+
+                # Try to extract tool name from command
+                if cmd:
+                    cmd_str = " ".join(cmd)
+                    if "snap" in cmd_str.lower():
+                        tool_name = "snap"
+                    elif "augustus" in cmd_str.lower():
+                        tool_name = "augustus"
+                    elif "glimmerhmm" in cmd_str.lower():
+                        tool_name = "glimmerhmm"
+                    elif "gmhmme3" in cmd_str.lower() or "genemark" in cmd_str.lower():
+                        tool_name = "genemark"
+
+                # Try to extract contig information from process name or command
+                if process_name:
+                    # Process names often contain contig file names like "snap-scaffold_1.fasta"
+                    if "-" in process_name and ".fasta" in process_name:
+                        parts = process_name.split("-", 1)
+                        if len(parts) > 1:
+                            contig_name = parts[1].replace(".fasta", "")
+
+                            # Try to get actual contig length if we can find the file
+                            for arg in cmd:
+                                if arg.endswith(".fasta") and contig_name in arg:
+                                    try:
+                                        # Try to get actual contig length from the file
+                                        import os
+
+                                        if os.path.exists(arg):
+                                            try:
+                                                # Use the memory module's contig length function if available
+                                                from .memory import get_contig_length
+
+                                                contig_length = get_contig_length(arg)
+                                            except ImportError:
+                                                # Fallback: estimate from file size
+                                                file_size = os.path.getsize(arg)
+                                                # Rough estimate: FASTA files are ~1.1x sequence length
+                                                contig_length = int(file_size / 1.1)
+                                    except Exception:
+                                        pass
+
+                # Create a structured memory record with prediction-relevant metadata
+                memory_record = {
+                    "timestamp": datetime.now().isoformat(),
+                    "process_name": process_name or "subprocess",
+                    "command": " ".join(cmd[:3]) if len(cmd) > 3 else " ".join(cmd),
+                    "full_command": " ".join(cmd),
+                    "tool_name": tool_name,
+                    "contig_name": contig_name,
+                    "contig_length_estimate": contig_length,
+                    "memory_stats": memory_stats,
+                }
+
+                # Append to JSONL file (one JSON object per line)
+                with open(memory_log_file, "a") as f:
+                    f.write(json.dumps(memory_record) + "\n")
+
+            except Exception:
+                # Silently fail if we can't write to file
+                pass
     except subprocess.CalledProcessError as e:
-        logfile.error(f"CMD ERROR: {' '.join(cmd)}")
-        logoutput(logfile.error, process)
+        # Handle error logging for different logger types
+        if hasattr(logfile, "error"):
+            logfile.error(f"CMD ERROR: {' '.join(cmd)}")
+            logoutput(logfile.error, process)
+        elif callable(logfile):
+            logfile(f"CMD ERROR: {' '.join(cmd)}\n")
         if raise_not_exit:
             raise (e)
         else:
             raise SystemExit(1)
+
+    return memory_stats
 
 
 def runThreadJob(func, argList, cpus=2, progress=True):
@@ -852,7 +1019,9 @@ def runThreadJob(func, argList, cpus=2, progress=True):
     return results
 
 
-def runProcessJob(function, inputList, cpus=2):
+def runProcessJob(
+    function, inputList, cpus=2, monitor_memory=False, memory_limit_gb=None
+):
     """
     Run multiple instances of a function in parallel using multiprocessing.
 
@@ -864,10 +1033,41 @@ def runProcessJob(function, inputList, cpus=2):
     - function (function): The function to be executed in parallel.
     - inputList (list): A list of lists, where each inner list represents an input to the function.
     - cpus (int, optional): The number of CPUs to be used for parallel processing (default is 2).
+    - monitor_memory (bool, optional): Whether to enable memory monitoring (default is False).
+    - memory_limit_gb (float, optional): Memory limit in GB to adjust CPU count (default is None).
 
     Returns:
     - list: A list containing the results of each function execution.
     """
+
+    # Adjust CPU count based on memory constraints if specified
+    if memory_limit_gb and monitor_memory:
+        try:
+            from .memory import get_system_memory_info, suggest_cpu_allocation
+
+            # Get system memory info
+            memory_info = get_system_memory_info()
+            if "error" not in memory_info:
+                # Estimate memory per process (rough estimate)
+                estimated_memory_per_process = 500  # MB default estimate
+
+                # Get CPU suggestion based on memory constraints
+                suggestion = suggest_cpu_allocation(
+                    estimated_memory_per_process, memory_limit_gb, cpus
+                )
+
+                if suggestion["memory_limited"]:
+                    original_cpus = cpus
+                    cpus = suggestion["suggested_cpus"]
+                    print(
+                        f"Memory constraint detected: reducing CPUs from {original_cpus} to {cpus}"
+                    )
+                    print(f"Available memory: {memory_info['available_gb']:.1f} GB")
+                    print(
+                        f"Memory utilization: {suggestion['memory_utilization_percent']:.1f}%"
+                    )
+        except ImportError:
+            pass
 
     # inputList here should be a list of lists with each input to function
     def update(res):
@@ -876,19 +1076,63 @@ def runProcessJob(function, inputList, cpus=2):
     def handle_error(error):
         print(f"Error: {error}", flush=True)
 
+    # Handle memory monitoring by modifying the input arguments instead of using a wrapper
+    if monitor_memory:
+        # Modify the input arguments to include monitor_memory flag
+        modified_inputList = []
+        for i in inputList:
+            if isinstance(i, (list, tuple)):
+                # Convert to list and add monitor_memory as keyword argument
+                # We'll handle this in the function call by unpacking properly
+                modified_inputList.append(list(i) + [monitor_memory])
+            else:
+                modified_inputList.append((i, monitor_memory))
+        inputList = modified_inputList
+
+    actual_function = function
+
     # setup pool
     p = multiprocessing.Pool(cpus)
     # setup results and split over cpus
     results = []
     for i in inputList:
         if isinstance(i, list):
-            p.apply_async(
-                function, args=(i,), callback=update, error_callback=handle_error
-            )
+            if monitor_memory and len(i) >= 4:
+                # Handle the case where monitor_memory was added as the 4th argument
+                # Call function with monitor_memory as keyword argument
+                args = i[:-1]  # All arguments except the last one (monitor_memory)
+                kwargs = {"monitor_memory": i[-1]}
+                p.apply_async(
+                    actual_function,
+                    args=args,
+                    kwds=kwargs,
+                    callback=update,
+                    error_callback=handle_error,
+                )
+            else:
+                p.apply_async(
+                    actual_function,
+                    args=i,
+                    callback=update,
+                    error_callback=handle_error,
+                )
         else:
-            p.apply_async(
-                function, args=(i), callback=update, error_callback=handle_error
-            )
+            if monitor_memory and isinstance(i, tuple) and len(i) == 2:
+                # Handle the case where monitor_memory was added as the 2nd argument
+                p.apply_async(
+                    actual_function,
+                    args=(i[0],),
+                    kwds={"monitor_memory": i[1]},
+                    callback=update,
+                    error_callback=handle_error,
+                )
+            else:
+                p.apply_async(
+                    actual_function,
+                    args=(i,),
+                    callback=update,
+                    error_callback=handle_error,
+                )
     p.close()
     p.join()
     return results
