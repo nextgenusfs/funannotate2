@@ -452,13 +452,22 @@ def train_glimmerhmm(
     final_train = test_training(TrainData, test_models, tmpdir, tool="glimmerhmm")
     optimize_end = time.time()
     optimize_elapsed = time.strftime("%H:%M:%S", time.gmtime(optimize_end - train_end))
-    log(
-        "Initial training completed in {} and parameter optimization completed in {}s\n{}".format(
-            train_elapsed,
-            optimize_elapsed,
-            json.dumps(final_train, indent=2, default=str),
+    if hasattr(log, "info"):
+        log.info(
+            "Initial training completed in {} and parameter optimization completed in {}s\n{}".format(
+                train_elapsed,
+                optimize_elapsed,
+                json.dumps(final_train, indent=2, default=str),
+            )
         )
-    )
+    else:
+        log(
+            "Initial training completed in {} and parameter optimization completed in {}s\n{}".format(
+                train_elapsed,
+                optimize_elapsed,
+                json.dumps(final_train, indent=2, default=str),
+            )
+        )
 
     return {"location": TrainData, "train_results": final_train}
 
@@ -507,11 +516,18 @@ def run_glimmerhmm(
                         continue
                     line = line.strip()
                     if line.count("\t") < 8:
-                        log(
-                            "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
-                                i + 1, line
+                        if hasattr(log, "error"):
+                            log.error(
+                                "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
+                                    i + 1, line
+                                )
                             )
-                        )
+                        else:
+                            log(
+                                "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
+                                    i + 1, line
+                                )
+                            )
                         continue
                     (
                         contig,
@@ -610,11 +626,18 @@ def run_glimmerhmm(
                                 )
                             )
                         else:
-                            log(
-                                "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
-                                    i + 1, line
+                            if hasattr(log, "error"):
+                                log.error(
+                                    "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
+                                        i + 1, line
+                                    )
                                 )
-                            )
+                            else:
+                                log(
+                                    "ERROR parsing GlimmerHMM Raw output in line {}:\n   {}".format(
+                                        i + 1, line
+                                    )
+                                )
 
     glimmerRaw = os.path.join(
         folder,
@@ -715,11 +738,18 @@ def train_genemark(
         )
         train_end = time.time()
         train_elapsed = time.strftime("%H:%M:%S", time.gmtime(train_end - train_start))
-        log(
-            "Initial training completed in {}s\n{}".format(
-                train_elapsed, json.dumps(init_train, indent=2, default=str)
+        if hasattr(log, "info"):
+            log.info(
+                "Initial training completed in {}s\n{}".format(
+                    train_elapsed, json.dumps(init_train, indent=2, default=str)
+                )
             )
-        )
+        else:
+            log(
+                "Initial training completed in {}s\n{}".format(
+                    train_elapsed, json.dumps(init_train, indent=2, default=str)
+                )
+            )
         return {"location": os.path.abspath(genemark_mod), "train_results": init_train}
     else:
         return {"location": None, "train_results": None}
@@ -874,11 +904,18 @@ def train_snap(
             scaff2genes[v["contig"]].append(k)
 
     # get only scaffolds that have gene models for training
-    log.debug(
-        "{:} gene models to train snap on {:} scaffolds".format(
-            len(sGenes), len(scaff2genes)
+    if hasattr(log, "debug"):
+        log.debug(
+            "{:} gene models to train snap on {:} scaffolds".format(
+                len(sGenes), len(scaff2genes)
+            )
         )
-    )
+    else:
+        log(
+            "{:} gene models to train snap on {:} scaffolds".format(
+                len(sGenes), len(scaff2genes)
+            )
+        )
     trainingFasta = os.path.join(tmpdir, "snap-training.scaffolds.fasta")
     with open(trainingFasta, "w") as outfile:
         for title, seq in SeqRecords.items():
@@ -915,11 +952,18 @@ def train_snap(
     # now we can test the trained model
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - train_start))
     init_train = test_training(snapHMM, test_models, tmpdir, tool="snap")
-    log(
-        "Initial training completed in {}s\n{}".format(
-            train_elapsed, json.dumps(init_train, indent=2, default=str)
+    if hasattr(log, "info"):
+        log.info(
+            "Initial training completed in {}s\n{}".format(
+                train_elapsed, json.dumps(init_train, indent=2, default=str)
+            )
         )
-    )
+    else:
+        log(
+            "Initial training completed in {}s\n{}".format(
+                train_elapsed, json.dumps(init_train, indent=2, default=str)
+            )
+        )
 
     # if this does not fail, then return some info in dict format
     return {"location": os.path.abspath(snapHMM), "train_results": init_train}
@@ -1219,7 +1263,10 @@ def run_augustus_join(
     elapsed = time.time() - time_start
     elapsed_str = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
     # Log the completion message using the provided log function
-    log(f"Augustus took {elapsed_str} to predict genes on {genome}")
+    if hasattr(log, "info"):
+        log.info(f"Augustus took {elapsed_str} to predict genes on {genome}")
+    else:
+        log(f"Augustus took {elapsed_str} to predict genes on {genome}")
     return 0
 
 
@@ -1445,7 +1492,10 @@ def train_augustus(
         init_train = test_augustus_predictions(
             tmpdir, species, trainingset, aug_init_training
         )
-        log(f"Augustus initial training results:\n{init_train}")
+        if hasattr(log, "info"):
+            log.info(f"Augustus initial training results:\n{init_train}")
+        else:
+            log(f"Augustus initial training results:\n{init_train}")
         # so idea here is to copy over existing and then run optimize augustus on it
         optimize_cmd = [
             OPTIMIZE,
@@ -1457,7 +1507,10 @@ def train_augustus(
             f"{os.path.basename(trainingset)}",
         ]
         with open(train_log, "w") as logfile:
-            log(f"{' '.join(optimize_cmd)}")
+            if hasattr(log, "debug"):
+                log.debug(f"{' '.join(optimize_cmd)}")
+            else:
+                log(f"{' '.join(optimize_cmd)}")
             subprocess.run(optimize_cmd, cwd=tmpdir, stdout=logfile, stderr=logfile)
     else:
         new_species_cmd = [
@@ -1473,9 +1526,15 @@ def train_augustus(
             f"{os.path.basename(trainingset)}",
         ]
         with open(train_log, "w") as logfile:
-            log.debug(f"{' '.join(new_species_cmd)}")
+            if hasattr(log, "debug"):
+                log.debug(f"{' '.join(new_species_cmd)}")
+            else:
+                log(f"{' '.join(new_species_cmd)}")
             subprocess.run(new_species_cmd, stdout=logfile, stderr=logfile)
-            log.debug(f"{' '.join(etraining_cmd)}")
+            if hasattr(log, "debug"):
+                log.debug(f"{' '.join(etraining_cmd)}")
+            else:
+                log(f"{' '.join(etraining_cmd)}")
             subprocess.run(etraining_cmd, cwd=tmpdir, stdout=logfile, stderr=logfile)
 
         # see if optimize is True
@@ -1484,7 +1543,10 @@ def train_augustus(
             init_train = test_augustus_predictions(
                 tmpdir, species, trainingset, aug_init_training
             )
-            log(f"Augustus initial training results:\n{init_train}")
+            if hasattr(log, "info"):
+                log.info(f"Augustus initial training results:\n{init_train}")
+            else:
+                log(f"Augustus initial training results:\n{init_train}")
             # so idea here is to copy over existing and then run optimize augustus on it
             optimize_cmd = [
                 OPTIMIZE,
@@ -1496,7 +1558,10 @@ def train_augustus(
                 f"{os.path.basename(trainingset)}",
             ]
             with open(train_log, "a") as logfile:
-                log.debug(f"{' '.join(optimize_cmd)}")
+                if hasattr(log, "debug"):
+                    log.debug(f"{' '.join(optimize_cmd)}")
+                else:
+                    log(f"{' '.join(optimize_cmd)}")
                 subprocess.run(optimize_cmd, cwd=tmpdir, stdout=logfile, stderr=logfile)
 
     # now predict the test to see accuracy
@@ -1505,11 +1570,18 @@ def train_augustus(
         species, test_models, tmpdir, tool="augustus", aug_config_dir=tmpdir
     )
     train_elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - train_start))
-    log(
-        "Initial training completed in {}s\n{}".format(
-            train_elapsed, json.dumps(init_train, indent=2, default=str)
+    if hasattr(log, "info"):
+        log.info(
+            "Initial training completed in {}s\n{}".format(
+                train_elapsed, json.dumps(init_train, indent=2, default=str)
+            )
         )
-    )
+    else:
+        log(
+            "Initial training completed in {}s\n{}".format(
+                train_elapsed, json.dumps(init_train, indent=2, default=str)
+            )
+        )
     # aug_final_training = os.path.join(tmpdir, "augustus.final.training.txt")
     # final_train = test_augustus_predictions(
     #    tmpdir, species, trainingset, aug_final_training
