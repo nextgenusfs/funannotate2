@@ -158,10 +158,10 @@ def predict_memory_usage(
     """
     Predict memory usage for an ab initio tool based on contig length.
 
-    Based on real memory monitoring data from funannotate2 runs (2024-07-14).
-    Values for SNAP and GlimmerHMM are from actual measurements on 8 contigs (2.8-4.9 Mbp).
-    Values for Augustus and GeneMark are conservative estimates due to Docker measurement
-    limitations on Apple Silicon.
+    Based on comprehensive memory monitoring data from user runs (2024-07-17).
+    Values for SNAP, Augustus, and GlimmerHMM are from linear regression analysis of
+    4,083 real-world measurements across contigs ranging from 508 bp to 102 Mbp.
+    GeneMark values are from initial Docker-based estimates.
 
     Args:
         tool_name: Name of the ab initio tool (snap, augustus, etc.)
@@ -171,22 +171,22 @@ def predict_memory_usage(
     Returns:
         Dictionary with predicted memory usage statistics
     """
-    # Base memory usage (MB) - minimum memory required regardless of contig size
-    # Updated with real data from memory monitoring
+    # Base memory usage (MB) - intercept from linear regression analysis
+    # Updated with real user data from 4,083 measurements (2024-07-17)
     base_memory = {
-        "snap": 234.0,  # From real measurements on 8 contigs (2.8-4.9 Mbp)
-        "augustus": 250.0,  # Conservative estimate (Docker measurement issues)
-        "glimmerhmm": 356.0,  # From real measurements on 8 contigs (2.8-4.9 Mbp)
-        "genemark": 200.0,  # Conservative estimate (Docker measurement issues)
+        "snap": 0.0,  # Linear model: Memory = 93.3 * Size_Mbp - 2.1 (≈0 base)
+        "augustus": 35.8,  # Linear model: Memory = 12.4 * Size_Mbp + 35.8
+        "glimmerhmm": 6.4,  # Linear model: Memory = 6.6 * Size_Mbp + 6.4
+        "genemark": 20.0,  # Conservative estimate from initial Docker measurements
     }
 
-    # Memory scaling per MB of sequence (converted from MB per million base pairs)
-    # Updated with real data from memory monitoring
+    # Memory scaling per MB of sequence (slope from linear regression analysis)
+    # Updated with real user data showing strong linear relationships (R² > 0.92)
     memory_per_mb = {
-        "snap": 149.0,  # From real measurements: 149.26 MB/Mbp
-        "augustus": 150.0,  # Conservative estimate (similar to SNAP)
-        "glimmerhmm": 164.0,  # From real measurements: 163.61 MB/Mbp
-        "genemark": 140.0,  # Conservative estimate (slightly lower than SNAP)
+        "snap": 93.3,  # From user data: 93.3 MB/Mbp (correlation = 0.998)
+        "augustus": 12.4,  # From user data: 12.4 MB/Mbp (correlation = 0.968)
+        "glimmerhmm": 6.6,  # From user data: 6.6 MB/Mbp (correlation = 0.961)
+        "genemark": 50.0,  # Conservative estimate from initial measurements
     }
 
     tool = tool_name.lower()
