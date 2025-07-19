@@ -259,6 +259,54 @@ def simplify_headers_drop(inputfile, keepfile, dropfile, base="contig_", drop=[]
     return names
 
 
+def filter_contigs_by_length(inputfile, outputfile, min_length=10000, base="contig_"):
+    """
+    Filter contigs by minimum length and simplify headers.
+
+    This function reads a FASTA file, filters contigs based on a minimum length threshold,
+    and writes the filtered contigs to an output file with simplified headers. This is
+    particularly useful for training ab initio gene predictors where short contigs
+    are not informative and can hurt training quality.
+
+    Args:
+        inputfile (str): Path to the input FASTA file.
+        outputfile (str): Path to the output file for filtered contigs.
+        min_length (int, optional): Minimum contig length to keep. Defaults to 10000.
+        base (str, optional): Base string for simplified headers. Defaults to "contig_".
+
+    Returns:
+        tuple: A tuple containing:
+            - dict: Mapping of simplified headers to original headers for kept contigs.
+            - int: Number of contigs kept.
+            - int: Number of contigs filtered out.
+            - int: Total length of kept contigs.
+            - int: Total length of filtered contigs.
+    """
+    names = {}
+    kept_count = 0
+    filtered_count = 0
+    kept_length = 0
+    filtered_length = 0
+
+    with open(outputfile, "w") as outfile:
+        for title, seq in pyfastx.Fasta(inputfile, build_index=False):
+            seq_length = len(seq)
+
+            if seq_length >= min_length:
+                # Keep this contig
+                kept_count += 1
+                kept_length += seq_length
+                simplified_name = f"{base}{kept_count}"
+                names[simplified_name] = title
+                outfile.write(f">{simplified_name}\n{softwrap(seq)}\n")
+            else:
+                # Filter out this contig
+                filtered_count += 1
+                filtered_length += seq_length
+
+    return names, kept_count, filtered_count, kept_length, filtered_length
+
+
 def list2groups(L):
     """
     Identify groups of continuous numbers in a list.

@@ -148,9 +148,31 @@ def predict(args):
         if os.path.isfile(args.params):
             with open(args.params, "r") as infile:
                 params = json.load(infile)
-    logger.info(
-        f"Loaded training params for {params['name']}: {list(params['abinitio'].keys())}"
-    )
+    # Handle skipped predictors
+    if hasattr(args, "skip_predictors") and args.skip_predictors:
+        skipped_predictors = []
+        for predictor in args.skip_predictors:
+            if predictor in params["abinitio"]:
+                del params["abinitio"][predictor]
+                skipped_predictors.append(predictor)
+
+        if skipped_predictors:
+            logger.info(
+                f"Skipping ab initio predictors: {', '.join(skipped_predictors)}"
+            )
+
+        remaining_predictors = list(params["abinitio"].keys())
+        if not remaining_predictors:
+            logger.critical(
+                "All ab initio predictors have been skipped. At least one predictor is required."
+            )
+            raise SystemExit(1)
+
+        logger.info(f"Using ab initio predictors: {', '.join(remaining_predictors)}")
+    else:
+        logger.info(
+            f"Loaded training params for {params['name']}: {list(params['abinitio'].keys())}"
+        )
 
     # create a tmpdir for some files
     tmp_dir = create_tmpdir(args.tmpdir, base="predict")
@@ -308,15 +330,36 @@ def predict(args):
         monitor_memory = getattr(args, "monitor_memory", False)
         memory_limit = getattr(args, "memory_limit", None)
 
-        # now run ab intio in parallel
-        abinit_cmds = []
-        for c in contigs:
-            abinit_cmds.append((c, params, logger, monitor_memory))
-
         if monitor_memory:
-            logger.info("Memory monitoring enabled for ab initio predictions")
-            if memory_limit:
-                logger.info(f"Memory limit set to {memory_limit} GB")
+            # Auto-detect memory limit if not specified
+            if not memory_limit:
+                try:
+                    from .memory import get_system_memory_info
+
+                    memory_info = get_system_memory_info()
+                    if "error" not in memory_info:
+                        # Use 90% of total memory for maximum resource utilization
+                        total_gb = memory_info["total_gb"]
+                        auto_limit = max(2.0, total_gb * 0.9)
+                        memory_limit = auto_limit
+
+                        logger.info(
+                            f"Memory monitoring enabled: using {memory_limit:.1f} GB limit (90% of {total_gb:.1f} GB total)"
+                        )
+                    else:
+                        logger.warning(
+                            f"Could not auto-detect memory limit: {memory_info['error']}"
+                        )
+                        logger.info(
+                            "Memory monitoring enabled with basic error tracking only"
+                        )
+                except ImportError:
+                    logger.warning("Memory module not available for auto-detection")
+                    logger.info(
+                        "Memory monitoring enabled with basic error tracking only"
+                    )
+            else:
+                logger.info(f"Memory monitoring enabled: using {memory_limit} GB limit")
 
             # Set environment variable so memory monitoring knows where to write files
             os.environ["FUNANNOTATE2_OUTPUT_DIR"] = args.out
@@ -333,36 +376,19 @@ def predict(args):
                 tools = list(params["abinitio"].keys())
                 memory_estimate = estimate_total_memory_usage(contigs, tools)
 
-                logger.info(
-                    f"Memory usage estimate for {len(contigs)} contigs with tools {tools}:"
-                )
-                logger.info(
-                    f"Total estimated peak memory: {memory_estimate['total_predicted_peak_mb']:.1f} MB"
-                )
-
-                # Get system memory info
-                memory_info = get_system_memory_info()
-                if "error" not in memory_info:
-                    logger.info(
-                        f"System memory: {memory_info['available_gb']:.1f} GB available"
+                # Suggest CPU allocation if memory limit is set
+                if memory_limit:
+                    avg_memory_per_contig = memory_estimate[
+                        "total_predicted_peak_mb"
+                    ] / len(contigs)
+                    suggestion = suggest_cpu_allocation(
+                        avg_memory_per_contig, memory_limit, args.cpus
                     )
 
-                    # Suggest CPU allocation if memory limit is set
-                    if memory_limit:
-                        avg_memory_per_contig = memory_estimate[
-                            "total_predicted_peak_mb"
-                        ] / len(contigs)
-                        suggestion = suggest_cpu_allocation(
-                            avg_memory_per_contig, memory_limit, args.cpus
+                    if suggestion["memory_limited"]:
+                        logger.warning(
+                            f"Memory constraint detected: reducing CPUs from {args.cpus} to {suggestion['suggested_cpus']}"
                         )
-
-                        if suggestion["memory_limited"]:
-                            logger.warning(
-                                f"Memory constraint detected: reducing CPUs from {args.cpus} to {suggestion['suggested_cpus']}"
-                            )
-                            logger.info(
-                                f"Estimated memory utilization: {suggestion['memory_utilization_percent']:.1f}%"
-                            )
 
             except ImportError:
                 logger.warning(
@@ -370,12 +396,28 @@ def predict(args):
                 )
                 monitor_memory = False
 
+        # now run ab intio in parallel - build commands after memory detection
+        abinit_cmds = []
+        for c in contigs:
+            abinit_cmds.append((c, params, logger, monitor_memory, memory_limit))
+
         logger.info(f"Running ab initio gene predictions using {args.cpus} cpus")
-        runProcessJob(
-            abinitio_wrapper,
-            abinit_cmds,
-            cpus=args.cpus,
-        )
+
+        # Enhanced memory-aware job scheduling
+        if monitor_memory and memory_limit:
+            memory_aware_job_execution(abinit_cmds, args.cpus, memory_limit, logger)
+        elif monitor_memory:
+            runProcessJob(
+                abinitio_wrapper,
+                abinit_cmds,
+                cpus=args.cpus,
+            )
+        else:
+            runProcessJob(
+                abinitio_wrapper,
+                abinit_cmds,
+                cpus=args.cpus,
+            )
 
         # get all predictions
         gene_counts = external_counts
@@ -762,7 +804,102 @@ def merge_rename_models(gffList, genome, output, locus_tag="FUN_", contig_map={}
     return renamedGenes
 
 
-def abinitio_wrapper(contig, params, logger, monitor_memory=False):
+def memory_aware_job_execution(abinit_cmds, cpus, memory_limit_gb, logger):
+    """
+    Execute ab initio jobs with memory-aware scheduling.
+
+    This function implements a three-tier strategy:
+    1. Try parallel execution for low-memory jobs
+    2. Fall back to sequential execution for high-memory jobs
+    3. Track any OOM failures for user feedback
+    """
+    from .memory import get_contig_length, predict_memory_usage, get_system_memory_info
+    from .utilities import runProcessJob
+
+    # Categorize jobs by memory requirements
+    low_memory_jobs = []
+    high_memory_jobs = []
+    failed_jobs = []
+
+    memory_limit_mb = memory_limit_gb * 1024
+
+    for cmd in abinit_cmds:
+        contig, params, _, monitor_memory, _ = cmd
+        contig_name = os.path.basename(contig)
+
+        try:
+            contig_length = get_contig_length(contig)
+
+            # Find the tool with highest memory requirement for this contig
+            max_memory_mb = 0
+            for tool in params["abinitio"].keys():
+                prediction = predict_memory_usage(tool, contig_length)
+                tool_memory = prediction["predicted_peak_with_margin_mb"]
+                max_memory_mb = max(max_memory_mb, tool_memory)
+
+            # Categorize based on memory requirement
+            if max_memory_mb <= memory_limit_mb * 0.5:  # Use 50% of limit as threshold
+                low_memory_jobs.append(cmd)
+            else:
+                high_memory_jobs.append(cmd)
+
+        except Exception as e:
+            logger.warning(f"Could not estimate memory for {contig_name}: {e}")
+            low_memory_jobs.append(cmd)  # Default to low memory if estimation fails
+
+    # Only log if there are high-memory jobs that need sequential processing
+    if high_memory_jobs:
+        logger.info(
+            f"Processing {len(low_memory_jobs)} contigs in parallel, {len(high_memory_jobs)} sequentially (memory constraints)"
+        )
+    else:
+        logger.info(f"Processing all {len(low_memory_jobs)} contigs in parallel")
+
+    # Execute low-memory jobs in parallel
+    if low_memory_jobs:
+        try:
+            runProcessJob(abinitio_wrapper, low_memory_jobs, cpus=cpus)
+        except Exception as e:
+            logger.error(f"Error in parallel execution: {e}")
+            # Move failed jobs to sequential processing
+            failed_jobs.extend(low_memory_jobs)
+
+    # Execute high-memory jobs sequentially (one at a time)
+    if high_memory_jobs:
+        for cmd in high_memory_jobs:
+            contig, _, _, _, _ = cmd
+            contig_name = os.path.basename(contig)
+
+            try:
+                runProcessJob(abinitio_wrapper, [cmd], cpus=1)
+            except Exception as e:
+                logger.error(f"Failed to process contig {contig_name}: {e}")
+                failed_jobs.append(cmd)
+
+    # Retry any failed jobs with minimal resources
+    if failed_jobs:
+        logger.warning(f"Retrying {len(failed_jobs)} failed jobs")
+        for cmd in failed_jobs:
+            contig, _, _, _, _ = cmd
+            contig_name = os.path.basename(contig)
+
+            try:
+                # Modify command to disable memory monitoring to avoid recursive issues
+                retry_cmd = (
+                    cmd[0],
+                    cmd[1],
+                    cmd[2],
+                    False,
+                    cmd[4],
+                )  # Set monitor_memory=False
+                runProcessJob(abinitio_wrapper, [retry_cmd], cpus=1)
+            except Exception as e:
+                logger.error(f"FINAL FAILURE for contig {contig_name}: {e}")
+
+
+def abinitio_wrapper(
+    contig, params, logger, monitor_memory=False, memory_limit_gb=None
+):
     """
     Run ab initio predictions for a given contig based on the specified parameters.
 
@@ -771,11 +908,14 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
     corresponding prediction, saving the output in GFF3 format. Augustus predictions can optionally use
     hints if a hints file is available.
 
+    Enhanced with memory checking to prevent OOM errors.
+
     Parameters:
     - contig (str): Path to the contig file.
     - params (dict): Dictionary containing ab initio prediction parameters.
     - logger: Logger object for logging messages.
     - monitor_memory (bool): Whether to monitor memory usage of ab initio tools.
+    - memory_limit_gb (float): Memory limit in GB to prevent OOM errors.
 
     Returns:
     - dict: Memory statistics if monitoring is enabled, None otherwise.
@@ -786,7 +926,11 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
     # Get contig length for memory prediction if monitoring is enabled
     if monitor_memory:
         try:
-            from .memory import get_contig_length, predict_memory_usage
+            from .memory import (
+                get_contig_length,
+                predict_memory_usage,
+                get_system_memory_info,
+            )
 
             contig_length = get_contig_length(contig)
 
@@ -827,11 +971,68 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
         else:
             print(message.rstrip())
 
-    # run ab initio predictions now
-    if "snap" in params["abinitio"]:
-        if monitor_memory:
-            prediction = predict_memory_usage("snap", contig_length)
-            log_message = f"SNAP memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
+    # Enhanced memory checking and tool execution with error tracking
+    def run_tool_with_error_tracking(tool_name, run_func, *args, **kwargs):
+        """Run a tool with comprehensive error tracking and memory monitoring."""
+        if not monitor_memory:
+            # If no monitoring, still provide enhanced error tracking
+            try:
+                run_func(*args, **kwargs)
+                return True, None
+            except Exception as e:
+                error_msg = f"Tool {tool_name} failed on {contig_name}: {e}"
+                logger.error(error_msg)
+
+                # Check if this looks like an OOM error even without monitoring
+                error_str = str(e).lower()
+                if any(
+                    oom_indicator in error_str
+                    for oom_indicator in ["memory", "oom", "killed", "signal 9"]
+                ):
+                    oom_msg = f"LIKELY OOM ERROR: {tool_name} on contig {contig_name} - consider using --monitor-memory and --memory-limit"
+                    logger.error(oom_msg)
+                    return False, oom_msg
+
+                return False, error_msg
+
+        try:
+            # Get memory prediction
+            prediction = predict_memory_usage(tool_name, contig_length)
+            predicted_mb = prediction["predicted_peak_with_margin_mb"]
+
+            # Get current system memory
+            memory_info = get_system_memory_info()
+            if "error" in memory_info:
+                logger.warning(
+                    f"Could not get system memory info: {memory_info['error']}"
+                )
+                available_mb = float("inf")  # Assume unlimited if we can't check
+            else:
+                available_mb = memory_info["available_gb"] * 1024
+
+            # Check against memory limit if specified
+            if memory_limit_gb:
+                limit_mb = memory_limit_gb * 1024
+                if predicted_mb > limit_mb:
+                    warning_msg = (
+                        f"WARNING: {tool_name} predicted to use {predicted_mb:.1f} MB "
+                        f"but limit is {limit_mb:.1f} MB for contig {contig_name}. "
+                        f"Running anyway but OOM risk is high."
+                    )
+                    logger.warning(warning_msg)
+
+            # Check against available system memory (with 20% buffer)
+            usable_mb = available_mb * 0.8
+            if predicted_mb > usable_mb:
+                warning_msg = (
+                    f"WARNING: {tool_name} predicted to use {predicted_mb:.1f} MB "
+                    f"but only {usable_mb:.1f} MB available for contig {contig_name}. "
+                    f"Running anyway but OOM risk is high."
+                )
+                logger.warning(warning_msg)
+
+            # Log prediction
+            log_message = f"{tool_name} memory prediction for {contig_name}: {predicted_mb:.1f} MB"
             try:
                 if hasattr(logger, "info"):
                     logger.info(log_message)
@@ -842,55 +1043,79 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
             except Exception:
                 print(log_message)
 
-        run_snap(
+            # Run the tool
+            run_func(*args, **kwargs)
+            return True, None
+
+        except Exception as e:
+            error_msg = f"Tool {tool_name} failed on {contig_name}: {e}"
+            logger.error(error_msg)
+
+            # Check if this looks like an OOM error
+            error_str = str(e).lower()
+            if any(
+                oom_indicator in error_str
+                for oom_indicator in ["memory", "oom", "killed", "signal 9"]
+            ):
+                oom_msg = f"LIKELY OOM ERROR: {tool_name} on contig {contig_name} (length: {contig_length:,} bp, predicted: {predicted_mb:.1f} MB)"
+                logger.error(oom_msg)
+                return False, oom_msg
+
+            return False, error_msg
+
+    # run ab initio predictions now with enhanced error tracking
+    tools_run = []
+    tools_failed = []
+    oom_errors = []
+
+    if "snap" in params["abinitio"]:
+        success, error_msg = run_tool_with_error_tracking(
+            "snap",
+            run_snap,
             contig,
             params["abinitio"]["snap"]["location"],
             os.path.join(os.path.dirname(contig), f"{contig_name}.snap.gff3"),
             log=log_func,
         )
+        if success:
+            tools_run.append("snap")
+        else:
+            tools_failed.append(("snap", error_msg))
+            if error_msg and "OOM" in error_msg:
+                oom_errors.append(("snap", error_msg))
 
     if "glimmerhmm" in params["abinitio"]:
-        if monitor_memory:
-            prediction = predict_memory_usage("glimmerhmm", contig_length)
-            log_message = f"GlimmerHMM memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
-            try:
-                if hasattr(logger, "info"):
-                    logger.info(log_message)
-                elif callable(logger):
-                    logger(log_message + "\n")
-                else:
-                    print(log_message)
-            except Exception:
-                print(log_message)
-
-        run_glimmerhmm(
+        success, error_msg = run_tool_with_error_tracking(
+            "glimmerhmm",
+            run_glimmerhmm,
             contig,
             params["abinitio"]["glimmerhmm"]["location"],
             os.path.join(os.path.dirname(contig), f"{contig_name}.glimmerhmm.gff3"),
             log=log_func,
         )
+        if success:
+            tools_run.append("glimmerhmm")
+        else:
+            tools_failed.append(("glimmerhmm", error_msg))
+            if error_msg and "OOM" in error_msg:
+                oom_errors.append(("glimmerhmm", error_msg))
 
     if "genemark" in params["abinitio"]:
         if which_path("gmhmme3"):
-            if monitor_memory:
-                prediction = predict_memory_usage("genemark", contig_length)
-                log_message = f"GeneMark memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
-                try:
-                    if hasattr(logger, "info"):
-                        logger.info(log_message)
-                    elif callable(logger):
-                        logger(log_message + "\n")
-                    else:
-                        print(log_message)
-                except Exception:
-                    print(log_message)
-
-            run_genemark(
+            success, error_msg = run_tool_with_error_tracking(
+                "genemark",
+                run_genemark,
                 contig,
                 params["abinitio"]["genemark"]["location"],
                 os.path.join(os.path.dirname(contig), f"{contig_name}.genemark.gff3"),
                 log=log_func,
             )
+            if success:
+                tools_run.append("genemark")
+            else:
+                tools_failed.append(("genemark", error_msg))
+                if error_msg and "OOM" in error_msg:
+                    oom_errors.append(("genemark", error_msg))
 
     if "augustus" in params["abinitio"]:
         hints = False
@@ -901,20 +1126,9 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
         if os.path.isfile(hintsfile):
             hints = hintsfile
 
-        if monitor_memory:
-            prediction = predict_memory_usage("augustus", contig_length)
-            log_message = f"Augustus memory prediction for {contig_name}: {prediction['predicted_peak_with_margin_mb']:.1f} MB"
-            try:
-                if hasattr(logger, "info"):
-                    logger.info(log_message)
-                elif callable(logger):
-                    logger(log_message + "\n")
-                else:
-                    print(log_message)
-            except Exception:
-                print(log_message)
-
-        run_augustus(
+        success, error_msg = run_tool_with_error_tracking(
+            "augustus",
+            run_augustus,
             contig,
             params["abinitio"]["augustus"]["species"],
             os.path.join(os.path.dirname(contig), f"{contig_name}.augustus.gff3"),
@@ -922,6 +1136,40 @@ def abinitio_wrapper(contig, params, logger, monitor_memory=False):
             hints=hints,
             config_path=params["abinitio"]["augustus"]["location"],
         )
+        if success:
+            tools_run.append("augustus")
+        else:
+            tools_failed.append(("augustus", error_msg))
+            if error_msg and "OOM" in error_msg:
+                oom_errors.append(("augustus", error_msg))
+
+    # Enhanced logging with error tracking
+    if tools_failed:
+        failed_tool_names = [tool for tool, _ in tools_failed]
+        logger.warning(
+            f"Failed tools for {contig_name}: {', '.join(failed_tool_names)}"
+        )
+
+        # Log detailed error information
+        for tool, error_msg in tools_failed:
+            logger.debug(f"Error details for {tool}: {error_msg}")
+
+    if oom_errors:
+        oom_tool_names = [tool for tool, _ in oom_errors]
+        logger.error(
+            f"LIKELY OOM ERRORS for {contig_name}: {', '.join(oom_tool_names)} "
+            f"(contig length: {contig_length:,} bp)"
+        )
+
+    if tools_run:
+        logger.info(f"Successfully ran tools for {contig_name}: {', '.join(tools_run)}")
+
+    # Store error information in memory stats for tracking
+    if monitor_memory:
+        memory_stats["tools_run"] = tools_run
+        memory_stats["tools_failed"] = tools_failed
+        memory_stats["oom_errors"] = oom_errors
+        memory_stats["contig_length"] = contig_length
 
     return memory_stats if monitor_memory else None
 

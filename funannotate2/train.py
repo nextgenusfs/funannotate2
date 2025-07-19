@@ -92,6 +92,24 @@ def train(args):
     GenomeFasta = os.path.join(misc_dir, "genome.fasta")
     contigHeaderMap = simplify_headers(args.fasta, GenomeFasta, base="contig_")
 
+    # create filtered genome for training (remove short contigs)
+    TrainingGenomeFasta = os.path.join(misc_dir, "genome.training.fasta")
+    from .fastx import filter_contigs_by_length
+
+    training_header_map, kept_count, filtered_count, kept_length, filtered_length = (
+        filter_contigs_by_length(
+            args.fasta,
+            TrainingGenomeFasta,
+            min_length=args.min_contig_length,
+            base="contig_",
+        )
+    )
+
+    logger.info(
+        f"Filtered genome for training: kept {kept_count} contigs ({kept_length:,} bp), "
+        f"filtered {filtered_count} contigs ({filtered_length:,} bp) shorter than {args.min_contig_length:,} bp"
+    )
+
     # get taxonomy information
     taxonomy = lookup_taxonomy(args.species)
     logger.info(f"Getting taxonomy information\n{json.dumps(taxonomy, indent=2)}")
@@ -161,9 +179,9 @@ def train(args):
                         )
                         if os.path.isdir(busco_model_path):
                             os.remove(busco_tgz)
-                log("Running buscolite to generate training set")
+                log("Running buscolite to generate training set using filtered genome")
                 buscolite(
-                    GenomeFasta,
+                    TrainingGenomeFasta,
                     busco_model_path,
                     args.training_set,
                     species=aug_species,
@@ -184,6 +202,7 @@ def train(args):
             args.training_set = train_temp
 
         # load  GFF3 training set, load with gfftk
+        # Note: We load with the full genome first, then filter to training genome contigs
         raw_train_set = gff2dict(args.training_set, GenomeFasta)
         # user might pass in a training set that has other models, we only want protein coding, so filter
         train_set = {
@@ -194,18 +213,47 @@ def train(args):
         logger.info(
             f"Training set [{args.training_set}] loaded with {len(train_set)} gene models"
         )
-        if len(train_set) == 0:
+
+        # Filter training set to only include models on contigs that passed length filter
+        # After rename_gff_contigs, the contig names in the GFF3 are simplified (contig_1, contig_2, etc.)
+        # We need to find which simplified names correspond to contigs that passed the length filter
+
+        # Get the original contig names that passed the filter
+        original_contigs_kept = set(training_header_map.values())
+
+        # Find the corresponding simplified names from the full contigHeaderMap
+        simplified_contigs_kept = set()
+        for simplified, original in contigHeaderMap.items():
+            if original in original_contigs_kept:
+                simplified_contigs_kept.add(simplified)
+
+        filtered_train_set = {
+            k: v
+            for k, v in train_set.items()
+            if v.get("contig") in simplified_contigs_kept
+        }
+
+        filtered_out_count = len(train_set) - len(filtered_train_set)
+        if filtered_out_count > 0:
+            logger.info(
+                f"Filtered out {filtered_out_count} training models on short contigs "
+                f"(< {args.min_contig_length:,} bp), keeping {len(filtered_train_set)} models"
+            )
+
+        if len(filtered_train_set) == 0:
             logger.critical(
-                f"No gene models found in training set: {args.training_set}"
+                "No gene models found in training set after contig length filtering"
             )
             raise SystemExit(1)
 
-        # now filter training set
-        models4training = selectTrainingModels(GenomeFasta, train_set, tmpdir=misc_dir)
+        # now filter training set using the filtered genome
+        models4training = selectTrainingModels(
+            TrainingGenomeFasta, filtered_train_set, tmpdir=misc_dir
+        )
         dict2gff3(models4training, filt_train_models)
     else:
         logger.info(f"Using existing training set: {filt_train_models}")
-        models4training = trainmodels2dict(GenomeFasta, filt_train_models)
+        models4training = trainmodels2dict(TrainingGenomeFasta, filt_train_models)
 
     # split into test/train sets
     n_test = int(len(models4training) * 0.20)
@@ -223,9 +271,9 @@ def train(args):
     dict2gff3(train_models, filt_train_models_final)
 
     # run augustus training functions
-    logger.info("Training augustus using training set")
+    logger.info("Training augustus using filtered training set")
     augustus_train = train_augustus(
-        GenomeFasta,
+        TrainingGenomeFasta,
         train_models,
         test_models,
         folder=misc_dir,
@@ -236,16 +284,16 @@ def train(args):
     augustus_train["training_set"] = filt_train_models_final
 
     # run snap training functions
-    logger.info("Training snap using training set")
+    logger.info("Training snap using filtered training set")
     snap_train = train_snap(
-        GenomeFasta, train_models, test_models, folder=misc_dir, log=logger
+        TrainingGenomeFasta, train_models, test_models, folder=misc_dir, log=logger
     )
     snap_train["training_set"] = filt_train_models_final
 
     # run glimmerHMM training functions
-    logger.info("Training glimmerHMM using training set")
+    logger.info("Training glimmerHMM using filtered training set")
     glimm_train = train_glimmerhmm(
-        GenomeFasta,
+        TrainingGenomeFasta,
         train_models,
         test_models,
         folder=misc_dir,
@@ -268,7 +316,7 @@ def train(args):
         if taxonomy["kingdom"] == "Fungi":
             fungus_flag = True
         genemark_train = train_genemark(
-            GenomeFasta,
+            TrainingGenomeFasta,
             train_models,
             test_models,
             folder=misc_dir,

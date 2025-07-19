@@ -286,6 +286,13 @@ def predict_subparser(subparsers):
         help="Memory limit in GB to adjust CPU allocation",
         metavar="",
     )
+    optional_args.add_argument(
+        "--skip-predictors",
+        nargs="+",
+        choices=["snap", "augustus", "glimmerhmm", "genemark"],
+        help="Skip specific ab initio predictors (choices: snap, augustus, glimmerhmm, genemark)",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",
@@ -347,6 +354,14 @@ def train_subparser(subparsers):
         dest="header_length",
         type=int,
         help="Max length for fasta headers",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "--min-contig-length",
+        default=10000,
+        dest="min_contig_length",
+        type=int,
+        help="Minimum contig length to use for training (default: 10000)",
         metavar="",
     )
     optional_args.add_argument(
