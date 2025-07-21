@@ -365,6 +365,14 @@ def train_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "--max-train-models",
+        default=5000,
+        dest="max_train_models",
+        type=int,
+        help="Maximum number of gene models to use for training (default: 5000)",
+        metavar="",
+    )
+    optional_args.add_argument(
         "--busco-lineage",
         dest="busco_lineage",
         help="BUSCO lineage to use, over-rides default auto selection",

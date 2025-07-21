@@ -255,16 +255,53 @@ def train(args):
         logger.info(f"Using existing training set: {filt_train_models}")
         models4training = trainmodels2dict(TrainingGenomeFasta, filt_train_models)
 
-    # split into test/train sets
-    n_test = int(len(models4training) * 0.20)
-    if n_test > 200:
-        n_test = 200
+    # split into test/train sets with size limits to prevent memory issues
+    total_models = len(models4training)
+    max_train_models = (
+        args.max_train_models
+    )  # User-configurable maximum training models
+    max_test_models = 200  # Maximum test models
+    max_total_models = max_train_models + max_test_models  # Maximum total models
+
+    # If we have too many models, subsample the best ones (already ranked by selectTrainingModels)
+    if total_models > max_total_models:
+        logger.info(
+            f"Large training set detected ({total_models:,} models). "
+            f"Subsampling to {max_total_models:,} for speed and memory considerations."
+        )
+        # Take the first max_total_models (best ranked) from the OrderedDict
+        subsampled_keys = list(models4training.keys())[:max_total_models]
+        models4training = {k: models4training[k] for k in subsampled_keys}
+        total_models = len(models4training)
+
+    # Calculate test set size (20% but capped)
+    n_test = min(int(total_models * 0.20), max_test_models)
+    n_train = total_models - n_test
+
+    # If training set is still too large, further limit it
+    if n_train > max_train_models:
+        n_test = min(max_test_models, total_models - max_train_models)
+        n_train = max_train_models
+        logger.info(
+            f"Training set size limited to {n_train:,} models (from {total_models:,}) based on --max-train-models={max_train_models:,}."
+        )
+
     logger.info(
-        f"{len(models4training)} gene models selected for training, now splitting into test [n={n_test}] and train [n={len(models4training) - n_test}]"
+        f"{total_models:,} gene models selected for training, now splitting into test [n={n_test}] and train [n={n_train}]"
     )
 
+    # Select test models randomly from all available models
     test_model_keys = random.sample(list(models4training.keys()), n_test)
-    train_model_keys = [x for x in models4training.keys() if x not in test_model_keys]
+
+    # For training models, take the best remaining models (excluding test models)
+    # Since models4training is already ranked, we take from the beginning
+    available_train_keys = [
+        x for x in models4training.keys() if x not in test_model_keys
+    ]
+    train_model_keys = available_train_keys[
+        :n_train
+    ]  # Take only the first n_train models
+
     test_models = {k: models4training[k] for k in test_model_keys}
     train_models = {k: models4training[k] for k in train_model_keys}
     filt_train_models_final = os.path.join(misc_dir, "training-models.train.gff3")
