@@ -87,7 +87,8 @@ def hmmer_search(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                             "seq_length": hit.length,
                             "hmm_length": s_domains[0]["hmm_length"],
                             "hmm_aln_length": s_domains[0]["hmm_aln"],
-                            "hmm_coverage": s_domains[0]["hmm_aln"] / s_domains[0]["hmm_length"],
+                            "hmm_coverage": s_domains[0]["hmm_aln"]
+                            / s_domains[0]["hmm_length"],
                             "bitscore": hit.score,
                             "evalue": hit.evalue,
                             "domains": s_domains,
@@ -157,15 +158,20 @@ def hmmer_scan(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                             ),
                             "name": hit.name.decode(),
                             "accession": (
-                                None if hit.accession is None else hit.accession.decode()
+                                None
+                                if hit.accession is None
+                                else hit.accession.decode()
                             ),
                             "description": (
-                                None if hit.description is None else hit.description.decode()
+                                None
+                                if hit.description is None
+                                else hit.description.decode()
                             ),
                             "seq_length": len(top_hits.query.sequence),
                             "hmm_length": s_domains[0]["hmm_length"],
                             "hmm_aln_length": s_domains[0]["hmm_aln"],
-                            "hmm_coverage": s_domains[0]["hmm_aln"] / s_domains[0]["hmm_length"],
+                            "hmm_coverage": s_domains[0]["hmm_aln"]
+                            / s_domains[0]["hmm_length"],
                             "bitscore": hit.score,
                             "evalue": hit.evalue,
                             "domains": s_domains,
@@ -421,7 +427,9 @@ def merops2tsv(results, output, annots):
         json.dump(results, outfile, indent=2)
     with open(annots, "w") as annot:
         for result in results:
-            annot.write(f"{result['qseqid']}\tnote\tMEROPS:{result['sseqid']} {result['family']}\n")
+            annot.write(
+                f"{result['qseqid']}\tnote\tMEROPS:{result['sseqid']} {result['family']}\n"
+            )
             a = add2dict(
                 a,
                 result["qseqid"],
@@ -431,7 +439,9 @@ def merops2tsv(results, output, annots):
     return a
 
 
-def swissprot_blast(query, evalue=1e-5, cpus=1, min_pident=60, min_cov=60, max_target_seqs=1):
+def swissprot_blast(
+    query, evalue=1e-5, cpus=1, min_pident=60, min_cov=60, max_target_seqs=1
+):
     """
     Perform a BLAST search against the SwissProt database using Diamond.
 
@@ -535,7 +545,9 @@ def swissprot2tsv(results, output, annots):
         json.dump(results, outfile, indent=2)
     with open(annots, "w") as annot:
         for result in results:
-            annot.write(f"{result['query']}\tdb_xref\tUniProtKB/Swiss-Prot:{result['accession']}\n")
+            annot.write(
+                f"{result['query']}\tdb_xref\tUniProtKB/Swiss-Prot:{result['accession']}\n"
+            )
             # add db_xref
             a = add2dict(
                 a,
@@ -579,26 +591,98 @@ def swissprot2tsv(results, output, annots):
 
 def parse_annotations(tsv):
     """
-    Parse a three-column annotation file into a dictionary.
+    Parse a three-column annotation file into a dictionary with robust error handling.
 
     This function reads a TSV file containing annotations, where each line consists of a gene,
     a database identifier, and a value. It processes the file and returns a dictionary where
     each gene is a key, and its associated database and value are stored as entries.
 
+    Lines that are not properly formatted (not exactly 3 tab-separated columns) are skipped
+    and reported as parsing errors.
+
     Parameters:
     - tsv (str): The file path to the annotation file in TSV format.
 
     Returns:
-    - dict: A dictionary with genes as keys and their corresponding database and value entries.
+    - tuple: (dict, dict) A tuple containing:
+        - dict: A dictionary with genes as keys and their corresponding database and value entries.
+        - dict: A dictionary with parsing error information including file path, line numbers, and problematic lines.
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     # parse a three column annotation file into a dictionary
     a = {}
-    with open(tsv, "r") as infile:
-        for line in infile:
-            line = line.rstrip()
-            gene, db, value = line.split("\t")
-            a = add2dict(a, gene, db, value)
-    return a
+    parse_errors = {
+        "file": tsv,
+        "malformed_lines": [],
+        "empty_lines": 0,
+        "comment_lines": 0,
+        "total_lines": 0,
+        "parsed_lines": 0,
+    }
+
+    try:
+        with open(tsv, "r") as infile:
+            for line_num, line in enumerate(infile, 1):
+                parse_errors["total_lines"] += 1
+                original_line = line
+                line = line.rstrip()
+
+                # Skip empty lines
+                if not line:
+                    parse_errors["empty_lines"] += 1
+                    continue
+
+                # Skip comment lines (starting with #)
+                if line.startswith("#"):
+                    parse_errors["comment_lines"] += 1
+                    continue
+
+                # Split by tab and check column count
+                columns = line.split("\t")
+
+                if len(columns) != 3:
+                    parse_errors["malformed_lines"].append(
+                        {
+                            "line_number": line_num,
+                            "line_content": original_line.rstrip(),
+                            "column_count": len(columns),
+                            "error": f"Expected 3 columns, found {len(columns)}",
+                        }
+                    )
+                    continue
+
+                gene, db, value = columns
+
+                # Check for empty values in any column
+                if not gene.strip() or not db.strip() or not value.strip():
+                    parse_errors["malformed_lines"].append(
+                        {
+                            "line_number": line_num,
+                            "line_content": original_line.rstrip(),
+                            "column_count": len(columns),
+                            "error": "One or more columns are empty",
+                        }
+                    )
+                    continue
+
+                # Successfully parsed line
+                a = add2dict(a, gene.strip(), db.strip(), value.strip())
+                parse_errors["parsed_lines"] += 1
+
+    except FileNotFoundError:
+        logger.error(f"Annotation file not found: {tsv}")
+        parse_errors["file_error"] = f"File not found: {tsv}"
+    except PermissionError:
+        logger.error(f"Permission denied reading annotation file: {tsv}")
+        parse_errors["file_error"] = f"Permission denied: {tsv}"
+    except Exception as e:
+        logger.error(f"Unexpected error reading annotation file {tsv}: {str(e)}")
+        parse_errors["file_error"] = f"Unexpected error: {str(e)}"
+
+    return a, parse_errors
 
 
 def add2dict(adict, gene, key, value):
@@ -630,7 +714,12 @@ def add2dict(adict, gene, key, value):
 
 
 def swissprot_valid_gene(name):
-    if number_present(name) and len(name) > 2 and not morethanXnumbers(name, 3) and "." not in name:
+    if (
+        number_present(name)
+        and len(name) > 2
+        and not morethanXnumbers(name, 3)
+        and "." not in name
+    ):
         return True
     else:
         return False
@@ -746,9 +835,11 @@ def busco2tsv(results, buscodb, busco_results, annots):
     # so now we want to construct the 3 column
     a = {}
     with open(annots, "w") as annot:
-        for k, v in natsorted(results.items(), key=lambda x: (x[1]["hit"], -x[1]["bitscore"])):
+        for k, v in natsorted(
+            results.items(), key=lambda x: (x[1]["hit"], -x[1]["bitscore"])
+        ):
             if v["name"] in busco_data:
-                defline = f'BUSCO:{k} [{odb_version}] {busco_data.get(v["name"])["description"]}'
+                defline = f"BUSCO:{k} [{odb_version}] {busco_data.get(v['name'])['description']}"
             else:
                 defline = f"BUSCO:{k} [{odb_version}]"
             if v["hit"] not in a:

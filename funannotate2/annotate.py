@@ -13,7 +13,7 @@ from gfftk.genbank import dict2tbl, table2asn, tbl2dict
 from gfftk.gff import dict2gff3, gff2dict
 from gfftk.stats import annotation_stats
 
-from .config import env
+from .config import env, busco_taxonomy
 from .log import finishLogging, startLogging, system_info
 from .name_cleaner import (
     NameCleaner,
@@ -48,7 +48,121 @@ from .utilities import (
     get_odb_version,
     validate_busco_lineage,
 )
-from .config import busco_taxonomy
+
+
+def _report_parsing_errors(parse_errors, logger):
+    """
+    Report parsing errors for annotation files in a user-friendly format.
+
+    Parameters:
+    - parse_errors (dict): Dictionary containing parsing error information
+    - logger: Logger instance for reporting errors
+    """
+    file_path = parse_errors.get("file", "Unknown file")
+
+    # Report file-level errors
+    if "file_error" in parse_errors:
+        logger.error(f"Failed to read annotation file: {file_path}")
+        logger.error(f"Error: {parse_errors['file_error']}")
+        return
+
+    # Report parsing statistics
+    total_lines = parse_errors.get("total_lines", 0)
+    parsed_lines = parse_errors.get("parsed_lines", 0)
+    malformed_lines = parse_errors.get("malformed_lines", [])
+    empty_lines = parse_errors.get("empty_lines", 0)
+    comment_lines = parse_errors.get("comment_lines", 0)
+
+    if malformed_lines:
+        logger.warning(f"Parsing issues found in annotation file: {file_path}")
+        logger.warning(
+            f"Total lines: {total_lines}, Successfully parsed: {parsed_lines}"
+        )
+        logger.warning(
+            f"Skipped: {len(malformed_lines)} malformed, {empty_lines} empty, {comment_lines} comment lines"
+        )
+
+        # Report details for first few malformed lines
+        max_errors_to_show = 5
+        logger.warning(
+            f"First {min(len(malformed_lines), max_errors_to_show)} malformed lines:"
+        )
+
+        for error_info in malformed_lines[:max_errors_to_show]:
+            line_num = error_info.get("line_number", "Unknown")
+            line_content = error_info.get("line_content", "")
+            error_msg = error_info.get("error", "Unknown error")
+
+            # Truncate very long lines for display
+            if len(line_content) > 100:
+                line_content = line_content[:97] + "..."
+
+            logger.warning(f"  Line {line_num}: {error_msg}")
+            logger.warning(f"    Content: '{line_content}'")
+
+        if len(malformed_lines) > max_errors_to_show:
+            remaining = len(malformed_lines) - max_errors_to_show
+            logger.warning(f"  ... and {remaining} more malformed lines")
+
+        logger.warning(
+            "Consider fixing the annotation file format or contact the tool provider"
+        )
+    elif empty_lines > 0 or comment_lines > 0:
+        logger.info(
+            f"Annotation file {file_path}: skipped {empty_lines} empty and {comment_lines} comment lines"
+        )
+
+
+def _report_parsing_summary(parsing_errors, logger):
+    """
+    Report a summary of all parsing errors encountered during annotation processing.
+
+    Parameters:
+    - parsing_errors (list): List of parsing error dictionaries
+    - logger: Logger instance for reporting errors
+    """
+    if not parsing_errors:
+        return
+
+    total_files_with_errors = len(parsing_errors)
+    total_malformed_lines = sum(
+        len(pe.get("malformed_lines", [])) for pe in parsing_errors
+    )
+    total_parsed_lines = sum(pe.get("parsed_lines", 0) for pe in parsing_errors)
+    files_with_file_errors = sum(1 for pe in parsing_errors if "file_error" in pe)
+
+    logger.warning("=" * 60)
+    logger.warning("ANNOTATION FILE PARSING SUMMARY")
+    logger.warning("=" * 60)
+    logger.warning(f"Files processed with parsing issues: {total_files_with_errors}")
+
+    if files_with_file_errors > 0:
+        logger.warning(f"Files that could not be read: {files_with_file_errors}")
+
+    if total_malformed_lines > 0:
+        logger.warning(f"Total malformed lines skipped: {total_malformed_lines}")
+        logger.warning(f"Total lines successfully parsed: {total_parsed_lines}")
+
+        logger.warning("\nFiles with parsing issues:")
+        for pe in parsing_errors:
+            if pe.get("malformed_lines") or "file_error" in pe:
+                file_path = pe.get("file", "Unknown file")
+                if "file_error" in pe:
+                    logger.warning(f"  {file_path}: FILE ERROR - {pe['file_error']}")
+                else:
+                    malformed_count = len(pe.get("malformed_lines", []))
+                    parsed_count = pe.get("parsed_lines", 0)
+                    logger.warning(
+                        f"  {file_path}: {malformed_count} malformed lines, {parsed_count} parsed successfully"
+                    )
+
+    logger.warning("\nRecommendations:")
+    logger.warning(
+        "1. Check annotation files are properly formatted (3 tab-separated columns)"
+    )
+    logger.warning("2. Ensure no extra spaces, missing tabs, or empty columns")
+    logger.warning("3. Contact the annotation tool provider if issues persist")
+    logger.warning("=" * 60)
 
 
 def _sortDict(d):
@@ -279,14 +393,27 @@ def annotate(args):
     all_annotations = [pfam_dict, dbcan_dict, swiss_dict, merops_dict, busco_dict]
     # we need to look for any additional annotations that might be added by f2a
     annots_in_dir = find_files(misc_dir, ".annotations.txt")
+    parsing_errors = []
     for annotfile in annots_in_dir:
-        a = parse_annotations(annotfile)
+        a, parse_errors = parse_annotations(annotfile)
         logger.info(f"Loaded {len(a)} annotations from {annotfile}")
+
+        # Report parsing errors if any
+        if parse_errors["malformed_lines"] or "file_error" in parse_errors:
+            parsing_errors.append(parse_errors)
+            _report_parsing_errors(parse_errors, logger)
+
         all_annotations.append(a)
     if args.annotations:
         for annotfile in args.annotations:
-            a = parse_annotations(annotfile)
+            a, parse_errors = parse_annotations(annotfile)
             logger.info(f"Loaded {len(a)} annotations from {annotfile}")
+
+            # Report parsing errors if any
+            if parse_errors["malformed_lines"] or "file_error" in parse_errors:
+                parsing_errors.append(parse_errors)
+                _report_parsing_errors(parse_errors, logger)
+
             all_annotations.append(a)
 
     # merge annotations into the gene/funannotate dictionary
@@ -448,6 +575,10 @@ def annotate(args):
     # Print summary to log
     logger.info("Annotation Summary:")
     logger.info(f"\n{json.dumps(stats, indent=2)}")
+
+    # Report parsing errors summary if any occurred
+    if parsing_errors:
+        _report_parsing_summary(parsing_errors, logger)
 
     # finish
     finishLogging(log, vars(sys.modules[__name__])["__name__"])
