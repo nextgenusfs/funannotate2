@@ -54,27 +54,30 @@ The memory monitoring is integrated into:
 
 ### Command Line Options
 
-Add memory monitoring to funannotate2 predict:
+Memory monitoring is enabled by default in funannotate2 predict:
 
 ```bash
-# Enable memory monitoring
-funannotate2 predict -i input_dir --monitor-memory
+# Memory monitoring is enabled by default
+funannotate2 predict -i input_dir
 
-# Enable memory monitoring with memory limit
-funannotate2 predict -i input_dir --monitor-memory --memory-limit 16
+# Set memory limit with memory monitoring (default behavior)
+funannotate2 predict -i input_dir --memory-limit 16
+
+# Disable memory monitoring if needed
+funannotate2 predict -i input_dir --disable-memory-monitoring
 ```
 
 ### CLI Options
 
-- `--monitor-memory`: Enable memory monitoring and prediction
+- `--disable-memory-monitoring`: Disable memory monitoring and prediction (enabled by default)
 - `--memory-limit GB`: Set memory limit in GB to adjust CPU allocation
 
 ### Example Output
 
-When memory monitoring is enabled, you'll see output like:
+With memory monitoring enabled by default, you'll see output like:
 
 ```
-Memory monitoring enabled for ab initio predictions
+Memory monitoring: using 14.4 GB limit (90% of 16.0 GB total)
 Memory limit set to 16.0 GB
 Memory usage estimate for 150 contigs with tools ['snap', 'augustus']:
   Total estimated peak memory: 2847.3 MB

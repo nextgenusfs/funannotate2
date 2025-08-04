@@ -833,16 +833,18 @@ def runSubprocess(
 
                 # Try to determine the output directory from environment or current working directory
                 output_dir = os.environ.get("FUNANNOTATE2_OUTPUT_DIR", os.getcwd())
-                logs_dir = os.path.join(output_dir, "logs")
+                logs_dir = os.path.join(output_dir, "logfiles")
 
-                # Create logs directory if it doesn't exist
+                # Create logfiles directory if it doesn't exist
                 if not os.path.exists(logs_dir):
                     try:
                         os.makedirs(logs_dir)
                     except:
                         logs_dir = output_dir  # Fallback to output directory
 
-                memory_log_file = os.path.join(logs_dir, "memory-monitoring.jsonl")
+                memory_log_file = os.path.join(
+                    logs_dir, "predict-abinitio-memory-monitoring.jsonl"
+                )
 
                 # Extract additional metadata for prediction model improvement
                 tool_name = None

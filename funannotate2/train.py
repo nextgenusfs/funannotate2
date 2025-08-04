@@ -348,18 +348,20 @@ def train(args):
 
     # check if genemark is installed, if so then run self training
     if which_path("gmes_petap.pl") and which_path("gmhmme3"):
-        logger.info("Training GeneMark-ES using self-training")
+        logger.info(f"Training GeneMark-ES using {args.genemark_mode} mode")
         fungus_flag = False
         if taxonomy["kingdom"] == "Fungi":
             fungus_flag = True
         genemark_train = train_genemark(
             TrainingGenomeFasta,
-            train_models,
+            filt_train_models_final,
             test_models,
             folder=misc_dir,
             fungus=fungus_flag,
             cpus=args.cpus,
             log=logger,
+            training_mode=args.genemark_mode,  # User-configurable training mode
+            max_training_length=50000000,  # 50 Mb limit for additional genomic context
         )
         genemark_train["training_set"] = "self training"
         train_data["genemark"] = genemark_train

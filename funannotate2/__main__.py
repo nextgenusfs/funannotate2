@@ -276,9 +276,9 @@ def predict_subparser(subparsers):
         "--tmpdir", default="/tmp", help="volume to write tmp files", metavar=""
     )
     optional_args.add_argument(
-        "--monitor-memory",
+        "--disable-memory-monitoring",
         action="store_true",
-        help="Monitor memory usage of ab initio prediction tools",
+        help="Disable memory monitoring of ab initio prediction tools (enabled by default)",
     )
     optional_args.add_argument(
         "--memory-limit",
@@ -370,6 +370,13 @@ def train_subparser(subparsers):
         dest="max_train_models",
         type=int,
         help="Maximum number of gene models to use for training (default: 5000)",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "--genemark-mode",
+        default="fast",
+        choices=["fast", "unsupervised", "guided"],
+        help="GeneMark training mode: fast (subset+hints, default), unsupervised (self-training), guided (full+hints)",
         metavar="",
     )
     optional_args.add_argument(
