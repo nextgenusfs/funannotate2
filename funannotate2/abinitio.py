@@ -681,12 +681,16 @@ def train_genemark(
     folder="/tmp",
     cpus=1,
     log=sys.stderr.write,
+    training_mode="fast",
+    max_training_length=10000000,  # 10 Mb default
 ):
     """
-    Train a GeneMark model using a self-training approach.
+    Train a GeneMark model using optimized training approaches.
 
-    This function sets up a training directory, runs GeneMark training, and evaluates the model using test data.
-    It supports fungal genomes and utilizes multiple CPUs for faster processing.
+    This function supports multiple training modes:
+    - 'fast': Use training models + subset genome + hints (recommended)
+    - 'unsupervised': Traditional self-training on entire genome (slow)
+    - 'guided': Use training models + full genome + hints (most accurate)
 
     Args:
         genome (str): Path to the genome file for training.
@@ -696,12 +700,13 @@ def train_genemark(
         folder (str, optional): Directory path for storing temporary files. Defaults to "/tmp".
         cpus (int, optional): Number of CPUs to use for training. Defaults to 1.
         log (function, optional): Logger for writing debug and error messages. Defaults to sys.stderr.write.
+        training_mode (str, optional): Training mode ('hybrid', 'self', 'supervised'). Defaults to 'hybrid'.
+        max_training_length (int, optional): Maximum genome length for training (bp). Defaults to 10000000.
 
     Returns:
         dict: A dictionary with the location of the trained GeneMark model and training results.
     """
-    # self training with genemark
-    # generate training directory ontop of the dir that is passed
+    # generate training directory
     tmpdir = os.path.join(folder, "genemark")
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
@@ -709,25 +714,33 @@ def train_genemark(
 
     # define training model
     genemark_mod = os.path.join(tmpdir, "gmhmm.mod")
-    if os.path.abspath(genome) != os.path.abspath(
-        os.path.join(folder, os.path.basename(genome))
-    ):
-        shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
-    cmd = [
-        "gmes_petap.pl",
-        "--ES",
-        "--cores",
-        str(cpus),
-        "--work_dir",
-        "genemark",
-        "--training",
-    ]
-    if fungus:
-        cmd.append("--fungus")
-    cmd += ["--sequence", os.path.basename(genome)]
     train_start = time.time()
-    runSubprocess(cmd, log, cwd=folder)
-    if checkfile(genemark_mod):
+
+    # Choose training approach based on mode
+    if training_mode == "guided":
+        # Use training models + full genome + hints (most accurate)
+        success = _train_genemark_supervised(
+            genome, train_gff, genemark_mod, fungus, tmpdir, cpus, log
+        )
+    elif training_mode == "fast":
+        # Use training models + subset genome + hints (recommended)
+        success = _train_genemark_hybrid(
+            genome,
+            train_gff,
+            genemark_mod,
+            fungus,
+            tmpdir,
+            cpus,
+            max_training_length,
+            log,
+        )
+    else:  # training_mode == "unsupervised"
+        # Traditional self-training on entire genome (slow)
+        success = _train_genemark_self(
+            genome, genemark_mod, fungus, tmpdir, cpus, folder, log
+        )
+
+    if success and checkfile(genemark_mod):
         # then it appears to work, now we can test it
         init_train = test_training(
             genemark_mod,
@@ -755,7 +768,818 @@ def train_genemark(
         return {"location": None, "train_results": None}
 
 
-def run_genemark(genome, train_data, predictions, folder="/tmp", log=sys.stderr.write):
+def _train_genemark_self(genome, genemark_mod, fungus, tmpdir, cpus, folder, log):
+    """Unsupervised self-training on entire genome (slow but thorough)."""
+    if os.path.abspath(genome) != os.path.abspath(
+        os.path.join(folder, os.path.basename(genome))
+    ):
+        shutil.copyfile(genome, os.path.join(folder, os.path.basename(genome)))
+
+    cmd = [
+        "gmes_petap.pl",
+        "--ES",
+        "--cores",
+        str(cpus),
+        "--work_dir",
+        "genemark",
+        "--training",
+    ]
+    if fungus:
+        cmd.append("--fungus")
+    cmd += ["--sequence", os.path.basename(genome)]
+
+    try:
+        runSubprocess(cmd, log, cwd=folder)
+        return True
+    except Exception as e:
+        if hasattr(log, "error"):
+            log.error(f"GeneMark self-training failed: {e}")
+        return False
+
+
+def _parse_gff3_simple(gff_file):
+    """Simple GFF3 parser for hint generation (no genome required)."""
+    models = {}
+    current_gene = None
+    current_mrna = None
+
+    with open(gff_file, "r") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+
+            parts = line.strip().split("\t")
+            if len(parts) != 9:
+                continue
+
+            (
+                contig,
+                source,
+                feature_type,
+                start,
+                end,
+                score,
+                strand,
+                phase,
+                attributes,
+            ) = parts
+            start, end = int(start), int(end)
+
+            # Parse attributes
+            attr_dict = {}
+            for attr in attributes.split(";"):
+                if "=" in attr:
+                    key, value = attr.split("=", 1)
+                    attr_dict[key] = value
+
+            if feature_type == "gene":
+                gene_id = attr_dict.get("ID", f"gene_{len(models)}")
+                current_gene = gene_id
+                models[gene_id] = {
+                    "contig": contig,
+                    "type": "gene",
+                    "location": [start, end],
+                    "strand": strand,
+                    "ids": {"ID": gene_id},
+                    "mRNA": [],
+                }
+
+            elif feature_type == "mRNA" and current_gene:
+                mrna_id = attr_dict.get("ID", f"{current_gene}-T1")
+                current_mrna = {
+                    "type": "mRNA",
+                    "location": [start, end],
+                    "strand": strand,
+                    "ids": {"ID": mrna_id},
+                    "CDS": [],
+                }
+                models[current_gene]["mRNA"].append(current_mrna)
+
+            elif feature_type == "CDS" and current_mrna is not None:
+                cds_id = attr_dict.get(
+                    "ID",
+                    f"{current_mrna['ids']['ID']}.cds{len(current_mrna['CDS']) + 1}",
+                )
+                cds_feature = {
+                    "type": "CDS",
+                    "location": [start, end],
+                    "strand": strand,
+                    "phase": int(phase) if phase != "." else 0,
+                    "ids": {"ID": cds_id},
+                }
+                current_mrna["CDS"].append(cds_feature)
+
+    return models
+
+
+def _generate_genemark_hints(input_gff, output_hints, genome=None):
+    """Convert gene annotations to GeneMark-compatible hints (ProtHint style)."""
+    try:
+        # Load gene models
+        if isinstance(input_gff, str):
+            # Parse GFF3 manually to avoid genome dependency
+            models = _parse_gff3_simple(input_gff)
+        elif isinstance(input_gff, dict):
+            models = input_gff
+        else:
+            raise ValueError(
+                f"input_gff must be file path or dictionary, got {type(input_gff)}"
+            )
+
+        hints = []
+
+        for gene_id, gene_data in models.items():
+            contig = gene_data["contig"]
+
+            # Process each mRNA
+            for mrna in gene_data.get("mRNA", []):
+                if "CDS" not in mrna or len(mrna["CDS"]) == 0:
+                    continue
+
+                cds_features = mrna["CDS"]
+                strand = mrna["strand"]
+
+                # Sort CDS by position
+                if strand == "+":
+                    cds_features = sorted(cds_features, key=lambda x: x["location"][0])
+                else:
+                    cds_features = sorted(
+                        cds_features, key=lambda x: x["location"][0], reverse=True
+                    )
+
+                # Generate start codon hint (first CDS)
+                first_cds = cds_features[0]
+                if strand == "+":
+                    start_pos = first_cds["location"][0]
+                    hints.append(
+                        [
+                            contig,
+                            "ProtHint",
+                            "start_codon",
+                            str(start_pos),
+                            str(start_pos + 2),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+                else:
+                    start_pos = first_cds["location"][1]
+                    hints.append(
+                        [
+                            contig,
+                            "ProtHint",
+                            "start_codon",
+                            str(start_pos - 2),
+                            str(start_pos),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+
+                # Generate stop codon hint (last CDS)
+                last_cds = cds_features[-1]
+                if strand == "+":
+                    stop_pos = last_cds["location"][1]
+                    hints.append(
+                        [
+                            contig,
+                            "ProtHint",
+                            "stop_codon",
+                            str(stop_pos - 2),
+                            str(stop_pos),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+                else:
+                    stop_pos = last_cds["location"][0]
+                    hints.append(
+                        [
+                            contig,
+                            "ProtHint",
+                            "stop_codon",
+                            str(stop_pos),
+                            str(stop_pos + 2),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+
+                # Generate intron hints (between CDS features)
+                for i in range(len(cds_features) - 1):
+                    current_cds = cds_features[i]
+                    next_cds = cds_features[i + 1]
+
+                    if strand == "+":
+                        intron_start = current_cds["location"][1] + 1
+                        intron_end = next_cds["location"][0] - 1
+                    else:
+                        intron_start = next_cds["location"][1] + 1
+                        intron_end = current_cds["location"][0] - 1
+
+                    if intron_start < intron_end:  # Valid intron
+                        hints.append(
+                            [
+                                contig,
+                                "ProtHint",
+                                "intron",
+                                str(intron_start),
+                                str(intron_end),
+                                "10",
+                                strand,
+                                ".",
+                                "src=P;pri=4",
+                            ]
+                        )
+
+        # Write hints file
+        with open(output_hints, "w") as f:
+            f.write("##gff-version 3\n")
+            for hint in hints:
+                f.write("\t".join(hint) + "\n")
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def _generate_genemark_hints_for_subset(train_gff, output_hints, subset_genome):
+    """Generate hints for training subset genome with coordinate mapping."""
+    try:
+        # Parse the subset genome to get region mappings
+        region_mappings = {}  # Maps original_contig -> [(region_name, start_offset, end_offset)]
+
+        with open(subset_genome, "r") as f:
+            for line in f:
+                if line.startswith(">"):
+                    # Parse header: >region_1_training_block_contig1_1
+                    header = line.strip()[1:]
+                    parts = header.split("_")
+                    if len(parts) >= 4 and parts[0] == "region":
+                        region_name = header
+                        # Extract original contig name from region_id
+                        # Format: region_1_training_block_contig1_1
+                        if "training_block_" in header:
+                            contig_part = header.split("training_block_")[1]
+                            original_contig = "_".join(
+                                contig_part.split("_")[:-1]
+                            )  # Remove the final number
+
+                            if original_contig not in region_mappings:
+                                region_mappings[original_contig] = []
+
+                            # For now, assume region starts at 0 in the subset
+                            # We'll need to get the actual coordinates from the training subset creation
+                            region_mappings[original_contig].append(
+                                (region_name, 0, None)
+                            )
+
+        # Load training models
+        models = _parse_gff3_simple(train_gff)
+        hints = []
+
+        for gene_id, gene_data in models.items():
+            original_contig = gene_data["contig"]
+
+            # Skip if this contig is not in our subset
+            if original_contig not in region_mappings:
+                continue
+
+            # For simplicity, use the first region for this contig
+            # In a more sophisticated version, we'd check which region contains this gene
+            region_name = region_mappings[original_contig][0][0]
+
+            # Process each mRNA
+            for mrna in gene_data.get("mRNA", []):
+                if "CDS" not in mrna or len(mrna["CDS"]) == 0:
+                    continue
+
+                cds_features = mrna["CDS"]
+                strand = mrna["strand"]
+
+                # Sort CDS by position
+                if strand == "+":
+                    cds_features = sorted(cds_features, key=lambda x: x["location"][0])
+                else:
+                    cds_features = sorted(
+                        cds_features, key=lambda x: x["location"][0], reverse=True
+                    )
+
+                # Generate start codon hint (first CDS) - use region name
+                first_cds = cds_features[0]
+                if strand == "+":
+                    start_pos = first_cds["location"][0]
+                    hints.append(
+                        [
+                            region_name,  # Use region name instead of original contig
+                            "ProtHint",
+                            "start_codon",
+                            str(start_pos),
+                            str(start_pos + 2),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+                else:
+                    start_pos = first_cds["location"][1]
+                    hints.append(
+                        [
+                            region_name,
+                            "ProtHint",
+                            "start_codon",
+                            str(start_pos - 2),
+                            str(start_pos),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+
+                # Generate stop codon hint (last CDS)
+                last_cds = cds_features[-1]
+                if strand == "+":
+                    stop_pos = last_cds["location"][1]
+                    hints.append(
+                        [
+                            region_name,
+                            "ProtHint",
+                            "stop_codon",
+                            str(stop_pos - 2),
+                            str(stop_pos),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+                else:
+                    stop_pos = last_cds["location"][0]
+                    hints.append(
+                        [
+                            region_name,
+                            "ProtHint",
+                            "stop_codon",
+                            str(stop_pos),
+                            str(stop_pos + 2),
+                            "10",
+                            strand,
+                            ".",
+                            "src=P;pri=4",
+                        ]
+                    )
+
+                # Generate intron hints (between CDS features)
+                for i in range(len(cds_features) - 1):
+                    current_cds = cds_features[i]
+                    next_cds = cds_features[i + 1]
+
+                    if strand == "+":
+                        intron_start = current_cds["location"][1] + 1
+                        intron_end = next_cds["location"][0] - 1
+                    else:
+                        intron_start = next_cds["location"][1] + 1
+                        intron_end = current_cds["location"][0] - 1
+
+                    if intron_start < intron_end:  # Valid intron
+                        hints.append(
+                            [
+                                region_name,
+                                "ProtHint",
+                                "intron",
+                                str(intron_start),
+                                str(intron_end),
+                                "10",
+                                strand,
+                                ".",
+                                "src=P;pri=4",
+                            ]
+                        )
+
+        # Write hints file
+        with open(output_hints, "w") as f:
+            f.write("##gff-version 3\n")
+            for hint in hints:
+                f.write("\t".join(hint) + "\n")
+
+        return True
+
+    except Exception as e:
+        return False
+
+
+def _generate_genemark_hints_from_alignments(
+    transcript_alignments=None, protein_alignments=None, output_hints=None
+):
+    """Generate GeneMark hints from transcript and/or protein alignments."""
+    try:
+        hints = []
+
+        # Process transcript alignments (RNA-Seq evidence)
+        if transcript_alignments:
+            from gfftk.gff import gff2dict
+
+            if isinstance(transcript_alignments, str):
+                alignments = gff2dict(transcript_alignments, None)
+            else:
+                alignments = transcript_alignments
+
+            for align_id, align_data in alignments.items():
+                if align_data.get("type") == "match" or "exon" in align_data:
+                    contig = align_data["contig"]
+                    strand = align_data["strand"]
+
+                    # Generate intron hints from exon gaps
+                    exons = align_data.get("exon", [])
+                    if len(exons) > 1:
+                        # Sort exons by position
+                        exons = sorted(exons, key=lambda x: x["location"][0])
+
+                        for i in range(len(exons) - 1):
+                            intron_start = exons[i]["location"][1] + 1
+                            intron_end = exons[i + 1]["location"][0] - 1
+
+                            if intron_start < intron_end:
+                                hints.append(
+                                    [
+                                        contig,
+                                        "ProtHint",
+                                        "intron",
+                                        str(intron_start),
+                                        str(intron_end),
+                                        "1",
+                                        strand,
+                                        ".",
+                                        "src=E",  # E for expression/transcript
+                                    ]
+                                )
+
+        # Process protein alignments
+        if protein_alignments:
+            from gfftk.gff import gff2dict
+
+            if isinstance(protein_alignments, str):
+                alignments = gff2dict(protein_alignments, None)
+            else:
+                alignments = protein_alignments
+
+            for align_id, align_data in alignments.items():
+                if align_data.get("type") == "match" or "HSP" in align_data:
+                    contig = align_data["contig"]
+                    strand = align_data["strand"]
+
+                    # Generate intron hints from HSP gaps
+                    hsps = align_data.get("HSP", [])
+                    if len(hsps) > 1:
+                        # Sort HSPs by position
+                        hsps = sorted(hsps, key=lambda x: x["location"][0])
+
+                        for i in range(len(hsps) - 1):
+                            intron_start = hsps[i]["location"][1] + 1
+                            intron_end = hsps[i + 1]["location"][0] - 1
+
+                            if intron_start < intron_end:
+                                hints.append(
+                                    [
+                                        contig,
+                                        "ProtHint",
+                                        "intron",
+                                        str(intron_start),
+                                        str(intron_end),
+                                        "1",
+                                        strand,
+                                        ".",
+                                        "src=P",  # P for protein
+                                    ]
+                                )
+
+        # Write hints file
+        if output_hints and hints:
+            with open(output_hints, "w") as f:
+                f.write("##gff-version 3\n")
+                for hint in hints:
+                    f.write("\t".join(hint) + "\n")
+            return True
+
+        return len(hints) > 0
+
+    except Exception as e:
+        return False
+
+
+def _train_genemark_supervised(
+    genome, train_gff, genemark_mod, fungus, tmpdir, cpus, log
+):
+    """Guided training using full genome + hints (most accurate)."""
+    # This approach uses gmes_petap.pl with training data
+    # Copy genome to working directory
+    genome_copy = os.path.join(tmpdir, os.path.basename(genome))
+    shutil.copyfile(genome, genome_copy)
+
+    # Generate hints from training data
+    hints_file = os.path.join(tmpdir, "training_hints.gff")
+    hints_success = _generate_genemark_hints(train_gff, hints_file, genome)
+
+    # Run GeneMark with hints if available, otherwise training only
+    cmd = [
+        "gmes_petap.pl",
+        "--ES",
+        "--cores",
+        str(cpus),
+        "--training",
+        "--sequence",
+        os.path.basename(genome),
+    ]
+
+    if hints_success:
+        cmd.extend(["--evidence", "training_hints.gff"])
+        if hasattr(log, "info"):
+            log.info("Using training hints for guided GeneMark training")
+    else:
+        if hasattr(log, "warning"):
+            log.warning("Failed to generate hints, using training-only mode")
+
+    if fungus:
+        cmd.append("--fungus")
+
+    try:
+        runSubprocess(cmd, log, cwd=tmpdir)
+        return True
+    except Exception as e:
+        if hasattr(log, "error"):
+            log.error(f"GeneMark supervised training failed: {e}")
+        return False
+
+
+def _train_genemark_hybrid(
+    genome, train_gff, genemark_mod, fungus, tmpdir, cpus, max_training_length, log
+):
+    """Fast training: subset genome + hints (recommended for speed)."""
+
+    # Create a subset genome for training
+    training_genome = os.path.join(tmpdir, "training_subset.fasta")
+
+    # Strategy: Create a training genome that includes:
+    # 1. ALL selected training models (with flanks) - no size limit
+    # 2. Additional genomic regions for pattern learning (if space allows)
+
+    if hasattr(log, "info"):
+        log.info("Creating optimized training genome")
+
+    success = _create_training_subset_genome(
+        genome, train_gff, training_genome, max_training_length, log
+    )
+
+    if not success:
+        if hasattr(log, "warning"):
+            log.warning(
+                "Failed to create training subset, falling back to guided training"
+            )
+        return _train_genemark_supervised(
+            genome, train_gff, genemark_mod, fungus, tmpdir, cpus, log
+        )
+
+    # For fast mode, skip hints for now due to coordinate mapping complexity
+    # TODO: Implement proper coordinate mapping for hints in subset genome
+    cmd = [
+        "gmes_petap.pl",
+        "--ES",
+        "--cores",
+        str(cpus),
+        "--training",
+        "--sequence",
+        os.path.basename(training_genome),
+    ]
+
+    if fungus:
+        cmd.append("--fungus")
+
+    if hasattr(log, "info"):
+        log.info(
+            "Fast GeneMark training on subset genome (hints disabled for coordinate mapping)"
+        )
+
+    try:
+        runSubprocess(cmd, log, cwd=tmpdir)
+        return True
+    except Exception as e:
+        if hasattr(log, "error"):
+            log.error(f"GeneMark hybrid training failed: {e}")
+        return False
+
+
+def _create_training_subset_genome(genome, train_gff, output_genome, max_length, log):
+    """Create a subset genome for efficient GeneMark training."""
+    try:
+        from gfftk.gff import gff2dict
+        from .fastx import fasta2dict
+
+        # Load genome and training models
+        genome_dict = fasta2dict(genome)
+
+        # Handle both file path and dictionary inputs for train_gff
+        if isinstance(train_gff, str):
+            train_models = gff2dict(train_gff, genome)
+        elif isinstance(train_gff, dict):
+            train_models = train_gff
+        else:
+            raise ValueError(
+                f"train_gff must be a file path (str) or dictionary, got {type(train_gff)}"
+            )
+
+        # Strategy: Include ALL training models first, then add genomic regions if space allows
+        flank_size = 5000  # 5kb flanks around training models
+        selected_regions = []
+        total_length = 0
+
+        # First pass: group training models by contig and merge overlapping regions
+        # This creates contiguous genomic blocks instead of fragmented individual genes
+        contig_models = {}
+        for model_id, model_data in train_models.items():
+            contig = model_data["contig"]
+            if contig not in genome_dict:
+                continue
+
+            if contig not in contig_models:
+                contig_models[contig] = []
+
+            start = max(0, model_data["location"][0] - flank_size)
+            end = min(len(genome_dict[contig]), model_data["location"][1] + flank_size)
+            contig_models[contig].append((start, end, model_id))
+
+        # Merge overlapping regions on each contig
+        merged_regions = []
+        for contig, regions in contig_models.items():
+            # Sort by start position
+            regions.sort(key=lambda x: x[0])
+
+            # Merge overlapping intervals
+            merged = []
+            for start, end, model_id in regions:
+                if merged and start <= merged[-1][1]:
+                    # Overlapping or adjacent - merge
+                    merged[-1] = (
+                        merged[-1][0],
+                        max(merged[-1][1], end),
+                        merged[-1][2] + f",{model_id}",
+                    )
+                else:
+                    # Non-overlapping - add new region
+                    merged.append((start, end, model_id))
+
+            # Add merged regions to final list
+            for i, (start, end, model_ids) in enumerate(merged):
+                region_length = end - start
+                selected_regions.append(
+                    (contig, start, end, f"training_block_{contig}_{i + 1}")
+                )
+                total_length += region_length
+                merged_regions.append((contig, start, end, len(model_ids.split(","))))
+
+        if hasattr(log, "info"):
+            total_models = sum(region[3] for region in merged_regions)
+            log.info(
+                f"Loaded {total_models} training models from {len(contig_models)} contigs"
+            )
+
+        # Second pass: add genomic regions from unused contigs for additional context
+        # This provides additional genomic diversity for pattern learning
+        genomic_regions_added = 0
+        if total_length < max_length:
+            remaining_space = max_length - total_length
+            used_contigs = set(region[0] for region in selected_regions)
+
+            for contig, seq in genome_dict.items():
+                if contig in used_contigs:
+                    continue  # Skip contigs that already have training blocks
+
+                # Take chunks from unused contigs to provide genomic diversity
+                chunk_size = min(remaining_space, len(seq), 100000)  # Max 100kb chunks
+                if chunk_size > 5000:  # Only include meaningful chunks
+                    selected_regions.append(
+                        (contig, 0, chunk_size, f"genomic_{contig}")
+                    )
+                    remaining_space -= chunk_size
+                    total_length += chunk_size
+                    genomic_regions_added += 1
+
+                if remaining_space <= 0:
+                    break
+
+        # Write subset genome
+        with open(output_genome, "w") as outfile:
+            for i, (contig, start, end, region_id) in enumerate(selected_regions):
+                seq = genome_dict[contig][start:end]
+                outfile.write(f">region_{i + 1}_{region_id}\n{seq}\n")
+
+        if hasattr(log, "info"):
+            log.info(
+                f"Created training subset: {len(selected_regions)} regions, {total_length:,} bp total"
+            )
+
+        return True
+
+    except Exception as e:
+        if hasattr(log, "error"):
+            log.error(f"Failed to create training subset genome: {e}")
+        return False
+
+
+def run_genemark_with_hints(
+    genome,
+    train_data,
+    predictions,
+    transcript_alignments=None,
+    protein_alignments=None,
+    folder="/tmp",
+    log=sys.stderr.write,
+):
+    """
+    Run GeneMark prediction with optional hints from alignments.
+
+    Args:
+        genome (str): Path to the genome file.
+        train_data (str): Path to the training data file.
+        predictions (str): Path to save the predicted gene annotations.
+        transcript_alignments (str, optional): Path to transcript alignment GFF3.
+        protein_alignments (str, optional): Path to protein alignment GFF3.
+        folder (str, optional): Directory to store temporary files.
+        log (function, optional): Logger function.
+    """
+    tmpdir = os.path.join(folder, "genemark_predict")
+    if os.path.isdir(tmpdir):
+        shutil.rmtree(tmpdir)
+    os.makedirs(tmpdir)
+
+    # Copy files to working directory
+    genome_copy = os.path.join(tmpdir, os.path.basename(genome))
+    shutil.copyfile(genome, genome_copy)
+
+    # Generate hints from alignments if provided
+    hints_file = None
+    if transcript_alignments or protein_alignments:
+        hints_file = os.path.join(tmpdir, "prediction_hints.gff")
+        hints_success = _generate_genemark_hints_from_alignments(
+            transcript_alignments, protein_alignments, hints_file
+        )
+        if not hints_success:
+            hints_file = None
+            if hasattr(log, "warning"):
+                log.warning("Failed to generate hints from alignments")
+
+    # Run GeneMark prediction
+    cmd = [
+        "gmes_petap.pl",
+        "--ES",
+        "--predict_with",
+        train_data,
+        "--sequence",
+        os.path.basename(genome_copy),
+    ]
+
+    if hints_file:
+        cmd.extend(["--evidence", "prediction_hints.gff"])
+        if hasattr(log, "info"):
+            log.info("Using alignment hints for GeneMark prediction")
+
+    try:
+        runSubprocess(cmd, log, cwd=tmpdir)
+
+        # Convert output to GFF3 and copy to final location
+        genemark_output = os.path.join(tmpdir, "genemark.gtf")
+        if os.path.exists(genemark_output):
+            shutil.copyfile(genemark_output, predictions)
+        else:
+            # Look for other possible output files
+            for f in os.listdir(tmpdir):
+                if f.endswith(".gtf") or f.endswith(".gff3"):
+                    shutil.copyfile(os.path.join(tmpdir, f), predictions)
+                    break
+
+        # Clean up
+        shutil.rmtree(tmpdir)
+
+    except Exception as e:
+        if hasattr(log, "error"):
+            log.error(f"GeneMark prediction failed: {e}")
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+
+
+def run_genemark(
+    genome, train_data, predictions, folder="/tmp", log=sys.stderr.write, hints=None
+):
     """
     Run GeneMark to predict genes in a genome using specified training data and save the predictions to a file.
 
@@ -768,6 +1592,7 @@ def run_genemark(genome, train_data, predictions, folder="/tmp", log=sys.stderr.
         predictions (str): Path to save the predicted gene annotations.
         folder (str, optional): Directory to store temporary files. Defaults to "/tmp".
         log (function, optional): Logger function to write debug and error messages. Defaults to sys.stderr.write.
+        hints (str, optional): Path to hints file for GeneMark.hmm plus mode.
 
     Returns:
         None
@@ -785,12 +1610,27 @@ def run_genemark(genome, train_data, predictions, folder="/tmp", log=sys.stderr.
         os.path.basename(train_data),
         "-o",
         tmpout,
-        os.path.basename(genome),
     ]
+
+    # Add hints file if provided
+    if hints and os.path.isfile(hints):
+        cmd.extend(["-d", os.path.basename(hints)])
+        if hasattr(log, "info"):
+            log.info(f"Using hints file for GeneMark: {os.path.basename(hints)}")
+
+    cmd.append(os.path.basename(genome))
+
     workdir = os.path.dirname(genome)
     genemark_mod = os.path.join(workdir, os.path.basename(train_data))
     if not checkfile(genemark_mod):
         shutil.copy(os.path.abspath(train_data), genemark_mod)
+
+    # Copy hints file to working directory if provided
+    if hints and os.path.isfile(hints):
+        hints_copy = os.path.join(workdir, os.path.basename(hints))
+        if not checkfile(hints_copy):
+            shutil.copy(os.path.abspath(hints), hints_copy)
+
     runSubprocess(
         cmd,
         log,

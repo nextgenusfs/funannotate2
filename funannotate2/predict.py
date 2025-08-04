@@ -323,11 +323,31 @@ def predict(args):
 
     if len(ab_files_missing) > 0:  # all or nothing for now
         if "augustus" in params["abinitio"]:  # generate hintsfiles
-            logger.info("Parsing alignments and generating hintsfile for augustus")
+            logger.info("Parsing alignments and generating hintsfile for Augustus")
             evidence2hints(ProtAlign, TranAlign, contigs, tmp_dir)
 
-        # Check if memory monitoring is enabled
-        monitor_memory = getattr(args, "monitor_memory", False)
+        if "genemark" in params["abinitio"]:  # generate GeneMark hints files
+            logger.info("Parsing alignments and generating hints files for GeneMark")
+            from .abinitio import _generate_genemark_hints_from_alignments
+
+            # Generate hints for each contig
+            for contig in contigs:
+                contig_name = os.path.basename(contig)
+                hints_file = os.path.join(tmp_dir, f"{contig_name}.genemark_hints.gff")
+
+                # Generate hints from alignments if available
+                transcript_align = TranAlign if checkfile(TranAlign) else None
+                protein_align = ProtAlign if checkfile(ProtAlign) else None
+
+                if transcript_align or protein_align:
+                    _generate_genemark_hints_from_alignments(
+                        transcript_alignments=transcript_align,
+                        protein_alignments=protein_align,
+                        output_hints=hints_file,
+                    )
+
+        # Check if memory monitoring is enabled (default: True, disabled with --disable-memory-monitoring)
+        monitor_memory = not getattr(args, "disable_memory_monitoring", False)
         memory_limit = getattr(args, "memory_limit", None)
 
         if monitor_memory:
@@ -344,22 +364,18 @@ def predict(args):
                         memory_limit = auto_limit
 
                         logger.info(
-                            f"Memory monitoring enabled: using {memory_limit:.1f} GB limit (90% of {total_gb:.1f} GB total)"
+                            f"Memory monitoring: using {memory_limit:.1f} GB limit (90% of {total_gb:.1f} GB total)"
                         )
                     else:
                         logger.warning(
                             f"Could not auto-detect memory limit: {memory_info['error']}"
                         )
-                        logger.info(
-                            "Memory monitoring enabled with basic error tracking only"
-                        )
+                        logger.info("Memory monitoring: basic error tracking only")
                 except ImportError:
                     logger.warning("Memory module not available for auto-detection")
-                    logger.info(
-                        "Memory monitoring enabled with basic error tracking only"
-                    )
+                    logger.info("Memory monitoring: basic error tracking only")
             else:
-                logger.info(f"Memory monitoring enabled: using {memory_limit} GB limit")
+                logger.info(f"Memory monitoring: using {memory_limit} GB limit")
 
             # Set environment variable so memory monitoring knows where to write files
             os.environ["FUNANNOTATE2_OUTPUT_DIR"] = args.out
@@ -395,9 +411,14 @@ def predict(args):
                     "Memory monitoring requested but memory module dependencies not available"
                 )
                 monitor_memory = False
+        else:
+            logger.info(
+                "Memory monitoring disabled by --disable-memory-monitoring flag"
+            )
 
         # now run ab intio in parallel - build commands after memory detection
         abinit_cmds = []
+
         for c in contigs:
             abinit_cmds.append((c, params, logger, monitor_memory, memory_limit))
 
@@ -480,7 +501,9 @@ def predict(args):
 
         # Log memory monitoring file location if monitoring was enabled
         if monitor_memory:
-            memory_log_file = os.path.join(log_dir, "memory-monitoring.jsonl")
+            memory_log_file = os.path.join(
+                log_dir, "predict-abinitio-memory-monitoring.jsonl"
+            )
             if os.path.exists(memory_log_file):
                 logger.info(f"Memory monitoring data written to: {memory_log_file}")
 
@@ -587,7 +610,9 @@ def predict(args):
 
     # now we want to calculate weight estimations based on these results
     weightings = calculate_weights(abinitio_scores, args.weights)
-    logger.info(f"Calculated ab initio weights from data: {weightings}")
+    logger.info(
+        f"Calculated ab initio weights from data: {sorted(weightings, key=lambda item: int(item.split(':')[1]), reverse=True)}"
+    )
     consensus_tmp = os.path.join(tmp_dir, "evm")
     if not os.path.isdir(consensus_tmp):
         os.makedirs(consensus_tmp)
@@ -989,7 +1014,7 @@ def abinitio_wrapper(
                     oom_indicator in error_str
                     for oom_indicator in ["memory", "oom", "killed", "signal 9"]
                 ):
-                    oom_msg = f"LIKELY OOM ERROR: {tool_name} on contig {contig_name} - consider using --monitor-memory and --memory-limit"
+                    oom_msg = f"LIKELY OOM ERROR: {tool_name} on contig {contig_name} - consider using --memory-limit to set explicit limits"
                     logger.error(oom_msg)
                     return False, oom_msg
 
@@ -1102,6 +1127,15 @@ def abinitio_wrapper(
 
     if "genemark" in params["abinitio"]:
         if which_path("gmhmme3"):
+            # Check for GeneMark hints file (similar to Augustus)
+            genemark_hints = None
+            hints_file = os.path.join(
+                os.path.dirname(contig),
+                f"{contig_name}.genemark_hints.gff",
+            )
+            if os.path.isfile(hints_file):
+                genemark_hints = hints_file
+
             success, error_msg = run_tool_with_error_tracking(
                 "genemark",
                 run_genemark,
@@ -1109,7 +1143,9 @@ def abinitio_wrapper(
                 params["abinitio"]["genemark"]["location"],
                 os.path.join(os.path.dirname(contig), f"{contig_name}.genemark.gff3"),
                 log=log_func,
+                hints=genemark_hints,
             )
+
             if success:
                 tools_run.append("genemark")
             else:
