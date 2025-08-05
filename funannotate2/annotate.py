@@ -276,7 +276,7 @@ def annotate(args):
         )
         pfam_dict = pfam2tsv(pfam, pfam_all, pfam_annots)
     else:
-        pfam_dict = parse_annotations(pfam_annots)
+        pfam_dict, _ = parse_annotations(pfam_annots)
         logger.info(
             f"Existing Pfam-A results found, loaded annotations for {len(pfam_dict)} gene models"
         )
@@ -296,7 +296,7 @@ def annotate(args):
         )
         dbcan_dict = dbcan2tsv(dbcan, dbcan_all, dbcan_annots)
     else:
-        dbcan_dict = parse_annotations(dbcan_annots)
+        dbcan_dict, _ = parse_annotations(dbcan_annots)
         logger.info(
             f"Existing dbCAN results found, loaded annotations for {len(dbcan_dict)} gene models"
         )
@@ -317,7 +317,7 @@ def annotate(args):
         )
         swiss_dict = swissprot2tsv(swiss, swiss_all, swiss_annots)
     else:
-        swiss_dict = parse_annotations(swiss_annots)
+        swiss_dict, _ = parse_annotations(swiss_annots)
         logger.info(
             f"Existing UniProtKB/Swiss-Prot results found, loaded annotations for {len(swiss_dict)} gene models"
         )
@@ -337,7 +337,7 @@ def annotate(args):
         )
         merops_dict = merops2tsv(merops, merops_all, merops_annots)
     else:
-        merops_dict = parse_annotations(merops_annots)
+        merops_dict, _ = parse_annotations(merops_annots)
         logger.info(
             f"Existing MEROPS results found, loaded annotations for {len(merops_dict)} gene models"
         )
@@ -384,7 +384,7 @@ def annotate(args):
             f"BUSCOlite search resulted in {len(busco_dict)} hits and finished in {round(end - start, 2)} seconds"
         )
     else:
-        busco_dict = parse_annotations(busco_annots)
+        busco_dict, _ = parse_annotations(busco_annots)
         logger.info(
             f"Existing BUSCOlite results found, loaded annotations for {len(busco_dict)} gene models"
         )

@@ -1,4 +1,4 @@
-cff-version: version = "25.8.3"
+cff-version: version = "25.8.5"
 title: 'funannotate2: eukaryotic genome annotation'
 message: >-
   If you use this software, please cite it using the
@@ -17,5 +17,5 @@ keywords:
   - functional annotation
   - consensus gene models
 license: BSD-2-Clause
-version: version = "25.8.3"
-date-released: '2025-08-04'
+version: version = "25.8.5"
+date-released: '2025-08-05'
