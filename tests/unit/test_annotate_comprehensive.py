@@ -159,7 +159,9 @@ class TestAnnotateComprehensive:
     @patch("funannotate2.annotate.os.path.isdir")
     @patch("funannotate2.annotate.os.path.isfile")
     @patch("funannotate2.annotate.checkfile")
-    def test_check_inputs_missing_files(self, mock_checkfile, mock_isfile, mock_isdir, mock_args):
+    def test_check_inputs_missing_files(
+        self, mock_checkfile, mock_isfile, mock_isdir, mock_args
+    ):
         """Test the check_inputs function with missing files."""
         # Set up mocks
         mock_isdir.return_value = True
@@ -170,7 +172,9 @@ class TestAnnotateComprehensive:
         # Instead, the input validation is done directly in the annotate function
         # This test is skipped until the function is implemented
 
-    @pytest.mark.skip(reason="find_input_files function not implemented in annotate module")
+    @pytest.mark.skip(
+        reason="find_input_files function not implemented in annotate module"
+    )
     @patch("funannotate2.annotate.find_files")
     def test_find_input_files(self, mock_find_files, mock_args):
         """Test the find_input_files function."""
@@ -199,21 +203,29 @@ class TestAnnotateComprehensive:
 
         try:
             # Call the function
-            result = annotate.parse_annotations(temp_name)
+            result, parse_errors = annotate.parse_annotations(temp_name)
 
             # Check the result
             assert isinstance(result, dict)
+            assert isinstance(parse_errors, dict)
             assert "gene1" in result
             assert "gene2" in result
             assert "product" in result["gene1"]
             assert "db_xref" in result["gene1"]
             assert result["gene1"]["product"] == ["Hypothetical protein"]
             assert result["gene1"]["db_xref"] == ["UniProtKB/Swiss-Prot:P12345"]
+
+            # Check that parsing was successful (no errors)
+            assert len(parse_errors["malformed_lines"]) == 0
+            assert parse_errors["parsed_lines"] == 4  # 4 lines in the test file
+            assert parse_errors["total_lines"] == 4
         finally:
             # Clean up
             os.unlink(temp_name)
 
-    @pytest.mark.skip(reason="write_output_files function not implemented in annotate module")
+    @pytest.mark.skip(
+        reason="write_output_files function not implemented in annotate module"
+    )
     @patch("funannotate2.annotate.os.path.join")
     @patch("funannotate2.annotate.os.makedirs")
     @patch("funannotate2.annotate.dict2tbl")
