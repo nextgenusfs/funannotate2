@@ -436,14 +436,43 @@ def best_taxonomy(query, reference, exact=False):
             and normalize(query[level]) == normalize(ref[level])
         )
 
-    # Special case: If query fully defines a taxonomic level, return it directly
+    # Special case: If query fully defines a taxonomic level, return the matching key
     if exact:
         for level in reversed(levels):  # Start from deepest and move upward
-            if level in query and any(
-                normalize(query[level]) == normalize(reference[name].get(level, ""))
-                for name in reference
-            ):
-                return normalize(query[level])  # Return first valid match found
+            if level in query:
+                # Find matches at this taxonomic level
+                level_matches = []
+                for name in reference:
+                    if normalize(query[level]) == normalize(
+                        reference[name].get(level, "")
+                    ):
+                        level_matches.append(name)
+
+                if level_matches:
+                    # Prefer matches that represent exactly this taxonomic level
+                    # (i.e., don't have more specific levels defined)
+                    level_index = levels.index(level)
+                    more_specific_levels = levels[
+                        level_index + 1 :
+                    ]  # levels AFTER current level
+
+                    # Find matches that stop at this level (most appropriate)
+                    exact_level_matches = []
+                    for match in level_matches:
+                        ref_data = reference[match]
+                        # Check if this reference defines more specific levels
+                        has_more_specific = any(
+                            more_specific_level in ref_data
+                            for more_specific_level in more_specific_levels
+                        )
+                        if not has_more_specific:
+                            exact_level_matches.append(match)
+
+                    # Only return if we have exact level matches
+                    # If no exact level matches, continue to more general levels
+                    if exact_level_matches:
+                        return exact_level_matches[0]  # Return exact level match
+                    # If no exact level matches found, continue to next level
 
     best_matches = []
     highest_score = -1
