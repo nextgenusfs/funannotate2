@@ -293,6 +293,20 @@ def predict_subparser(subparsers):
         help="Skip specific ab initio predictors (choices: snap, augustus, glimmerhmm, genemark)",
         metavar="",
     )
+    optional_args.add_argument(
+        "--min-protein-length",
+        type=int,
+        default=30,
+        help="Minimum protein length in amino acids for gene models (default: 30)",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "--max-protein-length",
+        type=int,
+        default=30000,
+        help="Maximum protein length in amino acids for gene models (default: 30000)",
+        metavar="",
+    )
     other_args = group.add_argument_group("Other arguments")
     other_args.add_argument(
         "-h",

@@ -24,6 +24,7 @@ from .abinitio import (
 from .align import align_mito, align_proteins, align_transcripts
 from .config import env
 from .database import fetch_pretrained_species
+from .utilities import filter_and_write_gff3
 from .fastx import (
     analyzeAssembly,
     annotate_fasta,
@@ -451,14 +452,16 @@ def predict(args):
             gene_counts[ab] = 0
             if ab == "augustus":  # split hiq and regular
                 gene_counts["augustus-hiq"] = 0
-                abinitio_preds.append(os.path.join(misc_dir, f"predictions.{ab}.gff3"))
-                abinitio_preds.append(
-                    os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3")
-                )
-                with open(os.path.join(misc_dir, f"predictions.{ab}.gff3"), "w") as aug:
-                    with open(
-                        os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3"), "w"
-                    ) as hiq:
+                aug_output = os.path.join(misc_dir, f"predictions.{ab}.gff3")
+                hiq_output = os.path.join(misc_dir, f"predictions.{ab}-hiq.gff3")
+                abinitio_preds.append(aug_output)
+                abinitio_preds.append(hiq_output)
+
+                # First consolidate all predictions into temporary files
+                aug_temp = os.path.join(misc_dir, f"predictions.{ab}.temp.gff3")
+                hiq_temp = os.path.join(misc_dir, f"predictions.{ab}-hiq.temp.gff3")
+                with open(aug_temp, "w") as aug:
+                    with open(hiq_temp, "w") as hiq:
                         aug.write("##gff-version 3\n")
                         hiq.write("##gff-version 3\n")
                         for f in natsorted(os.listdir(tmp_dir)):
@@ -467,20 +470,44 @@ def predict(args):
                                     for line in infile:
                                         if line.startswith("#"):
                                             continue
-                                        if "\tgene\t" in line:
-                                            if "augustus-hiq" in line:
-                                                gene_counts["augustus-hiq"] += 1
-                                            else:
-                                                gene_counts[ab] += 1
                                         if "augustus-hiq" in line:
                                             hiq.write(line)
                                         else:
                                             aug.write(line)
+
+                # Now filter both files
+                aug_stats = filter_and_write_gff3(
+                    aug_temp,
+                    aug_output,
+                    min_protein_length=args.min_protein_length,
+                    max_protein_length=args.max_protein_length,
+                )
+                hiq_stats = filter_and_write_gff3(
+                    hiq_temp,
+                    hiq_output,
+                    min_protein_length=args.min_protein_length,
+                    max_protein_length=args.max_protein_length,
+                )
+                gene_counts[ab] = aug_stats["kept"]
+                gene_counts["augustus-hiq"] = hiq_stats["kept"]
+
+                # Clean up temp files
+                os.remove(aug_temp)
+                os.remove(hiq_temp)
+
+                logger.info(
+                    f"Augustus predictions filtered: {aug_stats['kept']} kept, {aug_stats['filtered']} filtered (protein length {args.min_protein_length}-{args.max_protein_length} aa)"
+                )
+                logger.info(
+                    f"Augustus-hiq predictions filtered: {hiq_stats['kept']} kept, {hiq_stats['filtered']} filtered (protein length {args.min_protein_length}-{args.max_protein_length} aa)"
+                )
             else:
-                abinitio_preds.append(os.path.join(misc_dir, f"predictions.{ab}.gff3"))
-                with open(
-                    os.path.join(misc_dir, f"predictions.{ab}.gff3"), "w"
-                ) as outfile:
+                output_file = os.path.join(misc_dir, f"predictions.{ab}.gff3")
+                abinitio_preds.append(output_file)
+
+                # First consolidate all predictions into temporary file
+                temp_file = os.path.join(misc_dir, f"predictions.{ab}.temp.gff3")
+                with open(temp_file, "w") as outfile:
                     outfile.write("##gff-version 3\n")
                     for f in natsorted(os.listdir(tmp_dir)):
                         if f.endswith(f"{ab}.gff3"):
@@ -488,9 +515,23 @@ def predict(args):
                                 for line in infile:
                                     if line.startswith("#"):
                                         continue
-                                    if "\tgene\t" in line:
-                                        gene_counts[ab] += 1
                                     outfile.write(line)
+
+                # Now filter the file
+                stats = filter_and_write_gff3(
+                    temp_file,
+                    output_file,
+                    min_protein_length=args.min_protein_length,
+                    max_protein_length=args.max_protein_length,
+                )
+                gene_counts[ab] = stats["kept"]
+
+                # Clean up temp file
+                os.remove(temp_file)
+
+                logger.info(
+                    f"{ab} predictions filtered: {stats['kept']} kept, {stats['filtered']} filtered (protein length {args.min_protein_length}-{args.max_protein_length} aa)"
+                )
 
         # clean up
         shutil.rmtree(tmp_dir)

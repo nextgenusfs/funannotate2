@@ -1454,3 +1454,110 @@ def rename_gff_contigs(gff, output, contigHeaderMap):
                     if cols[0] in contigHeaderMap:
                         cols[0] = contigHeaderMap[cols[0]]
                     outfile.write("\t".join(cols))
+
+
+def filter_and_write_gff3(
+    input_gff, output_gff, min_protein_length=30, max_protein_length=30000
+):
+    """
+    Filter gene models by protein length while writing GFF3 file.
+
+    This function reads a GFF3 file line by line, calculates protein length from CDS coordinates,
+    and only writes genes and their associated features if the protein length is within the
+    specified range [min_protein_length, max_protein_length].
+
+    Parameters:
+    - input_gff (str): Path to the input GFF3 file.
+    - output_gff (str): Path to the output GFF3 file.
+    - min_protein_length (int): Minimum protein length in amino acids (default: 30).
+    - max_protein_length (int): Maximum protein length in amino acids (default: 30000).
+
+    Returns:
+    - dict: Dictionary with keys 'kept' and 'filtered' containing counts of genes.
+    """
+
+    def calculate_protein_length(cds_coords):
+        """Calculate protein length from CDS coordinates."""
+        if not cds_coords:
+            return 0
+        # Sum up CDS lengths
+        total_cds_length = sum(end - start for start, end in cds_coords)
+        # Protein length is CDS length / 3
+        return total_cds_length // 3
+
+    # Track genes and their features
+    current_gene_id = None
+    current_gene_lines = []
+    current_cds_coords = []
+    genes_kept = 0
+    genes_filtered = 0
+
+    with open(output_gff, "w") as outfile:
+        outfile.write("##gff-version 3\n")
+
+        with open(input_gff, "r") as infile:
+            for line in infile:
+                # Skip header lines
+                if line.startswith("#"):
+                    continue
+
+                cols = line.rstrip("\n").split("\t")
+                if len(cols) < 9:
+                    continue
+
+                feature_type = cols[2]
+                start = int(cols[3])
+                end = int(cols[4])
+
+                # Parse attributes
+                attributes = cols[8]
+                attr_dict = {}
+                for attr in attributes.split(";"):
+                    if "=" in attr:
+                        key, val = attr.split("=", 1)
+                        attr_dict[key] = val
+
+                # Handle gene features
+                if feature_type == "gene":
+                    # Process previous gene if exists
+                    if current_gene_id is not None:
+                        protein_length = calculate_protein_length(current_cds_coords)
+                        if min_protein_length <= protein_length <= max_protein_length:
+                            for gene_line in current_gene_lines:
+                                outfile.write(gene_line)
+                            genes_kept += 1
+                        else:
+                            genes_filtered += 1
+
+                    # Start new gene
+                    current_gene_id = attr_dict.get("ID")
+                    current_gene_lines = [line]
+                    current_cds_coords = []
+
+                # Handle mRNA/transcript features
+                elif feature_type in ["mRNA", "transcript"]:
+                    if current_gene_id is not None:
+                        current_gene_lines.append(line)
+
+                # Handle CDS features
+                elif feature_type == "CDS":
+                    if current_gene_id is not None:
+                        current_gene_lines.append(line)
+                        current_cds_coords.append((start, end))
+
+                # Handle other features (exon, etc.)
+                elif feature_type in ["exon", "five_prime_UTR", "three_prime_UTR"]:
+                    if current_gene_id is not None:
+                        current_gene_lines.append(line)
+
+        # Process last gene
+        if current_gene_id is not None:
+            protein_length = calculate_protein_length(current_cds_coords)
+            if min_protein_length <= protein_length <= max_protein_length:
+                for gene_line in current_gene_lines:
+                    outfile.write(gene_line)
+                genes_kept += 1
+            else:
+                genes_filtered += 1
+
+    return {"kept": genes_kept, "filtered": genes_filtered}
