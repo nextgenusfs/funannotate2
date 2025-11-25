@@ -203,7 +203,7 @@ def train(args):
 
         # load  GFF3 training set, load with gfftk
         # Note: We load with the full genome first, then filter to training genome contigs
-        raw_train_set = gff2dict(args.training_set, GenomeFasta)
+        raw_train_set = gff2dict(args.training_set, TrainingGenomeFasta)
         # user might pass in a training set that has other models, we only want protein coding, so filter
         train_set = {
             k: v
