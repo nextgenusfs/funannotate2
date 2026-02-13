@@ -55,7 +55,7 @@ jobs:
         if [[ "${{ matrix.use_conda }}" == "true" ]]; then
           # Use conda for macOS to avoid mappy build issues
           conda install -c conda-forge -c bioconda mappy numpy pytest pytest-cov -y
-          pip install natsort gfftk buscolite gapmm2 pyhmmer pyfastx requests gb-io json-repair pytantan annorefine
+          pip install natsort gfftk buscolite gapmm2 pyhmmer pyfastx requests gb-io json-repair pytantan
           pip install -e . --no-deps
         else
           # Linux - use pip as normal
