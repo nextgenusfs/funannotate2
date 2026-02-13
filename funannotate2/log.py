@@ -5,7 +5,12 @@ import tracemalloc
 
 import buscolite
 import gfftk
-import annorefine
+
+try:
+    import annorefine
+    ANNOREFINE_AVAILABLE = True
+except ImportError:
+    ANNOREFINE_AVAILABLE = False
 
 from .__init__ import __version__
 from .utilities import human_readable_size
@@ -110,15 +115,25 @@ def system_info(log):
     Returns:
     - None
     """
-    log(
-        "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}; annorefine v{}".format(
-            platform.python_version(),
-            __version__,
-            gfftk.__version__,
-            buscolite.__version__,
-            annorefine.__version__,
+    if ANNOREFINE_AVAILABLE:
+        log(
+            "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}; annorefine v{}".format(
+                platform.python_version(),
+                __version__,
+                gfftk.__version__,
+                buscolite.__version__,
+                annorefine.__version__,
+            )
         )
-    )
+    else:
+        log(
+            "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}".format(
+                platform.python_version(),
+                __version__,
+                gfftk.__version__,
+                buscolite.__version__,
+            )
+        )
 
 
 def finishLogging(log, module):
