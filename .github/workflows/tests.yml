@@ -55,8 +55,8 @@ jobs:
         if [[ "${{ matrix.use_conda }}" == "true" ]]; then
           # Use conda for macOS to avoid mappy build issues
           conda install -c conda-forge -c bioconda mappy numpy pytest pytest-cov -y
-          pip install natsort gfftk buscolite gapmm2 pyhmmer pyfastx requests gb-io json-repair pytantan
-          pip install -e . --no-deps
+          # Install funannotate2 in editable mode - this will install all dependencies from pyproject.toml
+          pip install -e .
         else
           # Linux - use pip as normal
           python -m pip install --upgrade pip
