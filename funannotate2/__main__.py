@@ -231,6 +231,20 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
+        "-b",
+        "--bam",
+        required=False,
+        help="RNA-seq alignment file in BAM format for generating hints and UTR refinement",
+        metavar="",
+    )
+    optional_args.add_argument(
+        "--bam-library",
+        required=False,
+        choices=["RF", "FR", "UU"],
+        help="RNA-seq library type (required if --bam is set): RF (dUTP/NSR), FR (Ligation), UU (Unstranded)",
+        metavar="",
+    )
+    optional_args.add_argument(
         "-c",
         "--cpus",
         help="Number of cpus/threads to use",
@@ -239,7 +253,14 @@ def predict_subparser(subparsers):
         metavar="",
     )
     optional_args.add_argument(
-        "-mi",
+        "--min-intron",
+        dest="min_intron",
+        help="Minimum intron length",
+        type=int,
+        default=11,
+        metavar="",
+    )
+    optional_args.add_argument(
         "--max-intron",
         dest="max_intron",
         help="Maximum intron length",

@@ -24,7 +24,7 @@ Funannotate2 has the following dependencies:
 * gfftk (>=24.10.29)
 * BUSCOlite (>=24.7.29)
 * gapmm2
-* pyhmmer (>=0.10.15)
+* pyhmmer (>=0.12.0)
 * pyfastx (>=2.0.0)
 * requests
 * gb-io (>=0.3.2)

@@ -130,6 +130,17 @@ def predict(args):
             )
         raise SystemExit(1)
 
+    # Validate BAM arguments
+    if hasattr(args, "bam") and args.bam:
+        if not hasattr(args, "bam_library") or not args.bam_library:
+            sys.stderr.write(
+                "ERROR: --bam-library is required when --bam is provided. Valid options: RF, FR, UU, R, F\n"
+            )
+            raise SystemExit(1)
+        if not os.path.isfile(args.bam):
+            sys.stderr.write(f"ERROR: BAM file not found: {args.bam}\n")
+            raise SystemExit(1)
+
     # create output directories
     misc_dir, res_dir, log_dir = create_directories(args.out, base="predict")
 
@@ -197,6 +208,8 @@ def predict(args):
     contig_name_map = simplify_headers_drop(
         args.fasta, GenomeFasta, GenomeMito, drop=list(mito_contigs.keys())
     )
+    # Create inverse contig map for BAM processing (maps simplified names back to original)
+    inv_contig_map = {value: key for key, value in contig_name_map.items()}
     maskedRegions = os.path.join(misc_dir, "softmasked-regions.bed")
     asmGaps = os.path.join(misc_dir, "assembly-gaps.bed")
     stats, bad_names, nuc_errors, contigs = analyzeAssembly(
@@ -323,13 +336,229 @@ def predict(args):
             ab_files_missing.append(ab)
 
     if len(ab_files_missing) > 0:  # all or nothing for now
+        # Generate hints from BAM if provided
+        bam_hints_files = {}
+        bam_stats = {
+            "total_hints": 0,
+            "contigs_with_hints": 0,
+            "contigs_without_hints": 0,
+        }
+        if (
+            hasattr(args, "bam")
+            and args.bam
+            and hasattr(args, "bam_library")
+            and args.bam_library
+        ):
+            logger.info(
+                f"Generating hints from BAM file using annorefine (library type: {args.bam_library})"
+            )
+            try:
+                import annorefine
+
+                # Generate BAM hints for each contig
+                for contig in contigs:
+                    contig_name = os.path.basename(contig)
+                    original_contig_name = contig_name_map.get(
+                        contig_name.replace(".fasta", "")
+                    )
+                    bam_hints_file = os.path.join(
+                        tmp_dir, f"{contig_name}.bam_hints.gff"
+                    )
+
+                    # Use annorefine to convert BAM to hints for this contig
+                    result = annorefine.bam2hints(
+                        bam_file=args.bam,
+                        output_file=bam_hints_file,
+                        library_type=args.bam_library,
+                        contig=original_contig_name,
+                        contig_map=inv_contig_map,
+                        min_intron_len=args.min_intron,
+                        max_intron_len=args.max_intron,
+                        min_mapping_quality=20,
+                        filter_multimappers=True,
+                        threads=1,  # Per-contig processing
+                    )
+
+                    if (
+                        os.path.isfile(bam_hints_file)
+                        and os.path.getsize(bam_hints_file) > 0
+                    ):
+                        bam_hints_files[contig_name] = bam_hints_file
+                        # Count hints in this file
+                        with open(bam_hints_file, "r") as f:
+                            hint_count = sum(
+                                1 for line in f if not line.startswith("#")
+                            )
+                        bam_stats["total_hints"] += hint_count
+                        bam_stats["contigs_with_hints"] += 1
+                    else:
+                        bam_stats["contigs_without_hints"] += 1
+
+                # Log summary statistics
+                if bam_stats["total_hints"] > 0:
+                    logger.info(
+                        f"BAM hints generation complete: {bam_stats['total_hints']:,} hints generated "
+                        f"across {bam_stats['contigs_with_hints']} contigs "
+                        f"({bam_stats['contigs_without_hints']} contigs with no hints)"
+                    )
+
+                    # Save concatenated BAM hints to misc_dir for debugging
+                    bam_hints_output = os.path.join(misc_dir, "bam.hints.gff")
+                    try:
+                        with open(bam_hints_output, "w") as outfile:
+                            for contig_name, bam_hints_file in bam_hints_files.items():
+                                with open(bam_hints_file, "r") as infile:
+                                    for line in infile:
+                                        if not line.startswith("#"):
+                                            outfile.write(line)
+                        logger.info(f"BAM hints saved to: {bam_hints_output}")
+                    except Exception as e:
+                        logger.warning(f"Failed to save BAM hints file: {e}")
+                else:
+                    logger.warning("No BAM hints were generated from the BAM file")
+
+            except ImportError:
+                logger.warning(
+                    "annorefine module not found, skipping BAM hints generation"
+                )
+            except Exception as e:
+                logger.error(f"Error generating BAM hints: {e}")
+
         if "augustus" in params["abinitio"]:  # generate hintsfiles
             logger.info("Parsing alignments and generating hintsfile for Augustus")
+            # Generate hints from protein/transcript alignments
             evidence2hints(ProtAlign, TranAlign, contigs, tmp_dir)
+
+            # Join BAM hints with alignment hints if available
+            if bam_hints_files:
+                logger.info("Merging BAM hints with alignment hints for Augustus")
+                merge_stats = {
+                    "merged": 0,
+                    "bam_only": 0,
+                    "alignment_only": 0,
+                    "total_hints_before": 0,
+                    "total_hints_after": 0,
+                }
+                try:
+                    import annorefine
+
+                    for contig in contigs:
+                        contig_name = os.path.basename(contig)
+                        augustus_hints = os.path.join(
+                            tmp_dir, f"{contig_name}.hintsfile"
+                        )
+
+                        # Collect all hint sources for this contig
+                        hint_sources = []
+                        alignment_hints_count = 0
+                        bam_hints_count = 0
+
+                        if os.path.isfile(augustus_hints):
+                            hint_sources.append(augustus_hints)
+                            with open(augustus_hints, "r") as f:
+                                alignment_hints_count = sum(
+                                    1 for line in f if not line.startswith("#")
+                                )
+
+                        if contig_name in bam_hints_files:
+                            hint_sources.append(bam_hints_files[contig_name])
+                            with open(bam_hints_files[contig_name], "r") as f:
+                                bam_hints_count = sum(
+                                    1 for line in f if not line.startswith("#")
+                                )
+
+                        merge_stats["total_hints_before"] += (
+                            alignment_hints_count + bam_hints_count
+                        )
+
+                        # Join hints if we have multiple sources
+                        if len(hint_sources) > 1:
+                            joined_hints = os.path.join(
+                                tmp_dir, f"{contig_name}.hintsfile.joined"
+                            )
+                            result = annorefine.join_hints(
+                                input_files=hint_sources, output_file=joined_hints
+                            )
+                            # Replace original hints file with joined version
+                            if os.path.isfile(joined_hints):
+                                shutil.move(joined_hints, augustus_hints)
+                                merge_stats["merged"] += 1
+                                # Count final hints
+                                with open(augustus_hints, "r") as f:
+                                    merge_stats["total_hints_after"] += sum(
+                                        1 for line in f if not line.startswith("#")
+                                    )
+                        elif len(hint_sources) == 1 and contig_name in bam_hints_files:
+                            # Only BAM hints available, use them
+                            shutil.copy(bam_hints_files[contig_name], augustus_hints)
+                            merge_stats["bam_only"] += 1
+                            merge_stats["total_hints_after"] += bam_hints_count
+                        elif len(hint_sources) == 1:
+                            # Only alignment hints available
+                            merge_stats["alignment_only"] += 1
+                            merge_stats["total_hints_after"] += alignment_hints_count
+
+                    # Log summary
+                    logger.info(
+                        f"Augustus hints merging complete: {merge_stats['total_hints_after']:,} total hints "
+                        f"({merge_stats['merged']} contigs merged, "
+                        f"{merge_stats['bam_only']} BAM-only, "
+                        f"{merge_stats['alignment_only']} alignment-only)"
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error joining hints: {e}")
+
+            # Save concatenated Augustus hints to misc_dir for debugging
+            augustus_hints_output = os.path.join(misc_dir, "augustus.hints.gff")
+            if not checkfile(augustus_hints_output):
+                try:
+                    # Collect all hints and sort by contig and position for readability
+                    all_hints = []
+                    for contig in contigs:
+                        contig_name = os.path.basename(contig)
+                        augustus_hints = os.path.join(
+                            tmp_dir, f"{contig_name}.hintsfile"
+                        )
+                        if os.path.isfile(augustus_hints):
+                            with open(augustus_hints, "r") as infile:
+                                for line in infile:
+                                    if not line.startswith("#"):
+                                        all_hints.append(line.rstrip())
+
+                    # Sort hints by contig name and start position
+                    def sort_gff_line(line):
+                        parts = line.split("\t")
+                        if len(parts) >= 4:
+                            contig = parts[0]
+                            try:
+                                start = int(parts[3])
+                            except:
+                                start = 0
+                            return (contig, start)
+                        return (line, 0)
+
+                    all_hints.sort(key=sort_gff_line)
+
+                    # Write sorted hints
+                    with open(augustus_hints_output, "w") as outfile:
+                        for hint in all_hints:
+                            outfile.write(hint + "\n")
+
+                    logger.info(f"Augustus hints saved to: {augustus_hints_output}")
+                except Exception as e:
+                    logger.warning(f"Failed to save Augustus hints file: {e}")
 
         if "genemark" in params["abinitio"]:  # generate GeneMark hints files
             logger.info("Parsing alignments and generating hints files for GeneMark")
             from .abinitio import _generate_genemark_hints_from_alignments
+
+            genemark_stats = {
+                "merged": 0,
+                "bam_only": 0,
+                "alignment_only": 0,
+                "total_intron_hints": 0,
+            }
 
             # Generate hints for each contig
             for contig in contigs:
@@ -346,6 +575,99 @@ def predict(args):
                         protein_alignments=protein_align,
                         output_hints=hints_file,
                     )
+
+                # Join with BAM hints if available
+                if contig_name in bam_hints_files:
+                    try:
+                        import annorefine
+
+                        hint_sources = []
+                        if os.path.isfile(hints_file):
+                            hint_sources.append(hints_file)
+
+                        hint_sources.append(bam_hints_files[contig_name])
+
+                        if len(hint_sources) > 1:
+                            joined_hints = os.path.join(
+                                tmp_dir, f"{contig_name}.genemark_hints.gff.joined"
+                            )
+                            result = annorefine.join_hints(
+                                input_files=hint_sources,
+                                output_file=joined_hints,
+                                introns_only=True,  # GeneMark typically uses intron hints
+                            )
+                            if os.path.isfile(joined_hints):
+                                shutil.move(joined_hints, hints_file)
+                                genemark_stats["merged"] += 1
+                        elif not os.path.isfile(hints_file):
+                            # Only BAM hints available
+                            # Filter for introns only for GeneMark
+                            result = annorefine.join_hints(
+                                input_files=[bam_hints_files[contig_name]],
+                                output_file=hints_file,
+                                introns_only=True,
+                            )
+                            genemark_stats["bam_only"] += 1
+                    except Exception as e:
+                        logger.error(f"Error joining GeneMark hints: {e}")
+                elif os.path.isfile(hints_file):
+                    genemark_stats["alignment_only"] += 1
+
+                # Count final intron hints
+                if os.path.isfile(hints_file):
+                    with open(hints_file, "r") as f:
+                        genemark_stats["total_intron_hints"] += sum(
+                            1 for line in f if not line.startswith("#")
+                        )
+
+            # Log summary
+            if genemark_stats["total_intron_hints"] > 0:
+                logger.info(
+                    f"GeneMark hints generation complete: {genemark_stats['total_intron_hints']:,} intron hints "
+                    f"({genemark_stats['merged']} contigs merged, "
+                    f"{genemark_stats['bam_only']} BAM-only, "
+                    f"{genemark_stats['alignment_only']} alignment-only)"
+                )
+
+            # Save concatenated GeneMark hints to misc_dir for debugging
+            genemark_hints_output = os.path.join(misc_dir, "genemark.hints.gff")
+            if not checkfile(genemark_hints_output):
+                try:
+                    # Collect all hints and sort by contig and position for readability
+                    all_hints = []
+                    for contig in contigs:
+                        contig_name = os.path.basename(contig)
+                        genemark_hints = os.path.join(
+                            tmp_dir, f"{contig_name}.genemark_hints.gff"
+                        )
+                        if os.path.isfile(genemark_hints):
+                            with open(genemark_hints, "r") as infile:
+                                for line in infile:
+                                    if not line.startswith("#"):
+                                        all_hints.append(line.rstrip())
+
+                    # Sort hints by contig name and start position
+                    def sort_gff_line(line):
+                        parts = line.split("\t")
+                        if len(parts) >= 4:
+                            contig = parts[0]
+                            try:
+                                start = int(parts[3])
+                            except:
+                                start = 0
+                            return (contig, start)
+                        return (line, 0)
+
+                    all_hints.sort(key=sort_gff_line)
+
+                    # Write sorted hints
+                    with open(genemark_hints_output, "w") as outfile:
+                        for hint in all_hints:
+                            outfile.write(hint + "\n")
+
+                    logger.info(f"GeneMark hints saved to: {genemark_hints_output}")
+                except Exception as e:
+                    logger.warning(f"Failed to save GeneMark hints file: {e}")
 
         # Check if memory monitoring is enabled (default: True, disabled with --disable-memory-monitoring)
         monitor_memory = not getattr(args, "disable_memory_monitoring", False)
@@ -684,6 +1006,70 @@ def predict(args):
     else:
         logger.info("Existing consensus predictions found, will re-use and continue")
 
+    # Refine UTRs using RNA-seq data if BAM file is provided
+    if (
+        hasattr(args, "bam")
+        and args.bam
+        and hasattr(args, "bam_library")
+        and args.bam_library
+    ):
+        refined_consensus = os.path.join(
+            misc_dir, "consensus.predictions.utr_refined.gff3"
+        )
+        if not checkfile(refined_consensus):
+            logger.info(
+                f"Refining UTRs using RNA-seq data from BAM file (library type: {args.bam_library})"
+            )
+            try:
+                import annorefine
+
+                # Use annorefine to refine UTRs
+                annorefine_output = os.path.join(
+                    misc_dir, "consensus.predictions.utr_refined.tmp.gff3"
+                )
+                result = annorefine.refine(
+                    fasta_file=GenomeFasta,
+                    gff3_file=Consensus,
+                    bam_file=args.bam,
+                    output_file=annorefine_output,
+                    threads=args.cpus,
+                    contig_map=contig_name_map,
+                    enable_novel_gene_detection=False,  # Conservative: only refine existing models
+                )
+
+                if (
+                    os.path.isfile(annorefine_output)
+                    and os.path.getsize(annorefine_output) > 0
+                ):
+                    # Move the output to the final location
+                    shutil.move(annorefine_output, refined_consensus)
+
+                    # Replace consensus with refined version
+                    logger.info("UTR refinement completed successfully")
+                    # Keep backup of original consensus
+                    consensus_backup = os.path.join(
+                        misc_dir, "consensus.predictions.pre_utr_refinement.gff3"
+                    )
+                    if not os.path.isfile(consensus_backup):
+                        shutil.copy(Consensus, consensus_backup)
+                    # Use refined version
+                    Consensus = refined_consensus
+                else:
+                    logger.warning(
+                        "UTR refinement produced no output, using original consensus"
+                    )
+
+            except ImportError:
+                logger.warning("annorefine module not found, skipping UTR refinement")
+            except Exception as e:
+                logger.error(f"Error during UTR refinement: {e}")
+                logger.warning("Continuing with original consensus predictions")
+        else:
+            logger.info(
+                "Existing UTR-refined consensus found, will re-use and continue"
+            )
+            Consensus = refined_consensus
+
     # predict tRNA
     trna_predictions = os.path.join(misc_dir, "tRNA.predictions.gff3")
     if not checkfile(trna_predictions):
@@ -1000,13 +1386,13 @@ def abinitio_wrapper(
 
             contig_length = get_contig_length(contig)
 
-            # Log contig processing message
+            # Log contig processing message (debug only)
             log_message = (
                 f"Processing contig {contig_name} (length: {contig_length:,} bp)"
             )
             try:
-                if hasattr(logger, "info"):
-                    logger.info(log_message)
+                if hasattr(logger, "debug"):
+                    logger.debug(log_message)
                 elif callable(logger):
                     logger(log_message + "\n")
                 else:
@@ -1097,11 +1483,11 @@ def abinitio_wrapper(
                 )
                 logger.warning(warning_msg)
 
-            # Log prediction
+            # Log prediction (debug only)
             log_message = f"{tool_name} memory prediction for {contig_name}: {predicted_mb:.1f} MB"
             try:
-                if hasattr(logger, "info"):
-                    logger.info(log_message)
+                if hasattr(logger, "debug"):
+                    logger.debug(log_message)
                 elif callable(logger):
                     logger(log_message + "\n")
                 else:

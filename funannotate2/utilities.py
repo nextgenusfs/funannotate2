@@ -832,17 +832,15 @@ def runSubprocess(
             elif callable(logfile):
                 # For function-based loggers, skip detailed output logging
                 pass
-        # Log memory stats if available
+        # Log memory stats if available (debug only)
         if memory_stats:
             from .memory import format_memory_report
 
             memory_report = f"Memory usage for {process_name or 'subprocess'}:\n{format_memory_report(memory_stats)}"
 
-            # Try different logging methods with error handling
+            # Try different logging methods with error handling - use debug level
             try:
-                if hasattr(logfile, "info"):
-                    logfile.info(memory_report)
-                elif hasattr(logfile, "debug"):
+                if hasattr(logfile, "debug"):
                     logfile.debug(memory_report)
                 elif callable(logfile):
                     # Handle function-based loggers like sys.stderr.write
@@ -1457,7 +1455,7 @@ def rename_gff_contigs(gff, output, contigHeaderMap):
 
 
 def filter_and_write_gff3(
-    input_gff, output_gff, min_protein_length=30, max_protein_length=30000
+    input_gff, output_gff, min_protein_length=30, max_protein_length=30000, sort_features=False
 ):
     """
     Filter gene models by protein length while writing GFF3 file.
@@ -1471,6 +1469,7 @@ def filter_and_write_gff3(
     - output_gff (str): Path to the output GFF3 file.
     - min_protein_length (int): Minimum protein length in amino acids (default: 30).
     - max_protein_length (int): Maximum protein length in amino acids (default: 30000).
+    - sort_features (bool): If True, sort CDS/exon features for gfftk compatibility (default: False).
 
     Returns:
     - dict: Dictionary with keys 'kept' and 'filtered' containing counts of genes.
@@ -1485,10 +1484,63 @@ def filter_and_write_gff3(
         # Protein length is CDS length / 3
         return total_cds_length // 3
 
+    def sort_gene_features(gene_lines, strand):
+        """
+        Sort gene features for gfftk compatibility.
+        Features are grouped by type (exons first, then CDS, then UTRs) and sorted by coordinate.
+        For minus strand genes, features within each group are in descending genomic order.
+        For plus strand genes, features within each group are in ascending genomic order.
+        """
+        if not sort_features:
+            return gene_lines
+
+        # Separate features by type
+        gene_mrna_lines = []
+        exon_lines = []
+        cds_lines = []
+        utr_lines = []
+        other_lines = []
+
+        for line in gene_lines:
+            cols = line.rstrip("\n").split("\t")
+            if len(cols) < 9:
+                continue
+            feature_type = cols[2]
+            start = int(cols[3])
+
+            if feature_type in ["gene", "mRNA", "transcript"]:
+                gene_mrna_lines.append(line)
+            elif feature_type == "exon":
+                exon_lines.append((start, line))
+            elif feature_type == "CDS":
+                cds_lines.append((start, line))
+            elif feature_type in ["five_prime_UTR", "three_prime_UTR"]:
+                utr_lines.append((start, line))
+            else:
+                other_lines.append((start, line))
+
+        # Sort each group by coordinate
+        # For minus strand: descending order (high to low)
+        # For plus strand: ascending order (low to high)
+        reverse_sort = (strand == "-")
+        exon_lines.sort(key=lambda x: x[0], reverse=reverse_sort)
+        cds_lines.sort(key=lambda x: x[0], reverse=reverse_sort)
+        utr_lines.sort(key=lambda x: x[0], reverse=reverse_sort)
+        other_lines.sort(key=lambda x: x[0], reverse=reverse_sort)
+
+        # Reconstruct gene lines: gene/mRNA, then exons, then CDS, then UTRs, then others
+        result = gene_mrna_lines
+        result += [line for _, line in exon_lines]
+        result += [line for _, line in cds_lines]
+        result += [line for _, line in utr_lines]
+        result += [line for _, line in other_lines]
+        return result
+
     # Track genes and their features
     current_gene_id = None
     current_gene_lines = []
     current_cds_coords = []
+    current_strand = None
     genes_kept = 0
     genes_filtered = 0
 
@@ -1508,6 +1560,7 @@ def filter_and_write_gff3(
                 feature_type = cols[2]
                 start = int(cols[3])
                 end = int(cols[4])
+                strand = cols[6]
 
                 # Parse attributes
                 attributes = cols[8]
@@ -1523,7 +1576,9 @@ def filter_and_write_gff3(
                     if current_gene_id is not None:
                         protein_length = calculate_protein_length(current_cds_coords)
                         if min_protein_length <= protein_length <= max_protein_length:
-                            for gene_line in current_gene_lines:
+                            # Sort features if requested
+                            sorted_lines = sort_gene_features(current_gene_lines, current_strand)
+                            for gene_line in sorted_lines:
                                 outfile.write(gene_line)
                             genes_kept += 1
                         else:
@@ -1533,6 +1588,7 @@ def filter_and_write_gff3(
                     current_gene_id = attr_dict.get("ID")
                     current_gene_lines = [line]
                     current_cds_coords = []
+                    current_strand = strand
 
                 # Handle mRNA/transcript features
                 elif feature_type in ["mRNA", "transcript"]:
@@ -1554,7 +1610,9 @@ def filter_and_write_gff3(
         if current_gene_id is not None:
             protein_length = calculate_protein_length(current_cds_coords)
             if min_protein_length <= protein_length <= max_protein_length:
-                for gene_line in current_gene_lines:
+                # Sort features if requested
+                sorted_lines = sort_gene_features(current_gene_lines, current_strand)
+                for gene_line in sorted_lines:
                     outfile.write(gene_line)
                 genes_kept += 1
             else:

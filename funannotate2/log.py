@@ -5,6 +5,7 @@ import tracemalloc
 
 import buscolite
 import gfftk
+import annorefine
 
 from .__init__ import __version__
 from .utilities import human_readable_size
@@ -110,11 +111,12 @@ def system_info(log):
     - None
     """
     log(
-        "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}".format(
+        "Python v{}; funannotate2 v{}; gfftk v{}; buscolite v{}; annorefine v{}".format(
             platform.python_version(),
             __version__,
             gfftk.__version__,
             buscolite.__version__,
+            annorefine.__version__,
         )
     )
 
@@ -136,7 +138,11 @@ def finishLogging(log, module):
     """
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    log("{} module finished: peak memory usage={}".format(module, human_readable_size(peak)))
+    log(
+        "{} module finished: peak memory usage={}".format(
+            module, human_readable_size(peak)
+        )
+    )
 
 
 def log_dependencies(script=False):

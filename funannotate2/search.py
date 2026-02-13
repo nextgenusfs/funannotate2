@@ -71,18 +71,18 @@ def hmmer_search(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                     s_domains = sorted(domains, key=lambda x: x["score"], reverse=True)
                     results.append(
                         {
-                            "id": hit.name.decode(),
-                            "gene": hit.description.decode(),
-                            "name": top_hits.query.name.decode(),
+                            "id": hit.name,
+                            "gene": hit.description,
+                            "name": top_hits.query.name,
                             "accession": (
                                 None
                                 if top_hits.query.accession is None
-                                else top_hits.query.accession.decode()
+                                else top_hits.query.accession
                             ),
                             "description": (
                                 None
                                 if top_hits.query.description is None
-                                else top_hits.query.description.decode()
+                                else top_hits.query.description
                             ),
                             "seq_length": hit.length,
                             "hmm_length": s_domains[0]["hmm_length"],
@@ -150,22 +150,22 @@ def hmmer_scan(hmmfile, sequences, cpus=0, bit_cutoffs=None, evalue=10.0):
                     s_domains = sorted(domains, key=lambda x: x["score"], reverse=True)
                     results.append(
                         {
-                            "id": top_hits.query.name.decode(),
+                            "id": top_hits.query.name,
                             "gene": (
                                 None
                                 if top_hits.query.description is None
-                                else top_hits.query.description.decode()
+                                else top_hits.query.description
                             ),
-                            "name": hit.name.decode(),
+                            "name": hit.name,
                             "accession": (
                                 None
                                 if hit.accession is None
-                                else hit.accession.decode()
+                                else hit.accession
                             ),
                             "description": (
                                 None
                                 if hit.description is None
-                                else hit.description.decode()
+                                else hit.description
                             ),
                             "seq_length": len(top_hits.query.sequence),
                             "hmm_length": s_domains[0]["hmm_length"],

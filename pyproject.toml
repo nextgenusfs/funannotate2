@@ -4,27 +4,28 @@ build-backend = "hatchling.build"
 
 [project]
 name = "funannotate2"
-version = "25.11.1"
+version = "26.2.12"
 description = "Funannotate2: eukarytoic genome annotation pipeline"
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
     {name = "Jon Palmer", email = "nextgenusfs@gmail.com"}
 ]
-requires-python = ">=3.7.0"
+requires-python = ">=3.9.0,<3.14"
 dependencies = [
     "natsort",
     "numpy",
     "mappy",
-    "gfftk>=25.6.10",
-    "buscolite>=25.4.24",
-    "gapmm2>=25.4.13",
-    "pyhmmer>=0.10.15",
+    "gfftk>=26.2.12",
+    "buscolite>=26.1.26",
+    "gapmm2>=25.8.12",
+    "pyhmmer>=0.12.0",
     "pyfastx>=2.0.0",
     "requests",
     "gb-io>=0.3.2",
     "json-repair",
     "pytantan",
-    "psutil"
+    "psutil",
+    "annorefine>=2026.2.9"
 ]
 license = {file = "LICENSE"}
 classifiers = [

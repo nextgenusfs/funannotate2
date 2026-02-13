@@ -9,3 +9,6 @@ tests/integration/__pycache__*
 output.json
 .coverage
 annotations.txt
+debug_*.fa
+debug_*.gff3
+quick_genemark_prediction_test.sh
