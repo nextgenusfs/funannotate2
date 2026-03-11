@@ -832,26 +832,9 @@ def runSubprocess(
             elif callable(logfile):
                 # For function-based loggers, skip detailed output logging
                 pass
-        # Log memory stats if available (debug only)
+        # Keep detailed memory stats out of the normal logger path.
+        # Structured records are still written to the dedicated JSONL file below.
         if memory_stats:
-            from .memory import format_memory_report
-
-            memory_report = f"Memory usage for {process_name or 'subprocess'}:\n{format_memory_report(memory_stats)}"
-
-            # Try different logging methods with error handling - use debug level
-            try:
-                if hasattr(logfile, "debug"):
-                    logfile.debug(memory_report)
-                elif callable(logfile):
-                    # Handle function-based loggers like sys.stderr.write
-                    logfile(memory_report + "\n")
-                else:
-                    # Fallback to print
-                    print(memory_report)
-            except Exception:
-                # If all else fails, just print it
-                print(memory_report)
-
             # Also write to dedicated memory monitoring file
             try:
                 import os

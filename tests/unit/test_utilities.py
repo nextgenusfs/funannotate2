@@ -2,13 +2,16 @@
 Unit tests for the utilities module.
 """
 
+import json
 import os
+from unittest.mock import MagicMock, patch
 
 from funannotate2.utilities import (
     create_tmpdir,
     merge_coordinates,
     naming_slug,
     readBlocks,
+    runSubprocess,
 )
 
 
@@ -134,3 +137,94 @@ class TestReadBlocks:
         blocks = list(readBlocks(source, "#"))
         assert len(blocks) == 1
         assert blocks[0] == ["Line 1", "Line 2", "Line 3"]
+
+
+class TestRunSubprocess:
+    """Regression tests for subprocess logging behavior."""
+
+    @patch("funannotate2.utilities.subprocess.Popen")
+    @patch("funannotate2.memory.MemoryMonitor")
+    def test_monitoring_keeps_memory_report_out_of_callable_logs(
+        self, mock_monitor_cls, mock_popen, tmp_path, monkeypatch
+    ):
+        """Memory monitoring should not emit formatted reports via callable logs."""
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+        process.stdout = ""
+        process.stderr = ""
+        mock_popen.return_value = process
+
+        mock_monitor = mock_monitor_cls.return_value
+        mock_monitor.monitor_process.return_value = {
+            "process_name": "snap-scaffold_1.fasta",
+            "duration_seconds": 1.5,
+            "peak_rss_mb": 10.0,
+            "peak_vms_mb": 20.0,
+            "avg_rss_mb": 9.0,
+            "avg_vms_mb": 19.0,
+            "sample_count": 2,
+            "samples": [],
+        }
+
+        messages = []
+        monkeypatch.setenv("FUNANNOTATE2_OUTPUT_DIR", str(tmp_path))
+
+        runSubprocess(
+            ["snap", "input.fasta"],
+            messages.append,
+            cwd=str(tmp_path),
+            monitor_memory=True,
+            process_name="snap-scaffold_1.fasta",
+        )
+
+        assert messages == []
+
+        memory_log = tmp_path / "logfiles" / "predict-abinitio-memory-monitoring.jsonl"
+        assert memory_log.exists()
+
+        records = [json.loads(line) for line in memory_log.read_text().splitlines()]
+        assert len(records) == 1
+        assert records[0]["process_name"] == "snap-scaffold_1.fasta"
+        assert records[0]["tool_name"] == "snap"
+        assert records[0]["memory_stats"]["peak_rss_mb"] == 10.0
+
+    @patch("funannotate2.utilities.subprocess.Popen")
+    @patch("funannotate2.memory.MemoryMonitor")
+    def test_monitoring_does_not_debug_log_formatted_memory_report(
+        self, mock_monitor_cls, mock_popen, tmp_path, monkeypatch
+    ):
+        """Detailed memory reports should stay out of the normal logfile path."""
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+        process.stdout = ""
+        process.stderr = ""
+        mock_popen.return_value = process
+
+        mock_monitor = mock_monitor_cls.return_value
+        mock_monitor.monitor_process.return_value = {
+            "process_name": "snap-scaffold_1.fasta",
+            "duration_seconds": 1.5,
+            "peak_rss_mb": 10.0,
+            "peak_vms_mb": 20.0,
+            "avg_rss_mb": 9.0,
+            "avg_vms_mb": 19.0,
+            "sample_count": 2,
+            "samples": [],
+        }
+
+        logger = MagicMock()
+        monkeypatch.setenv("FUNANNOTATE2_OUTPUT_DIR", str(tmp_path))
+
+        runSubprocess(
+            ["snap", "input.fasta"],
+            logger,
+            cwd=str(tmp_path),
+            monitor_memory=True,
+            process_name="snap-scaffold_1.fasta",
+        )
+
+        debug_messages = [call.args[0] for call in logger.debug.call_args_list]
+        assert "snap input.fasta" in debug_messages
+        assert not any("Memory usage for" in message for message in debug_messages)
