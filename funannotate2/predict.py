@@ -1386,19 +1386,6 @@ def abinitio_wrapper(
 
             contig_length = get_contig_length(contig)
 
-            # Log contig processing message (debug only)
-            log_message = (
-                f"Processing contig {contig_name} (length: {contig_length:,} bp)"
-            )
-            try:
-                if hasattr(logger, "debug"):
-                    logger.debug(log_message)
-                elif callable(logger):
-                    logger(log_message + "\n")
-                else:
-                    print(log_message)
-            except Exception:
-                print(log_message)
         except ImportError:
             warning_message = (
                 "Memory monitoring requested but memory module not available"
@@ -1482,18 +1469,6 @@ def abinitio_wrapper(
                     f"Running anyway but OOM risk is high."
                 )
                 logger.warning(warning_msg)
-
-            # Log prediction (debug only)
-            log_message = f"{tool_name} memory prediction for {contig_name}: {predicted_mb:.1f} MB"
-            try:
-                if hasattr(logger, "debug"):
-                    logger.debug(log_message)
-                elif callable(logger):
-                    logger(log_message + "\n")
-                else:
-                    print(log_message)
-            except Exception:
-                print(log_message)
 
             # Run the tool
             run_func(*args, **kwargs)

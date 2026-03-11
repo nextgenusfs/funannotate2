@@ -270,3 +270,50 @@ class TestPredict:
         finally:
             # Restore the original function
             funannotate2.predict.predict = original_predict
+
+    @patch("funannotate2.predict.run_snap")
+    @patch("funannotate2.memory.get_system_memory_info")
+    @patch("funannotate2.memory.predict_memory_usage")
+    @patch("funannotate2.memory.get_contig_length")
+    def test_abinitio_wrapper_suppresses_memory_chatter_but_keeps_tool_logging(
+        self,
+        mock_get_contig_length,
+        mock_predict_memory_usage,
+        mock_get_system_memory_info,
+        mock_run_snap,
+        tmp_path,
+    ):
+        """Per-contig memory details should not leak into ordinary predict logs."""
+        contig = tmp_path / "scaffold_1.fasta"
+        contig.write_text(">scaffold_1\nATGC\n")
+
+        mock_get_contig_length.return_value = 4
+        mock_predict_memory_usage.return_value = {
+            "predicted_peak_with_margin_mb": 64.0
+        }
+        mock_get_system_memory_info.return_value = {"available_gb": 8.0}
+
+        def fake_run_snap(*args, **kwargs):
+            kwargs["log"]("snap tool output\n")
+            return 0
+
+        mock_run_snap.side_effect = fake_run_snap
+
+        logger = MagicMock()
+        params = {"abinitio": {"snap": {"location": "snap-trained.hmm"}}}
+
+        stats = funannotate2.predict.abinitio_wrapper(
+            str(contig), params, logger, monitor_memory=True
+        )
+
+        info_messages = [call.args[0] for call in logger.info.call_args_list]
+        debug_messages = [call.args[0] for call in logger.debug.call_args_list]
+
+        assert "snap tool output" in info_messages
+        assert "Successfully ran tools for scaffold_1.fasta: snap" in info_messages
+        assert not any("Processing contig" in message for message in info_messages)
+        assert not any("memory prediction for scaffold_1.fasta" in message for message in info_messages)
+        assert not any("Processing contig" in message for message in debug_messages)
+        assert not any("memory prediction for scaffold_1.fasta" in message for message in debug_messages)
+        assert stats["tools_run"] == ["snap"]
+        assert stats["contig_length"] == 4
