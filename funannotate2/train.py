@@ -350,7 +350,7 @@ def train(args):
     if which_path("gmes_petap.pl") and which_path("gmhmme3"):
         logger.info(f"Training GeneMark-ES using {args.genemark_mode} mode")
         fungus_flag = False
-        if taxonomy["kingdom"] == "Fungi":
+        if taxonomy and taxonomy.get("kingdom") == "Fungi":
             fungus_flag = True
         genemark_train = train_genemark(
             TrainingGenomeFasta,
