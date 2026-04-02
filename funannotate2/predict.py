@@ -893,7 +893,7 @@ def predict(args):
         )
         taxonomy = params["taxonomy"]
     busco_tax = choose_best_busco_species(
-        {"superkingdom": taxonomy["superkingdom"], "kingdom": taxonomy["kingdom"]}
+        {"superkingdom": taxonomy.get("superkingdom"), "kingdom": taxonomy.get("kingdom")}
     )
     # pull the latest odb version from downloads link
     odb_version = get_odb_version(
