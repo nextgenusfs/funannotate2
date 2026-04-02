@@ -339,7 +339,7 @@ def lookup_taxonomy(name):
     try:
         resp = requests.get(url + name, verify=False)
         if 500 <= resp.status_code <= 599:
-            return resp.status_code
+            return False
         result = resp.json()[name]
         if "error" in result:
             return False
