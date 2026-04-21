@@ -1,7 +1,66 @@
 Installation
 ============
 
-Funannotate2 can be installed using pip or conda.
+Funannotate2 can be installed with Docker (recommended), with `pixi <https://pixi.sh/>`_, or with conda/pip.
+
+Using the Docker image
+----------------------
+
+A pre-built image containing ``funannotate2``, ``funannotate2-addons``, ``helixerlite``, all bioconda tooling, and the databases from ``funannotate2 install -d all`` is published on each tagged release to:
+
+* Docker Hub: ``nextgenusfs/funannotate2``
+* GHCR: ``ghcr.io/nextgenusfs/funannotate2``
+
+Tags follow SemVer (e.g. ``:26.2.12``, ``:26.2``) with ``:latest`` always pointing at the most recent release.
+
+.. code-block:: bash
+
+    # pull the latest image (~8 GB; databases are baked in)
+    docker pull nextgenusfs/funannotate2:latest
+
+    # sanity checks
+    docker run --rm nextgenusfs/funannotate2:latest funannotate2 --version
+    docker run --rm nextgenusfs/funannotate2:latest funannotate2 install -s
+
+    # run against a local data directory, persisting the BUSCO cache across runs
+    mkdir -p $PWD/data $PWD/busco_cache
+    docker run --rm -it \
+        -v $PWD/data:/data \
+        -v $PWD/busco_cache:/opt/busco_cache \
+        -e BUSCO_DOWNLOAD_PATH=/opt/busco_cache \
+        nextgenusfs/funannotate2:latest \
+        funannotate2 predict -i /data/genome.fa -o /data/out --species "My species"
+
+Notes:
+
+* The image is ``linux/amd64`` only. On Apple Silicon it runs under Rosetta 2 emulation (Docker Desktop handles this automatically).
+* BUSCO lineages are **not** bundled — at ~90 GB uncompressed they exceed Docker Hub's size ceiling. Mount a host directory (as shown above) so lineages download once and are reused.
+* ``GeneMark`` is not included due to licensing. If you need it, install it on the host and mount it into the container.
+* ``FUNANNOTATE2_DB`` is already set to ``/opt/funannotate2_db`` inside the image; no host setup required unless you want to override it.
+
+Installing with pixi
+--------------------
+
+If you prefer a native install on Linux without Docker, the repository ships a `pixi <https://pixi.sh/>`_ workspace (``pixi.toml`` / ``pixi.lock``) that resolves the same environment used to build the Docker image.
+
+.. code-block:: bash
+
+    # install pixi once (see https://pixi.sh/latest/#installation for alternatives)
+    curl -fsSL https://pixi.sh/install.sh | bash
+
+    # clone the repo and install the locked environment
+    git clone https://github.com/nextgenusfs/funannotate2.git
+    cd funannotate2
+    pixi install --locked
+
+    # activate the environment
+    pixi shell
+
+    # set the database location and install databases
+    export FUNANNOTATE2_DB=/path/to/funannotate2-db
+    funannotate2 install -d all
+
+The pixi environment is currently defined for ``linux-64`` only. macOS users should use the Docker image.
 
 Requirements
 -----------
@@ -36,7 +95,7 @@ Some tools like GeneMark-ES/ET must be installed manually due to licensing restr
 Installing with conda
 ------------------
 
-The recommended way to install Funannotate2 is using conda/mamba:
+Funannotate2 can also be installed with conda/mamba:
 
 .. code-block:: bash
 
