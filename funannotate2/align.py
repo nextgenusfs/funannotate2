@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import uuid
 
 from gapmm2.align import aligner as transcript_aligner
@@ -66,7 +67,7 @@ def align_transcripts(
     cpus=1,
     max_intron=3000,
     log=sys.stderr.write,
-    tmpdir="/tmp",
+    tmpdir=None,
 ):
     """
     Run spliced transcript alignment using gapmm2 (mm2 + edlib refinement).
@@ -82,7 +83,7 @@ def align_transcripts(
         cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
         max_intron (int, optional): Maximum intron length allowed. Defaults to 3000.
         log (function, optional): Logging function. Defaults to sys.stderr.write.
-        tmpdir (str, optional): Temporary directory path. Defaults to "/tmp".
+        tmpdir (str, optional): Accepted for API parity with ``align_proteins``; currently unused because the gapmm2 backend writes directly to ``output=evidence``. Defaults to ``None`` (resolves to ``tempfile.gettempdir()`` when relied upon).
     """
     # function to run spliced transcript alignment using gapmm2 (mm2 + edlib refinement)
     # generate an EVM compatible GFF alignment file, parse data and pull out any full length gene models
@@ -114,7 +115,7 @@ def align_proteins(
     cpus=1,
     max_intron=3000,
     log=sys.stderr.write,
-    tmpdir="/tmp",
+    tmpdir=None,
 ):
     """
     Align protein evidence to the genome assembly using miniprot.
@@ -129,13 +130,15 @@ def align_proteins(
         cpus (int, optional): Number of CPUs to use for alignment. Defaults to 1.
         max_intron (int, optional): Maximum intron length for alignment. Defaults to 3000.
         log (function, optional): Logger function for info and error messages. Defaults to sys.stderr.write.
-        tmpdir (str, optional): Temporary directory path for storing intermediate files. Defaults to "/tmp".
+        tmpdir (str, optional): Temporary directory path for storing intermediate files. Defaults to the system temporary directory (``tempfile.gettempdir()``), which honors ``$TMPDIR``.
 
     Returns:
         None
     """
     # function to align protein evidence to genome with miniprot
     # generate evidence alignments and then parse any full length models
+    if tmpdir is None:
+        tmpdir = tempfile.gettempdir()
     mini_tmp = os.path.join(tmpdir, f"{uuid.uuid1()}.miniprot.out")
     # miniprot --outn=4 --gff-only -t 8 valid_contigs.fasta /usr/local/share/funannotate/uniprot_sprot.fasta > uniprot.mini.gff3
     log.info("Aligning protein evidence to the genome assembly with miniprot")

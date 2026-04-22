@@ -191,6 +191,7 @@ class TestSearchComprehensive:
             cpus=1,
             evalue=1e-5,
             max_target_seqs=1,
+            tmpdir=None,
         )
 
     @patch("funannotate2.search.env")
@@ -246,6 +247,7 @@ class TestSearchComprehensive:
             cpus=1,
             evalue=1e-5,
             max_target_seqs=1,
+            tmpdir=None,
         )
 
     @patch("funannotate2.search.json.dump")
@@ -422,3 +424,71 @@ class TestSearchComprehensive:
         mock_file.assert_any_call("/path/to/db/links_to_ODB.txt", "r")
         mock_file.assert_any_call("output.json", "w")
         mock_file.assert_any_call("annotations.txt", "w")
+
+
+class TestDiamondTmpdirPlumbing:
+    """Tests that --tmpdir is honored end-to-end by the diamond helpers."""
+
+    @patch("funannotate2.search.json_repair.load", return_value=[])
+    @patch("funannotate2.search.open", new_callable=mock_open, create=True)
+    @patch("funannotate2.search.os.remove")
+    @patch("funannotate2.search.os.path.isfile", return_value=True)
+    @patch("funannotate2.search.subprocess.Popen")
+    def test_diamond_blast_uses_provided_tmpdir(
+        self, mock_popen, _mock_isfile, _mock_remove, _mock_open, _mock_load, tmp_path
+    ):
+        """diamond_blast writes its intermediate file into the supplied tmpdir."""
+        proc = MagicMock()
+        proc.communicate.return_value = (b"", b"")
+        mock_popen.return_value = proc
+
+        search.diamond_blast(
+            "db.dmnd", "query.fa", cpus=2, evalue=1e-5, tmpdir=str(tmp_path)
+        )
+
+        cmd = mock_popen.call_args[0][0]
+        assert "--out" in cmd
+        out_path = cmd[cmd.index("--out") + 1]
+        assert out_path.startswith(str(tmp_path) + os.sep)
+        assert os.path.basename(out_path).startswith("diamond_")
+
+    @patch("funannotate2.search.json_repair.load", return_value=[])
+    @patch("funannotate2.search.open", new_callable=mock_open, create=True)
+    @patch("funannotate2.search.os.remove")
+    @patch("funannotate2.search.os.path.isfile", return_value=True)
+    @patch("funannotate2.search.subprocess.Popen")
+    def test_diamond_blast_defaults_to_system_tmp(
+        self, mock_popen, _mock_isfile, _mock_remove, _mock_open, _mock_load
+    ):
+        """diamond_blast falls back to tempfile.gettempdir() when tmpdir is None."""
+        import tempfile as _tempfile
+
+        proc = MagicMock()
+        proc.communicate.return_value = (b"", b"")
+        mock_popen.return_value = proc
+
+        search.diamond_blast("db.dmnd", "query.fa")
+
+        cmd = mock_popen.call_args[0][0]
+        out_path = cmd[cmd.index("--out") + 1]
+        assert out_path.startswith(_tempfile.gettempdir() + os.sep)
+
+    @patch("funannotate2.search.env")
+    @patch("funannotate2.search.checkfile", return_value=True)
+    @patch("funannotate2.search.diamond_blast", return_value=[])
+    def test_merops_blast_forwards_tmpdir(
+        self, mock_diamond_blast, _mock_checkfile, mock_env
+    ):
+        mock_env.get.return_value = "/path/to/db"
+        search.merops_blast("q.fa", tmpdir="/scratch/x")
+        assert mock_diamond_blast.call_args.kwargs["tmpdir"] == "/scratch/x"
+
+    @patch("funannotate2.search.env")
+    @patch("funannotate2.search.checkfile", return_value=True)
+    @patch("funannotate2.search.diamond_blast", return_value=[])
+    def test_swissprot_blast_forwards_tmpdir(
+        self, mock_diamond_blast, _mock_checkfile, mock_env
+    ):
+        mock_env.get.return_value = "/path/to/db"
+        search.swissprot_blast("q.fa", tmpdir="/scratch/x")
+        assert mock_diamond_blast.call_args.kwargs["tmpdir"] == "/scratch/x"

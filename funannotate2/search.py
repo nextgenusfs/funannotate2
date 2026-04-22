@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import uuid
 
 import json_repair
@@ -316,7 +317,7 @@ def dbcan2tsv(results, output, annots):
     return a
 
 
-def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir="/tmp"):
+def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir=None):
     """
     Run a protein BLAST using Diamond.
 
@@ -328,12 +329,14 @@ def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir="/tm
         cpus (int, optional): Number of CPUs to use. Defaults to 1.
         evalue (float, optional): E-value threshold. Defaults to 10.0.
         max_target_seqs (int, optional): Maximum number of target sequences to report. Defaults to 1.
-        tmpdir (str, optional): Temporary directory to store intermediate files. Defaults to "/tmp".
+        tmpdir (str, optional): Temporary directory to store intermediate files. Defaults to the system temporary directory (``tempfile.gettempdir()``), which honors ``$TMPDIR``.
 
     Returns:
         list: JSON formatted results of the BLAST search.
     """
     # use diamond as protein blast
+    if tmpdir is None:
+        tmpdir = tempfile.gettempdir()
     tmpfile = os.path.join(tmpdir, f"diamond_{uuid.uuid4()}")
     cmd = [
         "diamond",
@@ -377,7 +380,7 @@ def diamond_blast(db, query, cpus=1, evalue=10.0, max_target_seqs=1, tmpdir="/tm
     return results
 
 
-def merops_blast(query, evalue=1e-5, cpus=1, max_target_seqs=1):
+def merops_blast(query, evalue=1e-5, cpus=1, max_target_seqs=1, tmpdir=None):
     """
     Run a BLAST search against the MEROPS database using Diamond.
 
@@ -388,6 +391,7 @@ def merops_blast(query, evalue=1e-5, cpus=1, max_target_seqs=1):
         evalue (float, optional): E-value threshold for reporting hits. Defaults to 1e-5.
         cpus (int, optional): Number of CPUs to use. Defaults to 1.
         max_target_seqs (int, optional): Maximum number of target sequences to report. Defaults to 1.
+        tmpdir (str, optional): Temporary directory forwarded to ``diamond_blast`` for intermediate files. Defaults to the system temporary directory.
 
     Returns:
         list: A list of dictionaries containing information about the hits found, including coverage and family details.
@@ -397,7 +401,12 @@ def merops_blast(query, evalue=1e-5, cpus=1, max_target_seqs=1):
     if checkfile(merops_db):
         results = []
         raw_results = diamond_blast(
-            merops_db, query, cpus=cpus, evalue=evalue, max_target_seqs=max_target_seqs
+            merops_db,
+            query,
+            cpus=cpus,
+            evalue=evalue,
+            max_target_seqs=max_target_seqs,
+            tmpdir=tmpdir,
         )
         for res in raw_results:
             coverage = (res["length"] / res["qlen"]) * 100
@@ -440,7 +449,13 @@ def merops2tsv(results, output, annots):
 
 
 def swissprot_blast(
-    query, evalue=1e-5, cpus=1, min_pident=60, min_cov=60, max_target_seqs=1
+    query,
+    evalue=1e-5,
+    cpus=1,
+    min_pident=60,
+    min_cov=60,
+    max_target_seqs=1,
+    tmpdir=None,
 ):
     """
     Perform a BLAST search against the SwissProt database using Diamond.
@@ -454,6 +469,7 @@ def swissprot_blast(
         min_pident (int, optional): Minimum percentage identity required for a hit. Defaults to 60.
         min_cov (int, optional): Minimum coverage percentage required for a hit. Defaults to 60.
         max_target_seqs (int, optional): Maximum number of target sequences to report. Defaults to 1.
+        tmpdir (str, optional): Temporary directory forwarded to ``diamond_blast`` for intermediate files. Defaults to the system temporary directory.
 
     Returns:
         list: A list of dictionaries containing information about the filtered hits, including coverage, percentage identity, and alignment details.
@@ -463,7 +479,12 @@ def swissprot_blast(
     if checkfile(uniprot_db):
         results = []
         raw_results = diamond_blast(
-            uniprot_db, query, cpus=cpus, evalue=evalue, max_target_seqs=max_target_seqs
+            uniprot_db,
+            query,
+            cpus=cpus,
+            evalue=evalue,
+            max_target_seqs=max_target_seqs,
+            tmpdir=tmpdir,
         )
         for res in raw_results:
             if res["pident"] >= min_pident:

@@ -82,26 +82,55 @@ class TestCreateTmpdir:
     """Tests for the create_tmpdir function."""
 
     def test_create_tmpdir_with_outdir(self, temp_dir):
-        """Test creating a temporary directory with an output directory."""
+        """A unique <base>_<uuid> subdir is created inside the supplied volume."""
         tmpdir = create_tmpdir(temp_dir, base="test")
         assert os.path.exists(tmpdir)
         assert os.path.isdir(tmpdir)
-        assert tmpdir.startswith(os.path.abspath(temp_dir))
+        assert tmpdir.startswith(os.path.abspath(temp_dir) + os.sep)
+        assert os.path.basename(tmpdir).startswith("test_")
+        assert os.path.abspath(tmpdir) != os.path.abspath(temp_dir)
 
     def test_create_tmpdir_with_tmp(self):
-        """Test creating a temporary directory in /tmp."""
+        """Supplying /tmp still yields a unique subdir inside /tmp."""
         tmpdir = create_tmpdir("/tmp", base="test")
-        assert os.path.exists(tmpdir)
-        assert os.path.isdir(tmpdir)
-        assert tmpdir.startswith("/tmp")
+        try:
+            assert os.path.exists(tmpdir)
+            assert os.path.isdir(tmpdir)
+            assert tmpdir.startswith("/tmp" + os.sep)
+            assert os.path.basename(tmpdir).startswith("test_")
+        finally:
+            if os.path.isdir(tmpdir):
+                os.rmdir(tmpdir)
 
     def test_create_tmpdir_without_outdir(self):
-        """Test creating a temporary directory without an output directory."""
+        """With no outdir, a unique subdir is created under tempfile.gettempdir()."""
+        import tempfile as _tempfile
+
         tmpdir = create_tmpdir(None, base="test")
-        assert os.path.exists(tmpdir)
+        try:
+            assert os.path.exists(tmpdir)
+            assert os.path.isdir(tmpdir)
+            assert tmpdir.startswith(
+                os.path.abspath(_tempfile.gettempdir()) + os.sep
+            )
+        finally:
+            if os.path.isdir(tmpdir):
+                os.rmdir(tmpdir)
+
+    def test_create_tmpdir_calls_are_unique(self, temp_dir):
+        """Successive calls with the same parent never collide."""
+        a = create_tmpdir(temp_dir, base="test")
+        b = create_tmpdir(temp_dir, base="test")
+        assert a != b
+        assert os.path.isdir(a)
+        assert os.path.isdir(b)
+
+    def test_create_tmpdir_parent_not_existing(self, temp_dir):
+        """If the supplied parent does not yet exist, it is created along with the subdir."""
+        missing_parent = os.path.join(temp_dir, "does", "not", "exist")
+        tmpdir = create_tmpdir(missing_parent, base="test")
         assert os.path.isdir(tmpdir)
-        # Clean up
-        os.rmdir(tmpdir)
+        assert tmpdir.startswith(os.path.abspath(missing_parent) + os.sep)
 
 
 class TestReadBlocks:
