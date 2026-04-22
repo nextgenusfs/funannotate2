@@ -317,3 +317,73 @@ class TestPredict:
         assert not any("memory prediction for scaffold_1.fasta" in message for message in debug_messages)
         assert stats["tools_run"] == ["snap"]
         assert stats["contig_length"] == 4
+
+
+
+class TestAlignProteinsTmpdir:
+    """Tests verifying align_proteins honors the tmpdir kwarg (issue #52 follow-up)."""
+
+    def _capture_stdout_path(self):
+        captured = {}
+
+        def fake_run_subprocess(cmd, log, stdout=None, **kwargs):
+            captured["stdout"] = stdout
+            captured["cmd"] = cmd
+            return 0
+
+        return captured, fake_run_subprocess
+
+    @patch("funannotate2.align.os.remove")
+    @patch("funannotate2.align.split_evidence_and_genes")
+    @patch("funannotate2.align.runSubprocess")
+    def test_align_proteins_uses_provided_tmpdir(
+        self, mock_run_subprocess, mock_split, mock_remove, tmp_path
+    ):
+        from funannotate2.align import align_proteins
+
+        captured, fake = self._capture_stdout_path()
+        mock_run_subprocess.side_effect = fake
+        mock_split.return_value = (0, 0)
+
+        logger = MagicMock()
+        align_proteins(
+            "genome.fasta",
+            "proteins.fasta",
+            "evidence.gff3",
+            "genes.gff3",
+            cpus=1,
+            log=logger,
+            tmpdir=str(tmp_path),
+        )
+
+        assert captured["stdout"] is not None
+        assert captured["stdout"].startswith(str(tmp_path) + os.sep)
+        assert captured["stdout"].endswith(".miniprot.out")
+
+    @patch("funannotate2.align.os.remove")
+    @patch("funannotate2.align.split_evidence_and_genes")
+    @patch("funannotate2.align.runSubprocess")
+    def test_align_proteins_defaults_to_system_tmp(
+        self, mock_run_subprocess, mock_split, mock_remove
+    ):
+        import tempfile
+
+        from funannotate2.align import align_proteins
+
+        captured, fake = self._capture_stdout_path()
+        mock_run_subprocess.side_effect = fake
+        mock_split.return_value = (0, 0)
+
+        logger = MagicMock()
+        align_proteins(
+            "genome.fasta",
+            "proteins.fasta",
+            "evidence.gff3",
+            "genes.gff3",
+            cpus=1,
+            log=logger,
+        )
+
+        assert captured["stdout"] is not None
+        assert captured["stdout"].startswith(tempfile.gettempdir() + os.sep)
+        assert captured["stdout"].endswith(".miniprot.out")

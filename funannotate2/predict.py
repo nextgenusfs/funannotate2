@@ -271,6 +271,7 @@ def predict(args):
             cpus=args.cpus,
             max_intron=args.max_intron,
             log=logger,
+            tmpdir=tmp_dir,
         )
     elif checkfile(TranAlign) and checkfile(TranGenes):
         log("Existing transcript alignments found, will re-use and continue")
@@ -304,6 +305,7 @@ def predict(args):
             cpus=args.cpus,
             max_intron=args.max_intron,
             log=logger,
+            tmpdir=tmp_dir,
         )
     elif checkfile(ProtAlign) and checkfile(ProtGenes):
         log("Existing protein alignments found, will re-use and continue")
