@@ -704,6 +704,7 @@ def runSubprocess(
     env=False,
     monitor_memory=False,
     process_name=None,
+    output_filter=None,
 ):
     """
     Run a command using subprocess and direct output and stderr.
@@ -823,7 +824,9 @@ def runSubprocess(
 
         if not only_failed:
             # Handle different logger types for output logging
-            if hasattr(logfile, "debug"):
+            if output_filter is not None:
+                output_filter(logfile, process.stdout, process.stderr)
+            elif hasattr(logfile, "debug"):
                 logoutput(logfile.debug, process)
             elif callable(logfile):
                 # For function-based loggers, skip detailed output logging
