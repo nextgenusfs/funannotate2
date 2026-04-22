@@ -310,7 +310,7 @@ def annotate(args):
             "Annotating proteome with diamond against the UniProtKB/Swiss-Prot database"
         )
         start = time.time()
-        swiss = swissprot_blast(Proteins, cpus=args.cpus)
+        swiss = swissprot_blast(Proteins, cpus=args.cpus, tmpdir=tmp_dir)
         end = time.time()
         logger.info(
             f"UniProtKB/Swiss-Prot search resulted in {len(swiss)} hits and finished in {round(end - start, 2)} seconds"
@@ -330,7 +330,7 @@ def annotate(args):
             "Annotating proteome with diamond against the MEROPS protease database"
         )
         start = time.time()
-        merops = merops_blast(Proteins, cpus=args.cpus)
+        merops = merops_blast(Proteins, cpus=args.cpus, tmpdir=tmp_dir)
         end = time.time()
         logger.info(
             f"MEROPS search resulted in {len(merops)} hits and finished in {round(end - start, 2)} seconds"

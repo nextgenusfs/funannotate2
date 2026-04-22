@@ -9,6 +9,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import textwrap
 import time
 import uuid
@@ -531,32 +532,27 @@ def human_readable_size(size, decimal_places=2):
 
 def create_tmpdir(outdir, base="predict"):
     """
-    Create a temporary directory for storing files.
+    Create a unique temporary directory for storing intermediate files.
 
-    This function generates a temporary directory with a unique name based on the provided
-    base name and a UUID. If an output directory is specified, the temporary directory is
-    created within it. If the output directory is "/tmp", a subdirectory is created; otherwise,
-    the specified directory is used directly. If no output directory is provided, the temporary
-    directory is created in the current working directory.
+    A ``<base>_<uuid>`` subdirectory is always created inside the supplied
+    volume (``outdir``). If ``outdir`` is falsy, the system temporary directory
+    (``tempfile.gettempdir()``, which honors the ``$TMPDIR`` environment
+    variable) is used as the parent. Using a unique subdirectory avoids
+    collisions between concurrent runs sharing a scratch volume and prevents
+    downstream cleanup from inadvertently removing a user-supplied directory.
 
     Parameters:
-    - outdir (str): The output directory path.
+    - outdir (str or None): The parent directory under which the unique tmpdir
+      will be created. If falsy, ``tempfile.gettempdir()`` is used.
     - base (str, optional): The base name for the temporary directory (default is "predict").
 
     Returns:
     - str: The absolute path of the created temporary directory.
     """
-    # create a tmpdir for some files
     tmpdirslug = "{}_{}".format(base, str(uuid.uuid4()))
-    if outdir:
-        if outdir == "/tmp":
-            tmpdir = os.path.join(outdir, tmpdirslug)
-        else:
-            tmpdir = outdir
-    else:
-        tmpdir = tmpdirslug
-    if not os.path.isdir(tmpdir):
-        os.makedirs(tmpdir)
+    parent = outdir if outdir else tempfile.gettempdir()
+    tmpdir = os.path.join(parent, tmpdirslug)
+    os.makedirs(tmpdir, exist_ok=True)
     return os.path.abspath(tmpdir)
 
 
