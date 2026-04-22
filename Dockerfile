@@ -4,7 +4,6 @@
 
 ARG PIXI_VERSION=0.67.0
 ARG UBUNTU_VERSION=22.04
-ARG PYTANTAN_VERSION=0.1.3
 
 # ---------------------------------------------------------------------------
 # Stage 1: build — resolve + install the pixi environment from pixi.lock
@@ -20,21 +19,6 @@ COPY funannotate2 ./funannotate2
 
 # Install from the lockfile; no-op if the lockfile already matches.
 RUN pixi install --locked
-
-# Rebuild pytantan from source with AVX2 disabled (SSE4-only baseline).
-# The PyPI/bioconda wheel ships with AVX2 SIMD which SIGILLs on CPUs that lack
-# it — notably Rosetta 2 on Apple Silicon — and AVX2 gives no meaningful win
-# for this pipeline. `pip` uses build isolation, so scikit-build-core/cython/
-# scoring-matrices are pulled in transparently; we only need the C/C++ toolchain.
-ARG PYTANTAN_VERSION
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        git build-essential cmake zlib1g-dev ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-RUN SKBUILD_CMAKE_ARGS="-DHAVE_AVX2:BOOL=OFF;-DAVX2_C_FLAGS:STRING=" \
-    /app/.pixi/envs/default/bin/pip install --no-deps --force-reinstall \
-        "pytantan @ git+https://github.com/althonos/pytantan.git@v${PYTANTAN_VERSION}" && \
-    rm -rf /root/.cache/pip
 
 # Pre-generate an activation script so the final image doesn't need pixi.
 RUN mkdir -p /app/bin && \
