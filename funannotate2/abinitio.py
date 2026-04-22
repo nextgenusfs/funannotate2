@@ -29,6 +29,54 @@ from .utilities import (
 )
 
 
+# Track whether the gmhmme3 license banner has been logged this run.
+# gmhmme3 prints a multi-line banner to both stdout and stderr on every
+# invocation, which pollutes the log file when called once per contig.
+_GENEMARK_BANNER_LOGGED = False
+
+_GENEMARK_BANNER_MARKERS = (
+    "GeneMark.hmm eukaryotic",
+    "days remaining in the license period",
+)
+
+
+def _genemark_output_filter(log, stdout, stderr):
+    """runSubprocess output_filter for gmhmme3.
+
+    Logs the license banner at most once per Python process; forwards any
+    other (non-banner) content to log.debug so real warnings/errors are kept.
+    """
+    global _GENEMARK_BANNER_LOGGED
+
+    def split_banner(text):
+        if not text:
+            return "", ""
+        banner_lines = []
+        other_lines = []
+        for line in text.splitlines():
+            if any(m in line for m in _GENEMARK_BANNER_MARKERS):
+                banner_lines.append(line)
+            else:
+                other_lines.append(line)
+        return "\n".join(banner_lines), "\n".join(l for l in other_lines if l.strip())
+
+    out_banner, out_other = split_banner(stdout)
+    err_banner, err_other = split_banner(stderr)
+
+    if not _GENEMARK_BANNER_LOGGED:
+        banner = out_banner or err_banner
+        if banner and hasattr(log, "debug"):
+            log.debug(banner)
+        if banner:
+            _GENEMARK_BANNER_LOGGED = True
+
+    if hasattr(log, "debug"):
+        if out_other:
+            log.debug(out_other)
+        if err_other:
+            log.debug(err_other)
+
+
 class reversor:
     def __init__(self, obj):
         self.obj = obj
@@ -1637,6 +1685,7 @@ def run_genemark(
         cwd=workdir,
         monitor_memory=True,
         process_name=f"genemark-{os.path.basename(genome)}",
+        output_filter=_genemark_output_filter,
     )
     Genes = gtf2dict(os.path.join(workdir, tmpout), genome)
     Cleaned = {}
@@ -3211,7 +3260,12 @@ def test_training(
                 os.path.basename(c) + ".gtf",
                 os.path.basename(c),
             ]
-            runSubprocess(cmd, log, cwd=os.path.join(tmpdir, "test"))
+            runSubprocess(
+                cmd,
+                log,
+                cwd=os.path.join(tmpdir, "test"),
+                output_filter=_genemark_output_filter,
+            )
             if checkfile(g_out):
                 with open(g_out) as infile:
                     for line in infile:
