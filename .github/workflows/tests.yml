@@ -39,7 +39,7 @@ jobs:
       run: |
         if [[ "$RUNNER_OS" == "Linux" ]]; then
           sudo apt-get update
-          sudo apt-get install -y build-essential zlib1g-dev
+          sudo apt-get install -y build-essential cmake zlib1g-dev
         fi
 
     - name: Setup conda (macOS only)
@@ -51,10 +51,15 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
+      env:
+        # Force pytantan to build from sdist so all Python versions get the
+        # same AVX2-off baseline. The published cp3x wheels have caused
+        # import-time failures on 3.9/3.10/3.11 in this matrix.
+        PIP_NO_BINARY: pytantan
       run: |
         if [[ "${{ matrix.use_conda }}" == "true" ]]; then
           # Use conda for macOS to avoid mappy build issues
-          conda install -c conda-forge -c bioconda mappy numpy pytest pytest-cov -y
+          conda install -c conda-forge -c bioconda mappy numpy pytest pytest-cov cmake -y
           # Install funannotate2 in editable mode - this will install all dependencies from pyproject.toml
           pip install -e .
         else
