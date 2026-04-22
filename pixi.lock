@@ -804,13 +804,13 @@ packages:
 - pypi: ./
   name: funannotate2
   version: 26.4.22
-  sha256: 95478406953bc754168bed48f9cb44b490cd6e8ccf23a756730724e4266eab66
+  sha256: 3433921df6b78d529c556af8edb76725db5a7abdfd6fdb1d0ea6cc41b30f7468
   requires_dist:
   - natsort
   - numpy
   - mappy
   - gfftk>=26.2.12
-  - buscolite>=26.2.22
+  - buscolite>=26.4.22
   - gapmm2>=25.8.12
   - pyhmmer>=0.12.0
   - pyfastx>=2.0.0
