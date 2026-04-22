@@ -4,7 +4,7 @@
 
 ARG PIXI_VERSION=0.67.0
 ARG UBUNTU_VERSION=22.04
-ARG PYTANTAN_VERSION=0.1.3
+ARG PYTANTAN_VERSION=0.1.4
 
 # ---------------------------------------------------------------------------
 # Stage 1: build — resolve + install the pixi environment from pixi.lock
