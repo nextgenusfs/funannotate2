@@ -1471,8 +1471,8 @@ packages:
   timestamp: 1752167450180
 - pypi: ./
   name: funannotate2
-  version: 26.4.22
-  sha256: 93de0a397aec280027fd84fc9abfa5a697731c105db3a62224dece618c8a7fd9
+  version: 26.5.22
+  sha256: 1339b472e59ff2ed43e26f450e21f70bac1be9e4fee106a667d6f16422658d74
   requires_dist:
   - natsort
   - numpy
@@ -1488,7 +1488,7 @@ packages:
   - pytantan>=0.1.4
   - psutil
   - annorefine>=2026.2.9
-  requires_python: '>=3.9.0,<3.14'
+  requires_python: '>=3.10.0,<3.14'
 - pypi: https://files.pythonhosted.org/packages/b1/89/2e3f29c41cb86273dcd8f3ec2df5b4e87ae0d554cbb268ae7c3092940cae/funannotate2_addons-26.3.7-py3-none-any.whl
   name: funannotate2-addons
   version: 26.3.7
