@@ -774,13 +774,24 @@ def runSubprocess(
                     from .memory import MemoryMonitor
 
                     monitor = MemoryMonitor()
-                    memory_stats = monitor.monitor_process(
-                        process, process_name or " ".join(cmd[:2])
-                    )
-                    process.wait()
+                    import threading
+                    def monitor_target():
+                        nonlocal memory_stats
+                        memory_stats = monitor.monitor_process(
+                            process, process_name or " ".join(cmd[:2])
+                        )
+
+                    t = threading.Thread(target=monitor_target)
+                    t.start()
+                    out, err = process.communicate()
+                    process.stdout = out
+                    process.stderr = err
+                    t.join()
                 except ImportError:
                     # Fallback if memory module not available
-                    process.communicate()
+                    out, err = process.communicate()
+                    process.stdout = out
+                    process.stderr = err
             else:
                 process = subprocess.run(
                     cmd,
@@ -806,13 +817,28 @@ def runSubprocess(
                     from .memory import MemoryMonitor
 
                     monitor = MemoryMonitor()
-                    memory_stats = monitor.monitor_process(
-                        process, process_name or " ".join(cmd[:2])
-                    )
+                    import threading
+                    def monitor_target():
+                        nonlocal memory_stats
+                        memory_stats = monitor.monitor_process(
+                            process, process_name or " ".join(cmd[:2])
+                        )
+
+                    t = threading.Thread(target=monitor_target)
+                    t.start()
+                    out, err = process.communicate()
+                    process.stdout = out
+                    process.stderr = err
+                    t.join()
                 except ImportError:
                     # Fallback if memory module not available
-                    pass
-            process.communicate()
+                    out, err = process.communicate()
+                    process.stdout = out
+                    process.stderr = err
+            else:
+                out, err = process.communicate()
+                process.stdout = out
+                process.stderr = err
     try:
         # Handle return code checking for both subprocess.run and subprocess.Popen
         if hasattr(process, "check_returncode"):
