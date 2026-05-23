@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "funannotate2"
-version = "26.4.22"
+version = "26.5.22"
 description = "Funannotate2: eukarytoic genome annotation pipeline"
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
     {name = "Jon Palmer", email = "nextgenusfs@gmail.com"}
 ]
-requires-python = ">=3.9.0,<3.14"
+requires-python = ">=3.10.0,<3.14"
 dependencies = [
     "natsort",
     "numpy",
