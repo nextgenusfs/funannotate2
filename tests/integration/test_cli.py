@@ -24,7 +24,7 @@ def run_command(command):
 class TestCLI:
     """Tests for the command-line interface."""
 
-    @pytest.mark.skip(reason="funannotate2 is not installed")
+
     def test_help_command(self):
         """Test the help command."""
         returncode, stdout, stderr = run_command("python -m funannotate2 --help")
@@ -33,7 +33,7 @@ class TestCLI:
         # The actual implementation doesn't include 'gfftk' in the help output
         assert "funannotate2" in stdout
 
-    @pytest.mark.skip(reason="funannotate2 is not installed")
+
     def test_version_command(self):
         """Test the version command."""
         returncode, stdout, stderr = run_command("python -m funannotate2 --version")

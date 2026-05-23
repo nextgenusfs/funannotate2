@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]  # Temporarily disable macOS due to mappy build issues
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
         include:
           # Add one macOS test with conda-based installation
           - os: macos-latest
@@ -54,7 +54,7 @@ jobs:
       env:
         # Force pytantan to build from sdist so all Python versions get the
         # same AVX2-off baseline. The published cp3x wheels have caused
-        # import-time failures on 3.9/3.10/3.11 in this matrix.
+        # import-time failures on 3.10/3.11 in this matrix.
         PIP_NO_BINARY: pytantan
       run: |
         if [[ "${{ matrix.use_conda }}" == "true" ]]; then
