@@ -20,7 +20,7 @@ diamond = "*"
 trnascan-se = "*"
 
 # funannotate2 python deps available via bioconda / conda-forge
-gapmm2 = ">=25.8.12"
+gapmm2 = ">=26.5.22"
 buscolite = ">=26.4.22"
 pyhmmer = ">=0.12.0"
 pyfastx = ">=2.0.0"
@@ -45,7 +45,7 @@ tini = "*"
 table2asn = "*"
 
 [pypi-dependencies]
-gfftk = ">=26.2.12"
+gfftk = ">=26.5.22"
 # local funannotate2 source (built from repo)
 funannotate2 = { path = ".", editable = false }
 # pure-pypi packages
