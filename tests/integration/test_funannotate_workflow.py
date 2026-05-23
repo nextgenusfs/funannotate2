@@ -80,8 +80,8 @@ class TestFunannotateWorkflow:
         return gff_file
 
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn"),
-        reason="tbl2asn is not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="table2asn is not installed or not in PATH",
     )
     def test_clean_workflow(self, test_fasta, temp_dir):
         """Test the clean workflow."""
@@ -90,6 +90,7 @@ class TestFunannotateWorkflow:
         class Args:
             def __init__(self):
                 self.input = test_fasta
+                self.fasta = test_fasta
                 self.out = os.path.join(temp_dir, "cleaned.fasta")
                 self.minlen = 10
                 self.cpus = 1
@@ -152,8 +153,8 @@ class TestFunannotateWorkflow:
             assert "another description" not in content
 
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn") or not shutil.which("hmmsearch"),
-        reason="Required tools (tbl2asn, hmmsearch) are not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="Required tools (table2asn) are not installed or not in PATH",
     )
     def test_annotate_workflow(self, test_fasta, test_gff, temp_dir):
         """Test the annotate workflow."""

@@ -182,6 +182,7 @@ class TestRunSubprocess:
         process.returncode = 0
         process.stdout = ""
         process.stderr = ""
+        process.communicate.return_value = ("", "")
         mock_popen.return_value = process
 
         mock_monitor = mock_monitor_cls.return_value
@@ -229,6 +230,7 @@ class TestRunSubprocess:
         process.returncode = 0
         process.stdout = ""
         process.stderr = ""
+        process.communicate.return_value = ("", "")
         mock_popen.return_value = process
 
         mock_monitor = mock_monitor_cls.return_value

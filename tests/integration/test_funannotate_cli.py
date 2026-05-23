@@ -43,7 +43,6 @@ class TestFunannotateCLI:
         assert returncode == 0
         assert "funannotate2" in stdout
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     def test_clean_help(self):
         """Test the clean help command."""
         returncode, stdout, stderr = run_command("python -m funannotate2 clean --help")
@@ -54,7 +53,6 @@ class TestFunannotateCLI:
         assert "--fasta" in stdout or "-f" in stdout
         assert "--out" in stdout or "-o" in stdout
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     def test_predict_help(self):
         """Test the predict help command."""
         returncode, stdout, stderr = run_command("python -m funannotate2 predict --help")
@@ -62,7 +60,6 @@ class TestFunannotateCLI:
         assert "usage:" in stdout
         assert "predict" in stdout
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     def test_annotate_help(self):
         """Test the annotate help command."""
         returncode, stdout, stderr = run_command("python -m funannotate2 annotate --help")
@@ -78,10 +75,9 @@ class TestFunannotateCLI:
         assert "usage:" in stdout
         assert "compare" in stdout
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn"),
-        reason="tbl2asn is not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="table2asn is not installed or not in PATH",
     )
     def test_clean_command(self, test_data_dir, tmp_path):
         """Test the clean command with a small FASTA file."""
@@ -95,7 +91,7 @@ class TestFunannotateCLI:
 
         # Run the clean command
         output_file = os.path.join(tmp_path, "cleaned.fasta")
-        command = f"python -m funannotate2 clean -f {test_fasta} -o {output_file}"
+        command = f"python -m funannotate2 clean -f {test_fasta} -o {output_file} --minlen 10"
         returncode, stdout, stderr = run_command(command)
 
         # Check the results
@@ -110,10 +106,9 @@ class TestFunannotateCLI:
             assert "some description" not in content
             assert "another description" not in content
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn"),
-        reason="tbl2asn is not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="table2asn is not installed or not in PATH",
     )
     def test_clean_command_with_minlen(self, test_data_dir, tmp_path):
         """Test the clean command with minimum length filtering."""
@@ -127,7 +122,7 @@ class TestFunannotateCLI:
 
         # Run the clean command with minimum length 10
         output_file = os.path.join(tmp_path, "cleaned.fasta")
-        command = f"python -m funannotate2 clean -i {test_fasta} -o {output_file} --minlen 10"
+        command = f"python -m funannotate2 clean -f {test_fasta} -o {output_file} -m 10"
         returncode, stdout, stderr = run_command(command)
 
         # Check the results
@@ -140,10 +135,9 @@ class TestFunannotateCLI:
             assert ">short" not in content
             assert ">long" in content
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn") or not shutil.which("augustus") or not shutil.which("miniprot"),
-        reason="Required tools (tbl2asn, augustus, miniprot) are not installed or not in PATH",
+        not shutil.which("table2asn") or not shutil.which("augustus") or not shutil.which("miniprot"),
+        reason="Required tools (table2asn, augustus, miniprot) are not installed or not in PATH",
     )
     def test_predict_command_basic(self, test_data_dir, tmp_path):
         """Test the predict command with basic options."""
@@ -176,10 +170,9 @@ class TestFunannotateCLI:
         assert "Aspergillus fumigatus" in command
         assert test_protein in command
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn") or not shutil.which("hmmsearch"),
-        reason="Required tools (tbl2asn, hmmsearch) are not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="Required tools (table2asn) are not installed or not in PATH",
     )
     def test_annotate_command_basic(self, test_data_dir, tmp_path):
         """Test the annotate command with basic options."""
@@ -214,10 +207,9 @@ class TestFunannotateCLI:
         assert output_dir in command
         assert "Aspergillus fumigatus" in command
 
-    @pytest.mark.skip(reason="Skipping CLI tests for now")
     @pytest.mark.skipif(
-        not shutil.which("tbl2asn"),
-        reason="tbl2asn is not installed or not in PATH",
+        not shutil.which("table2asn"),
+        reason="table2asn is not installed or not in PATH",
     )
     def test_compare_command_basic(self, test_data_dir, tmp_path):
         """Test the compare command with basic options."""

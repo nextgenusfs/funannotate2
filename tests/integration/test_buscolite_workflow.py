@@ -105,7 +105,7 @@ class TestBUSCOliteWorkflow:
         # Check that the JSON file is not empty
         assert os.path.getsize(json_path) > 0
 
-    @pytest.mark.skip(reason="buscolite is not installed")
+
     def test_proteins_mode(self, test_data_dir, temp_dir):
         """Test the buscolite workflow in proteins mode."""
         # Set up paths

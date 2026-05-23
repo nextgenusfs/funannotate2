@@ -13,7 +13,7 @@ import pytest
 class TestBUSCOliteEndToEnd:
     """Test the buscolite end-to-end workflow."""
 
-    @pytest.mark.skip(reason="buscolite is not installed")
+
     @pytest.mark.skipif(
         not shutil.which("augustus"),
         reason="Augustus is not installed or not in PATH",
@@ -77,11 +77,10 @@ class TestBUSCOliteEndToEnd:
         # Check the content of the summary file
         with open(summary_path, "r") as f:
             summary = f.read()
-            assert "# BUSCO version:" in summary
-            assert "# Lineage:" in summary
-            assert "# Mode: genome" in summary
+            assert "# BUSCOlite v" in summary
+            assert "# The lineage dataset is:" in summary
 
-    @pytest.mark.skip(reason="buscolite is not installed")
+
     def test_proteins_mode_end_to_end(self, test_data_dir, temp_dir):
         """Test the buscolite end-to-end workflow in proteins mode."""
         # Set up paths
@@ -130,6 +129,5 @@ class TestBUSCOliteEndToEnd:
         # Check the content of the summary file
         with open(summary_path, "r") as f:
             summary = f.read()
-            assert "# BUSCO version:" in summary
-            assert "# Lineage:" in summary
-            assert "# Mode: proteins" in summary
+            assert "# BUSCOlite v" in summary
+            assert "# The lineage dataset is:" in summary
