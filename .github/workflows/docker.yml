@@ -30,6 +30,11 @@ jobs:
     name: Build funannotate2 image (linux/amd64)
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    outputs:
+      staging_tag: ${{ steps.staging.outputs.tag }}
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      dockerhub_enabled: ${{ env.DOCKERHUB_ENABLED }}
     env:
       DOCKERHUB_ENABLED: ${{ secrets.DOCKERHUB_TOKEN != '' && 'true' || 'false' }}
 
@@ -52,19 +57,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: ${{ github.event.pull_request.head.repo.fork != true }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub
-        if: ${{ github.event_name != 'pull_request' && env.DOCKERHUB_ENABLED == 'true' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract image metadata
         id: meta
@@ -81,68 +79,121 @@ jobs:
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
-      # Build the image into the local Docker daemon first (no registry push
-      # yet) so we can smoke-test it before publishing. The cache-to step makes
-      # the subsequent push-from-cache step essentially a no-op rebuild.
-      - name: Build image (load to local Docker daemon)
+      # Compute a single transient "staging" tag in GHCR. The smoke-test job
+      # pulls this tag on a real Apple Silicon runner under Rosetta 2; the
+      # image is only copied to the release tags (latest, vX.Y, sha, ...) once
+      # the smoke test passes.
+      - name: Compute staging tag
+        id: staging
+        run: |
+          echo "tag=ghcr.io/nextgenusfs/funannotate2:staging-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image and push staging tag to GHCR
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: false
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
+          push: ${{ github.event.pull_request.head.repo.fork != true }}
+          tags: ${{ steps.staging.outputs.tag }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
 
-      # Smoke-test the built image against a CPU model that lacks AVX2, to
-      # reproduce the Rosetta 2 / non-AVX2 x86_64 environment some users run on.
-      # We use qemu-user-static with `-cpu Westmere` (pre-AVX); any AVX/AVX2
-      # instruction executed by pytantan will raise SIGILL and fail the job.
-      - name: Install qemu-user-static
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-user-static
+      - name: Image digest
+        if: steps.build.outputs.digest != ''
+        run: echo "Digest=${{ steps.build.outputs.digest }}"
 
-      - name: Resolve test image tag
-        id: testimg
-        run: |
-          tag=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n1)
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+  # Smoke-test the staged image on a real Apple Silicon (M1) macOS runner
+  # under Rosetta 2 -- exactly the environment where pytantan SIGILLs when
+  # built with AVX2. If `import pytantan` succeeds here the binary is safe
+  # to publish to the release tags.
+  smoke-test-rosetta:
+    name: Verify pytantan under Apple Rosetta 2 (macos-14)
+    needs: build
+    if: ${{ github.event.pull_request.head.repo.fork != true }}
+    runs-on: macos-14
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
 
-      - name: Smoke test pytantan under non-AVX2 CPU emulation (Westmere)
+    steps:
+      - name: Install colima and docker CLI
+        run: |
+          brew install colima docker
+
+      - name: Start colima with VZ + Rosetta 2 (amd64 acceleration)
+        run: |
+          colima start \
+            --arch aarch64 \
+            --vm-type=vz \
+            --vz-rosetta \
+            --cpu 3 \
+            --memory 6 \
+            --disk 30
+          docker info
+          docker version
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull staging image (linux/amd64)
+        run: |
+          docker pull --platform=linux/amd64 "${{ needs.build.outputs.staging_tag }}"
+          docker image inspect "${{ needs.build.outputs.staging_tag }}" \
+            --format '{{.Architecture}}/{{.Os}}'
+
+      - name: Smoke test pytantan import under Rosetta 2
         run: |
           set -euxo pipefail
-          docker run --rm \
-            -v /usr/bin/qemu-x86_64-static:/usr/bin/qemu-x86_64-static:ro \
-            --entrypoint /usr/bin/qemu-x86_64-static \
-            "${{ steps.testimg.outputs.tag }}" \
-            -cpu Westmere \
+          docker run --rm --platform=linux/amd64 \
+            "${{ needs.build.outputs.staging_tag }}" \
             /app/.pixi/envs/default/bin/python -c \
               "import pytantan; from pytantan import Alphabet, RepeatFinder, default_scoring_matrix; print('pytantan smoke OK', pytantan.__version__)"
 
-      # Only publish to the registries after the smoke test has passed.
-      # The second build is a cache hit on every layer; it just exports the
-      # already-built image to the registry.
-      - name: Push image to registries
-        if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          provenance: false
+  # Promote the staging tag to the real release tags. `docker buildx
+  # imagetools create` performs a registry-side copy of the manifest, so
+  # this finishes in seconds and never re-pulls the image bytes.
+  promote:
+    name: Promote staging image to release tags
+    needs: [build, smoke-test-rosetta]
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_ENABLED: ${{ needs.build.outputs.dockerhub_enabled }}
 
-      - name: Image digest
-        if: steps.push.outputs.digest != ''
-        run: echo "Digest=${{ steps.push.outputs.digest }}"
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: ${{ env.DOCKERHUB_ENABLED == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Copy staging tag to release tags
+        env:
+          STAGING_TAG: ${{ needs.build.outputs.staging_tag }}
+          TAGS: ${{ needs.build.outputs.tags }}
+        run: |
+          set -euxo pipefail
+          printf '%s\n' "${TAGS}" | while IFS= read -r tag; do
+            [ -z "${tag}" ] && continue
+            echo "Promoting ${STAGING_TAG} -> ${tag}"
+            docker buildx imagetools create --tag "${tag}" "${STAGING_TAG}"
+          done
 
