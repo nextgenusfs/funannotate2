@@ -31,7 +31,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git build-essential cmake zlib1g-dev ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-RUN SKBUILD_CMAKE_ARGS="-DHAVE_AVX2:BOOL=OFF;-DAVX2_C_FLAGS:STRING=" \
+RUN CMAKE_ARGS="-DHAVE_AVX2=OFF -DAVX2_C_FLAGS= -DHAVE_SSE4=OFF -DSSE4_C_FLAGS= -DHAVE_NEON=OFF -DNEON_C_FLAGS=" \
     /app/.pixi/envs/default/bin/pip install --no-deps --force-reinstall \
         "pytantan @ git+https://github.com/althonos/pytantan.git@v${PYTANTAN_VERSION}" && \
     rm -rf /root/.cache/pip
