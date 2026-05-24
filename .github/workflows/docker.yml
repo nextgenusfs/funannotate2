@@ -81,21 +81,68 @@ jobs:
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
-      - name: Build and push
+      # Build the image into the local Docker daemon first (no registry push
+      # yet) so we can smoke-test it before publishing. The cache-to step makes
+      # the subsequent push-from-cache step essentially a no-op rebuild.
+      - name: Build image (load to local Docker daemon)
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
 
+      # Smoke-test the built image against a CPU model that lacks AVX2, to
+      # reproduce the Rosetta 2 / non-AVX2 x86_64 environment some users run on.
+      # We use qemu-user-static with `-cpu Westmere` (pre-AVX); any AVX/AVX2
+      # instruction executed by pytantan will raise SIGILL and fail the job.
+      - name: Install qemu-user-static
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-user-static
+
+      - name: Resolve test image tag
+        id: testimg
+        run: |
+          tag=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n1)
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test pytantan under non-AVX2 CPU emulation (Westmere)
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v /usr/bin/qemu-x86_64-static:/usr/bin/qemu-x86_64-static:ro \
+            --entrypoint /usr/bin/qemu-x86_64-static \
+            "${{ steps.testimg.outputs.tag }}" \
+            -cpu Westmere \
+            /app/.pixi/envs/default/bin/python -c \
+              "import pytantan; from pytantan import Alphabet, RepeatFinder, default_scoring_matrix; print('pytantan smoke OK', pytantan.__version__)"
+
+      # Only publish to the registries after the smoke test has passed.
+      # The second build is a cache hit on every layer; it just exports the
+      # already-built image to the registry.
+      - name: Push image to registries
+        if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push) }}
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          provenance: false
+
       - name: Image digest
-        if: steps.build.outputs.digest != ''
-        run: echo "Digest=${{ steps.build.outputs.digest }}"
+        if: steps.push.outputs.digest != ''
+        run: echo "Digest=${{ steps.push.outputs.digest }}"
 
