@@ -243,7 +243,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9f/a0/b1266b0d852d10ac8339540d09fb90e38c198b6a2bcdeb3a881338d4a8fc/keras-layer-normalization-0.16.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/54/4b/195ac84cc8f6077b4f0f421e8daee21b7f1bd88cb7716414234379fe68ec/numcodecs-0.16.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/01/83/15167305eeb4ffa8aca949030f6a9ef5c9ad579f783ab407425c3905f70f/pytantan-0.1.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: git+https://github.com/nextgenusfs/pytantan.git?rev=90818ff695c844cefd5f42eb3baa297263565f21#90818ff695c844cefd5f42eb3baa297263565f21
       - pypi: https://files.pythonhosted.org/packages/36/4d/4a67f30778a45d542bbea5db2dbfa1e9e100bf9ba64aefe34215ba9f11f6/scikit_learn-1.8.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/09/7d/af933f0f6e0767995b4e2d705a0665e454d1c19402aa7e895de3951ebb04/scipy-1.17.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/1d/9c/9111e1e0fa82a8f48dd9d59853d7706cc3e04b01948fa6687e676fcf012d/scoring_matrices-0.3.4-cp311-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
@@ -504,7 +504,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9f/a0/b1266b0d852d10ac8339540d09fb90e38c198b6a2bcdeb3a881338d4a8fc/keras-layer-normalization-0.16.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/0e/cc/0d97ef55dda48cb0f93d7b92d761208e7a99bd2eea6b0e859426e6a99a21/numcodecs-0.16.5-cp311-cp311-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/82/0a/07990c8a23ec94b8dc2e88c6afd12da5131d0c8171e4246f3a8de5eafd44/pytantan-0.1.3-cp311-cp311-macosx_11_0_arm64.whl
+      - pypi: git+https://github.com/nextgenusfs/pytantan.git?rev=90818ff695c844cefd5f42eb3baa297263565f21#90818ff695c844cefd5f42eb3baa297263565f21
       - pypi: https://files.pythonhosted.org/packages/01/18/d154dc1638803adf987910cdd07097d9c526663a55666a97c124d09fb96a/scikit_learn-1.8.0-cp311-cp311-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/f7/58/bccc2861b305abdd1b8663d6130c0b3d7cc22e8d86663edbc8401bfd40d4/scipy-1.17.1-cp311-cp311-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/3a/3e/998a2072e7fdc8b80f37ad6d78157f6e68894936e6b8b957c788494a5c79/scoring_matrices-0.3.4-cp311-abi3-macosx_11_0_arm64.whl
@@ -4885,23 +4885,12 @@ packages:
   - pkg:pypi/pysocks?source=hash-mapping
   size: 21085
   timestamp: 1733217331982
-- pypi: https://files.pythonhosted.org/packages/01/83/15167305eeb4ffa8aca949030f6a9ef5c9ad579f783ab407425c3905f70f/pytantan-0.1.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: git+https://github.com/nextgenusfs/pytantan.git?rev=90818ff695c844cefd5f42eb3baa297263565f21#90818ff695c844cefd5f42eb3baa297263565f21
   name: pytantan
-  version: 0.1.3
-  sha256: 6f0c370767d955c9b4fbb252cac0e419e0a17e761157546118255ba8e47d1fe5
+  version: 0.1.4
   requires_dist:
   - archspec~=0.2 ; os_name != 'nt'
   - scoring-matrices~=0.3.0
-  - importlib-resources ; python_full_version < '3.9' and extra == 'test'
-  requires_python: '>=3.7'
-- pypi: https://files.pythonhosted.org/packages/82/0a/07990c8a23ec94b8dc2e88c6afd12da5131d0c8171e4246f3a8de5eafd44/pytantan-0.1.3-cp311-cp311-macosx_11_0_arm64.whl
-  name: pytantan
-  version: 0.1.3
-  sha256: 9255e58da1233e796639b17d10cb7bac7df0c43a6ef8273a42a938b549f0b98c
-  requires_dist:
-  - archspec~=0.2 ; os_name != 'nt'
-  - scoring-matrices~=0.3.0
-  - importlib-resources ; python_full_version < '3.9' and extra == 'test'
   requires_python: '>=3.7'
 - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.0.3-pyhc364b38_1.conda
   sha256: 960f59442173eee0731906a9077bd5ccf60f4b4226f05a22d1728ab9a21a879c
