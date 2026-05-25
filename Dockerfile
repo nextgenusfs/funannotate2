@@ -4,7 +4,7 @@
 
 ARG PIXI_VERSION=0.67.0
 ARG UBUNTU_VERSION=22.04
-ARG PYTANTAN_VERSION=0.1.4
+ARG PYTANTAN_VERSION=0.1.3
 
 # ---------------------------------------------------------------------------
 # Stage 1: build — resolve + install the pixi environment from pixi.lock
@@ -21,53 +21,44 @@ COPY funannotate2 ./funannotate2
 # Install from the lockfile; no-op if the lockfile already matches.
 RUN pixi install --locked
 
-# Rebuild pytantan from source with all SIMD backends disabled.
+# Rebuild pytantan from source with AVX2 disabled.
 #
-# Background: pytantan's wheels ship with AVX2 enabled, and prior to v0.1.4
-# the generic path was also polluted with AVX2 flags via `add_compile_options`
-# in the project-level CMakeLists.txt. Either way, on x86_64 CPUs without AVX2
-# (notably Rosetta 2 on Apple Silicon) any code path that executes an AVX2
-# instruction raises SIGILL. The runtime-dispatch added in v0.1.4 does not
-# help us here because we want a build that is portable to *any* x86_64.
+# Background: pytantan's PyPI wheels ship with AVX2 SIMD enabled, which SIGILLs
+# on x86_64 CPUs that lack AVX2 (notably Rosetta 2 on Apple Silicon, and some
+# pre-Haswell servers). We pin to v0.1.3 — this is the last release with a
+# straightforward CMake gate, where setting HAVE_AVX2=OFF and clearing the
+# AVX2_C_FLAGS cache variable is sufficient to produce a portable build.
 #
-# pytantan's CMakeLists.txt uses FindAVX2/FindSSE4/FindNEON which auto-detect
-# on the build host (GitHub Actions runners have AVX2), so we have to force
-# the HAVE_* flags OFF. Pre-defining them in FindAVX2.cmake's `if((DEFINED ...))`
-# guard short-circuits detection entirely.
-#
-# We pass these via pip's `--config-settings=cmake.define.*` rather than
-# CMAKE_ARGS/SKBUILD_CMAKE_ARGS env vars, since that route goes directly into
-# scikit-build-core's parser and is not subject to env-var filtering.
+# scikit-build-core (pytantan's build backend) reads SKBUILD_CMAKE_ARGS as a
+# semicolon-separated CMake list and passes it directly to the inner cmake
+# invocation, bypassing the env-var filtering that affects CMAKE_ARGS.
 ARG PYTANTAN_VERSION
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git build-essential cmake zlib1g-dev binutils ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-RUN /app/.pixi/envs/default/bin/pip install \
-        --no-deps --no-cache-dir --force-reinstall -v \
-        --config-settings=cmake.define.HAVE_AVX2=OFF \
-        --config-settings=cmake.define.HAVE_SSE4=OFF \
-        --config-settings=cmake.define.HAVE_NEON=OFF \
-        --config-settings=cmake.define.AVX2_C_FLAGS= \
-        --config-settings=cmake.define.SSE4_C_FLAGS= \
-        --config-settings=cmake.define.NEON_C_FLAGS= \
+RUN SKBUILD_CMAKE_ARGS="-DHAVE_AVX2:BOOL=OFF;-DAVX2_C_FLAGS:STRING=" \
+    /app/.pixi/envs/default/bin/pip install \
+        --no-deps --no-cache-dir --force-reinstall \
         "pytantan @ git+https://github.com/althonos/pytantan.git@v${PYTANTAN_VERSION}" && \
     rm -rf /root/.cache/pip
 
-# Verify the rebuild was effective: only `generic` should be present in the
-# platform/ directory and neither lib.*.so nor generic.*.so should contain
-# any AVX/AVX2 instructions (no `ymm`/`zmm` register references, no `vex`-
-# encoded vector ops). Fail the build loudly otherwise so we never ship an
-# image that SIGILLs at import time.
+# Verify the rebuild was effective: no avx2.*.so module should be present in
+# the platform/ directory, and no shipped .so should contain AVX/AVX2/AVX512
+# vector instructions (ymm/zmm register references). SSE4 on x86_64 is fine
+# under Rosetta 2 and is left enabled. Fail the build loudly otherwise so we
+# never ship an image that SIGILLs at import time.
 RUN set -eux; \
     PY=/app/.pixi/envs/default/bin/python; \
     PT_DIR=$("$PY" -c 'import pytantan, os; print(os.path.dirname(pytantan.__file__))'); \
     echo "pytantan installed at: $PT_DIR"; \
-    ls -la "$PT_DIR/platform/"; \
-    SIMD_MODS=$(ls "$PT_DIR/platform/" | grep -E '^(avx2|sse4|neon)\.' || true); \
-    if [ -n "$SIMD_MODS" ]; then \
-        echo "ERROR: SIMD platform modules were built despite HAVE_*=OFF: $SIMD_MODS"; \
-        exit 1; \
+    if [ -d "$PT_DIR/platform" ]; then ls -la "$PT_DIR/platform/"; fi; \
+    if [ -d "$PT_DIR/platform" ]; then \
+        AVX_MODS=$(ls "$PT_DIR/platform/" | grep -E '^avx[0-9]*\.' || true); \
+        if [ -n "$AVX_MODS" ]; then \
+            echo "ERROR: AVX platform modules were built despite HAVE_AVX2=OFF: $AVX_MODS"; \
+            exit 1; \
+        fi; \
     fi; \
     BAD=""; \
     for so in $(find "$PT_DIR" -maxdepth 2 -name '*.so'); do \
@@ -78,7 +69,7 @@ RUN set -eux; \
         fi; \
     done; \
     if [ -n "$BAD" ]; then exit 1; fi; \
-    "$PY" -c "import pytantan; from pytantan import Alphabet, RepeatFinder, default_scoring_matrix; print('pytantan smoke test OK', pytantan.__version__)"
+    "$PY" -c "import pytantan; from pytantan.lib import RepeatFinder, default_scoring_matrix; print('pytantan smoke test OK', pytantan.__version__)"
 
 # Pre-generate an activation script so the final image doesn't need pixi.
 RUN mkdir -p /app/bin && \

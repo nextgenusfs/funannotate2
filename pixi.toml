@@ -52,8 +52,10 @@ funannotate2 = { path = ".", editable = false }
 "funannotate2-addons" = "*"
 helixerlite = "*"
 annorefine = ">=2026.2.9"
-# pytantan: bioconda lags at 0.1.3; pull 0.1.4+ from PyPI
-pytantan = ">=0.1.4"
+# pytantan: pinned to 0.1.3 from PyPI; the 0.1.4 wheel/SIMD dispatch has been
+# unreliable on x86_64 hosts without AVX2 (notably Rosetta 2 on Apple Silicon).
+# The Docker image rebuilds this from source with AVX2 disabled.
+pytantan = "==0.1.3"
 
 
 [tasks]

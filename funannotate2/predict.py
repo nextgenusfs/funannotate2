@@ -241,7 +241,16 @@ def predict(args):
             "Genome assembly is not softmasked, running pytantan to quickly softmask repeats"
         )
         os.rename(GenomeFasta, GenomeFasta + ".original")
-        softmask_fasta(GenomeFasta + ".original", GenomeFasta)
+        try:
+            softmask_fasta(GenomeFasta + ".original", GenomeFasta)
+        except (RuntimeError, ImportError) as e:
+            os.rename(GenomeFasta + ".original", GenomeFasta)
+            logger.critical(
+                f"Softmasking with pytantan failed: {e}\n"
+                "Pre-softmask the assembly with an external repeat masker "
+                "(e.g. tantan, RepeatMasker, or red) and rerun."
+            )
+            raise SystemExit(1)
         stats, bad_names, nuc_errors, contigs = analyzeAssembly(
             GenomeFasta,
             maskedRegions,
