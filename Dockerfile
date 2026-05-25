@@ -44,7 +44,7 @@ RUN apt-get update && \
 
 # CACHEBUST forces the pytantan rebuild RUN below to re-execute when bumped,
 # bypassing BuildKit's GHA layer cache. Bump on any pytantan-related change.
-ARG PYTANTAN_CACHEBUST=3
+ARG PYTANTAN_CACHEBUST=4
 
 # Stage-local ENVs so the values are available inside the quoted heredoc below
 # without subjecting the Python source to Dockerfile-level ${...} expansion.
@@ -55,6 +55,7 @@ RUN --mount=type=tmpfs,target=/tmp/build <<'BASH'
 set -eux
 echo "pytantan rebuild (cachebust=${_PT_CACHEBUST}, version=${_PT_VERSION})"
 git clone --depth 1 --branch "v${_PT_VERSION}" \
+    --recurse-submodules --shallow-submodules \
     https://github.com/althonos/pytantan.git /tmp/build/pytantan
 cd /tmp/build/pytantan
 
