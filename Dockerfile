@@ -21,19 +21,61 @@ COPY funannotate2 ./funannotate2
 # Install from the lockfile; no-op if the lockfile already matches.
 RUN pixi install --locked
 
-# Rebuild pytantan from source with AVX2 disabled (SSE4-only baseline).
-# The PyPI/bioconda wheel ships with AVX2 SIMD which SIGILLs on CPUs that lack
-# it — notably Rosetta 2 on Apple Silicon — and AVX2 gives no meaningful win
-# for this pipeline. `pip` uses build isolation, so scikit-build-core/cython/
-# scoring-matrices are pulled in transparently; we only need the C/C++ toolchain.
+# Rebuild pytantan from source with all SIMD backends disabled.
+# Background: the PyPI/bioconda wheel for 0.1.4 ships with AVX2 SIMD baked
+# into pytantan/platform/avx2.*.so, and pytantan's lib module imports that
+# platform module unconditionally at `import pytantan` time when the
+# extension was built with AVX2 support. That SIGILLs on x86_64 hosts that
+# lack AVX2 -- notably Rosetta 2 on Apple Silicon, which only emulates up
+# to SSE4.2. Building without AVX2/SSE4/NEON drops to pytantan's pure C++
+# `generic` backend on all hosts, which is the only safe option for an
+# image that runs under Rosetta 2.
+#
+# Notes:
+#   - `--config-settings=cmake.define.HAVE_*=OFF` is the supported
+#     scikit-build-core channel for forwarding cmake -D options. The
+#     `CMAKE_ARGS` env-var is filtered inconsistently and was the reason
+#     PRs #64/#65 published images that still SIGILLed.
+#   - pip uses build isolation, so cython/scikit-build-core are pulled in
+#     transparently; we only need the C/C++ toolchain and binutils
+#     (for the verification step below).
 ARG PYTANTAN_VERSION
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        git build-essential cmake zlib1g-dev ca-certificates && \
+        git build-essential cmake zlib1g-dev binutils ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-RUN CMAKE_ARGS="-DHAVE_AVX2=OFF -DAVX2_C_FLAGS= -DHAVE_SSE4=OFF -DSSE4_C_FLAGS= -DHAVE_NEON=OFF -DNEON_C_FLAGS=" \
-    /app/.pixi/envs/default/bin/pip install --no-deps --force-reinstall \
-        "pytantan @ git+https://github.com/althonos/pytantan.git@v${PYTANTAN_VERSION}" && \
+RUN /app/.pixi/envs/default/bin/pip install \
+        --no-cache-dir --no-deps --force-reinstall -v \
+        --config-settings=cmake.define.HAVE_AVX2=OFF \
+        --config-settings=cmake.define.HAVE_SSE4=OFF \
+        --config-settings=cmake.define.HAVE_NEON=OFF \
+        --config-settings=cmake.define.AVX2_C_FLAGS= \
+        --config-settings=cmake.define.SSE4_C_FLAGS= \
+        --config-settings=cmake.define.NEON_C_FLAGS= \
+        "pytantan @ git+https://github.com/althonos/pytantan.git@v${PYTANTAN_VERSION}"
+
+# Fail the build loudly if any SIMD-tainted code survived the rebuild.
+# This protects against silent regressions (e.g. scikit-build-core changing
+# how it parses --config-settings, or a future pytantan adding a new
+# detection path).
+RUN PT_DIR="$(/app/.pixi/envs/default/bin/python -c 'import os, pytantan; print(os.path.dirname(pytantan.__file__))')" && \
+    echo "pytantan install dir: $PT_DIR" && \
+    ls -la "$PT_DIR/platform/" && \
+    if ls "$PT_DIR"/platform/avx2*.so "$PT_DIR"/platform/sse4*.so "$PT_DIR"/platform/neon*.so 2>/dev/null | grep -q .; then \
+        echo "FATAL: pytantan/platform/ still contains SIMD-specific extension modules" >&2; \
+        exit 1; \
+    fi && \
+    for so in $(find "$PT_DIR" -name '*.so'); do \
+        echo "objdump scan: $so"; \
+        if objdump -d -M intel "$so" 2>/dev/null \
+             | grep -Eo '\b(ymm[0-9]+|zmm[0-9]+|vpbroadcast[a-z]*|vextracti128|vinserti128)\b' \
+             | sort -u | head; then \
+            echo "FATAL: AVX2/AVX-512 mnemonics found in $so" >&2; \
+            exit 1; \
+        fi; \
+    done && \
+    /app/.pixi/envs/default/bin/python -c \
+        "from pytantan import Alphabet, RepeatFinder, default_scoring_matrix; print('pytantan import OK')" && \
     rm -rf /root/.cache/pip
 
 # Pre-generate an activation script so the final image doesn't need pixi.
