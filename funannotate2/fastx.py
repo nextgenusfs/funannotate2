@@ -4,7 +4,6 @@ import os
 
 import pyfastx
 from natsort import natsorted
-from pytantan.lib import RepeatFinder, default_scoring_matrix
 
 
 def softmask_fasta(
@@ -39,6 +38,20 @@ def softmask_fasta(
     Returns:
         None
     """
+    # pytantan is imported lazily: its compiled extension uses CPU-specific
+    # SIMD that can SIGILL on hosts without AVX2 (notably Rosetta 2 on Apple
+    # Silicon). Deferring the import keeps unrelated funannotate2 subcommands
+    # usable when pytantan is broken or absent.
+    try:
+        from pytantan.lib import RepeatFinder, default_scoring_matrix
+    except ImportError as e:
+        raise RuntimeError(
+            "pytantan is required for softmasking but could not be imported "
+            "(it may be missing or built with incompatible SIMD flags). "
+            "Install a working pytantan build, or pre-softmask the assembly "
+            "with an external repeat masker before running funannotate2. "
+            f"Underlying error: {e}"
+        ) from e
     # set default scoring matrix
     matrix = default_scoring_matrix(protein, match_score, mismatch_cost)
     repeat_finder = RepeatFinder(
