@@ -121,6 +121,13 @@ jobs:
       packages: read
 
     steps:
+      - name: Install Rosetta 2
+        # macos-14 (Apple Silicon) GitHub runners do not ship with Rosetta
+        # pre-installed; `colima --vz-rosetta` needs it to set up the in-VM
+        # binfmt translator for linux/amd64 containers.
+        run: |
+          sudo softwareupdate --install-rosetta --agree-to-license
+
       - name: Install colima and docker CLI
         run: |
           brew install colima docker
@@ -136,6 +143,19 @@ jobs:
             --disk 30
           docker info
           docker version
+
+      - name: Dump colima logs on failure
+        if: failure()
+        run: |
+          echo "=== ha.stderr.log ==="
+          cat /Users/runner/.colima/_lima/colima/ha.stderr.log || true
+          echo "=== ha.stdout.log ==="
+          cat /Users/runner/.colima/_lima/colima/ha.stdout.log || true
+          echo "=== serial*.log ==="
+          for f in /Users/runner/.colima/_lima/colima/serial*.log; do
+            echo "--- $f ---"
+            cat "$f" || true
+          done
 
       - name: Log in to GHCR
         run: |
