@@ -4,7 +4,6 @@
 
 ARG PIXI_VERSION=0.67.0
 ARG UBUNTU_VERSION=22.04
-ARG PYTANTAN_VERSION=0.1.3
 
 # ---------------------------------------------------------------------------
 # Stage 1: build — resolve + install the pixi environment from pixi.lock
@@ -13,118 +12,35 @@ FROM --platform=linux/amd64 ghcr.io/prefix-dev/pixi:${PIXI_VERSION} AS build
 
 WORKDIR /app
 
-# Copy only what's needed for the pixi install + the local funannotate2 source
-# referenced by `funannotate2 = { path = "." }` in pixi.toml.
-COPY pixi.toml pixi.lock pyproject.toml setup.py README.md LICENSE ./
-COPY funannotate2 ./funannotate2
-
-# Install from the lockfile; no-op if the lockfile already matches.
-RUN pixi install --locked
-
-# Rebuild pytantan from source with all SIMD backends disabled.
-#
-# Background: pytantan's PyPI wheels ship with AVX2 SIMD enabled, which SIGILLs
-# on x86_64 hosts that don't translate every AVX2 opcode (Rosetta 2 on Apple
-# Silicon has known gaps, and some pre-Haswell servers lack AVX2 outright).
-#
-# We pin to v0.1.3 and rebuild from a patched checkout. Two independent gates
-# guarantee the resulting .so files are free of AVX2/AVX512:
-#   (1) CMakeLists.txt is patched to set HAVE_SSE4/HAVE_AVX2/HAVE_NEON to OFF
-#       and drop the include() lines for the corresponding Find*.cmake modules,
-#       so SIMD detection never runs and add_compile_options(-mavx2) cannot
-#       fire even if the env-var plumbing is wrong.
-#   (2) The build is invoked with scikit-build-core's real config-settings
-#       interface (cmake.define.*) and CMAKE_ARGS, both of which are honored
-#       (the previously-used SKBUILD_CMAKE_ARGS env var is NOT a real knob).
-ARG PYTANTAN_VERSION
+# Build tools needed by uv when pixi compiles pytantan from the git source
+# (see pixi.toml). Installed before `pixi install` so the source build can run.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git build-essential cmake zlib1g-dev binutils ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# CACHEBUST forces the pytantan rebuild RUN below to re-execute when bumped,
-# bypassing BuildKit's GHA layer cache. Bump on any pytantan-related change.
-ARG PYTANTAN_CACHEBUST=4
+# Copy only what's needed for the pixi install + the local funannotate2 source
+# referenced by `funannotate2 = { path = "." }` in pixi.toml.
+COPY pixi.toml pixi.lock pyproject.toml setup.py README.md LICENSE ./
+COPY funannotate2 ./funannotate2
 
-# Stage-local ENVs so the values are available inside the quoted heredoc below
-# without subjecting the Python source to Dockerfile-level ${...} expansion.
-ENV _PT_VERSION=${PYTANTAN_VERSION} \
-    _PT_CACHEBUST=${PYTANTAN_CACHEBUST}
+# Force pytantan's generic-only build (no SSE4/AVX2/NEON). The fork's
+# CMakeLists.txt reads PYTANTAN_DISABLE_SIMD and skips SIMD detection, so the
+# resulting wheel contains only platform/generic.so. This keeps the image
+# safe on Rosetta 2 (Apple Silicon) and pre-Haswell x86_64 servers.
+ENV CMAKE_ARGS="-DPYTANTAN_DISABLE_SIMD=ON"
 
-RUN --mount=type=tmpfs,target=/tmp/build <<'BASH'
-set -eux
-echo "pytantan rebuild (cachebust=${_PT_CACHEBUST}, version=${_PT_VERSION})"
-git clone --depth 1 --branch "v${_PT_VERSION}" \
-    --recurse-submodules --shallow-submodules \
-    https://github.com/althonos/pytantan.git /tmp/build/pytantan
-cd /tmp/build/pytantan
+RUN pixi install --locked
 
-/app/.pixi/envs/default/bin/python <<'PY'
-import pathlib, re
-
-def strip_if_block(text, var, replacement):
-    """Remove a top-level if(<var>) ... endif() block, handling nested if()."""
-    lines = text.splitlines(keepends=True)
-    out = []
-    i = 0
-    open_re = re.compile(r'^\s*if\s*\(')
-    close_re = re.compile(r'^\s*endif\s*\(')
-    target_re = re.compile(rf'^\s*if\s*\(\s*{re.escape(var)}\s*\)')
-    while i < len(lines):
-        if target_re.match(lines[i]):
-            depth = 1
-            i += 1
-            while i < len(lines) and depth > 0:
-                if open_re.match(lines[i]):
-                    depth += 1
-                elif close_re.match(lines[i]):
-                    depth -= 1
-                i += 1
-            if replacement:
-                out.append(replacement)
-        else:
-            out.append(lines[i])
-            i += 1
-    return "".join(out)
-
-for path, repl_factory in [
-    ("CMakeLists.txt", lambda v: f"set({v} OFF)\n"),
-    ("src/pytantan/platform/CMakeLists.txt", lambda v: ""),
-]:
-    p = pathlib.Path(path)
-    src = p.read_text()
-    if path == "CMakeLists.txt":
-        src = re.sub(
-            r'include\("src/scripts/cmake/Find(SSE4|AVX2|NEON)\.cmake"\)\n',
-            "", src,
-        )
-    for var in ("HAVE_SSE4", "HAVE_AVX2", "HAVE_NEON"):
-        src = strip_if_block(src, var, repl_factory(var))
-    p.write_text(src)
-    print(f"=== patched {path} ===")
-    print(src)
-PY
-
-CMAKE_ARGS="-DHAVE_SSE4:BOOL=OFF -DHAVE_AVX2:BOOL=OFF -DHAVE_NEON:BOOL=OFF" \
-/app/.pixi/envs/default/bin/pip install -v \
-    --no-deps --no-cache-dir --force-reinstall \
-    --config-settings=cmake.define.HAVE_SSE4=OFF \
-    --config-settings=cmake.define.HAVE_AVX2=OFF \
-    --config-settings=cmake.define.HAVE_NEON=OFF \
-    /tmp/build/pytantan
-rm -rf /root/.cache/pip
-BASH
-
-# Verify the rebuild was effective. Two independent checks:
+# Verify pytantan was built without SIMD backends. Two independent checks:
 #   (a) No avx*/sse4*/neon* platform module .so files should exist.
-#   (b) No .so under the pixi env may contain AVX2/AVX512 instructions
-#       (ymm/zmm register refs or VEX-encoded vector mnemonics). Anything
-#       SSE2 (xmm only, non-VEX) is safe — that's the x86_64 baseline.
-# Fail the build loudly otherwise so we can never ship an image that SIGILLs
-# at import time.
+#   (b) No .so under pytantan may contain AVX2/AVX512 instructions (ymm/zmm
+#       register refs or VEX-encoded vector mnemonics). Plain SSE2 (xmm only,
+#       non-VEX) is the x86_64 baseline and is fine.
+# Fail the build loudly otherwise so we never ship an image that SIGILLs at
+# import time.
 RUN set -eux; \
     PY=/app/.pixi/envs/default/bin/python; \
-    SITE=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])'); \
     PT_DIR=$("$PY" -c 'import pytantan, os; print(os.path.dirname(pytantan.__file__))'); \
     echo "pytantan installed at: $PT_DIR"; \
     "$PY" -c "import pytantan; print('pytantan version:', pytantan.__version__)"; \
@@ -132,7 +48,7 @@ RUN set -eux; \
     if [ -d "$PT_DIR/platform" ]; then \
         SIMD_MODS=$(ls "$PT_DIR/platform/" | grep -Ei '^(avx|sse|neon)' || true); \
         if [ -n "$SIMD_MODS" ]; then \
-            echo "ERROR: SIMD platform modules present despite HAVE_*=OFF:"; \
+            echo "ERROR: SIMD platform modules present despite PYTANTAN_DISABLE_SIMD=ON:"; \
             echo "$SIMD_MODS"; \
             exit 1; \
         fi; \

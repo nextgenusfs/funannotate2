@@ -52,10 +52,13 @@ funannotate2 = { path = ".", editable = false }
 "funannotate2-addons" = "*"
 helixerlite = "*"
 annorefine = ">=2026.2.9"
-# pytantan: pinned to 0.1.3 from PyPI; the 0.1.4 wheel/SIMD dispatch has been
-# unreliable on x86_64 hosts without AVX2 (notably Rosetta 2 on Apple Silicon).
-# The Docker image rebuilds this from source with AVX2 disabled.
-pytantan = "==0.1.3"
+# pytantan: built from the nextgenusfs/pytantan fork, which adds a
+# `PYTANTAN_DISABLE_SIMD` CMake option and a `PYTANTAN_SIMD` env-var override.
+# The PyPI wheels ship with AVX2 enabled and SIGILL under Rosetta 2 on Apple
+# Silicon (and on pre-Haswell x86_64); building from source with
+# `CMAKE_ARGS=-DPYTANTAN_DISABLE_SIMD=ON` (set in the Dockerfile) produces a
+# generic-only build that runs everywhere.
+pytantan = { git = "https://github.com/nextgenusfs/pytantan.git", rev = "90818ff695c844cefd5f42eb3baa297263565f21" }
 
 
 [tasks]
