@@ -3,7 +3,10 @@
 # Target: linux/amd64 (x86_64 Linux / HPC)
 
 ARG PIXI_VERSION=0.67.0
-ARG UBUNTU_VERSION=22.04
+# Ubuntu 24.04 (noble) is required for augustus 3.5.0 from apt
+# (22.04/jammy only has 3.4.0). augustus is intentionally installed via apt
+# rather than bioconda — see pixi.toml and the final stage below for details.
+ARG UBUNTU_VERSION=24.04
 
 # ---------------------------------------------------------------------------
 # Stage 1: build — resolve + install the pixi environment from pixi.lock
@@ -108,12 +111,19 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
+# augustus + augustus-data are installed from Ubuntu apt rather than bioconda.
+# The bioconda augustus 3.5.0 binary is built with a modern x86_64 microarch
+# baseline (AVX2/BMI2) and SIGILLs under Rosetta 2 on Apple Silicon and on
+# pre-Haswell x86_64. Ubuntu noble's augustus 3.5.0+dfsg targets a generic
+# x86_64 baseline and runs on every host where this image lands.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         tini \
         procps \
-        wget && \
+        wget \
+        augustus \
+        augustus-data && \
     rm -rf /var/lib/apt/lists/*
 
 # Pixi env (python + bioconda tooling + funannotate2 + addons + helixerlite)
@@ -123,8 +133,12 @@ COPY --from=build /app/bin/entrypoint.sh /app/bin/entrypoint.sh
 # Pre-built databases (~3 GB; BUSCO lineages download at runtime)
 COPY --from=dbs /opt/funannotate2_db /opt/funannotate2_db
 
+# AUGUSTUS_CONFIG_PATH points at the apt-shipped config tree. funannotate2's
+# config.py derives AUGUSTUS_BASE from dirname(AUGUSTUS_CONFIG_PATH)+"/scripts",
+# which resolves to /usr/share/augustus/scripts where the apt augustus package
+# installs new_species.pl, optimize_augustus.pl, etc.
 ENV FUNANNOTATE2_DB=/opt/funannotate2_db \
-    AUGUSTUS_CONFIG_PATH=/app/.pixi/envs/default/config \
+    AUGUSTUS_CONFIG_PATH=/usr/share/augustus/config \
     PATH=/app/.pixi/envs/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 WORKDIR /data
