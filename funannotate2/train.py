@@ -433,7 +433,6 @@ def buscolite(
         cpus=cpus,
         offset=flanks,
         logger=log,
-        check_augustus=False,
         verbosity=1,
     )
     log.info(
