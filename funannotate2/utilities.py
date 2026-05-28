@@ -20,7 +20,7 @@ from urllib.request import urlopen
 
 import requests
 
-from .config import augustus_species, busco_taxonomy
+from .config import augustus_species, busco_taxonomy, env
 
 # disable insecure warning
 requests.packages.urllib3.disable_warnings()
@@ -157,6 +157,52 @@ def get_odb_version(downloads_json_file):
         if "_" in info[1]:
             odb_versions.add(info[1].rsplit("_", 1)[1])
     return sorted(odb_versions, reverse=True)[0]
+
+
+def ensure_busco_lineage(species, logger):
+    """
+    Ensure the BUSCO lineage `<species>_<odb_version>` is present under
+    FUNANNOTATE2_DB, downloading and extracting it from the URL in
+    downloads.json if missing. The check is a no-op when the directory
+    already exists, so callers can invoke this idempotently.
+
+    Parameters:
+    - species (str): BUSCO lineage species name (e.g. "fungi", "aspergillus").
+    - logger: Logger exposing .info / .critical (e.g. from startLogging).
+
+    Returns:
+    - str: Absolute path to the lineage directory.
+
+    Raises:
+    - SystemExit(1): If the directory could not be made present after the
+      download/extract attempt.
+    """
+    downloads_json = os.path.join(os.path.dirname(__file__), "downloads.json")
+    odb_version = get_odb_version(downloads_json)
+    busco_model_path = os.path.join(
+        env["FUNANNOTATE2_DB"], f"{species}_{odb_version}"
+    )
+    if os.path.isdir(busco_model_path):
+        return busco_model_path
+    download_urls = load_json(downloads_json)
+    busco_url = download_urls["busco"][species][0]
+    busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
+    logger.info(f"Downloading {species}_{odb_version} model from {busco_url}")
+    download(busco_url, busco_tgz, wget=False)
+    if os.path.isfile(busco_tgz):
+        runSubprocess(
+            ["tar", "-zxf", os.path.basename(busco_tgz)],
+            logger,
+            cwd=env["FUNANNOTATE2_DB"],
+        )
+        if os.path.isdir(busco_model_path):
+            os.remove(busco_tgz)
+    if not os.path.isdir(busco_model_path):
+        logger.critical(
+            f"Unable to download/extract BUSCO lineage to {busco_model_path}"
+        )
+        raise SystemExit(1)
+    return busco_model_path
 
 
 def download(url, name, wget=False, timeout=60, retries=3):

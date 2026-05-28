@@ -41,13 +41,11 @@ from .utilities import (
     choose_best_busco_species,
     create_directories,
     create_tmpdir,
-    download,
+    ensure_busco_lineage,
     find_files,
     load_json,
     lookup_taxonomy,
     naming_slug,
-    runSubprocess,
-    get_odb_version,
     validate_busco_lineage,
 )
 
@@ -347,9 +345,6 @@ def annotate(args):
     # busco proteome analysis
     busco_all = os.path.join(misc_dir, "busco.results.json")
     busco_annots = os.path.join(misc_dir, "annotations.busco.tsv")
-    odb_version = get_odb_version(
-        os.path.join(os.path.dirname(__file__), "downloads.json")
-    )
     if not checkfile(busco_annots):
         if not taxonomy:
             # get taxonomy information
@@ -368,40 +363,12 @@ def annotate(args):
         else:
             # choose best busco species
             busco_species = choose_best_busco_species(taxonomy)
-        busco_model_path = os.path.join(
-            env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
-        )
-
-        # download the lineage if it isn't present. The lineage may have been
-        # fetched by a previous train/predict run, but inside an ephemeral
-        # docker container that path is lost between invocations, so re-check
-        # here and pull it again rather than dying with a confusing
-        # "is not a directory" error from buscolite.
-        if not os.path.isdir(busco_model_path):
-            download_urls = load_json(
-                os.path.join(os.path.dirname(__file__), "downloads.json")
-            )
-            busco_url = download_urls["busco"][busco_species][0]
-            busco_tgz = os.path.join(
-                env["FUNANNOTATE2_DB"], os.path.basename(busco_url)
-            )
-            logger.info(
-                f"Downloading {busco_species}_{odb_version} model from {busco_url}"
-            )
-            download(busco_url, busco_tgz, wget=False)
-            if os.path.isfile(busco_tgz):
-                runSubprocess(
-                    ["tar", "-zxf", os.path.basename(busco_tgz)],
-                    logger,
-                    cwd=env["FUNANNOTATE2_DB"],
-                )
-                if os.path.isdir(busco_model_path):
-                    os.remove(busco_tgz)
-            if not os.path.isdir(busco_model_path):
-                logger.critical(
-                    f"Unable to download/extract BUSCO lineage to {busco_model_path}; skipping BUSCO annotation"
-                )
-                raise SystemExit(1)
+        # Ensure the BUSCO lineage is available under FUNANNOTATE2_DB,
+        # downloading it if needed. In dockerized usage the lineage from a
+        # previous train/predict run is gone when annotate starts in a fresh
+        # container, so this guards against the cryptic "<path> is not a
+        # directory" failure from buscolite further down.
+        busco_model_path = ensure_busco_lineage(busco_species, logger)
 
         # run busco proteome screen
         logger.info(
