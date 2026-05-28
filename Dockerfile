@@ -70,13 +70,111 @@ RUN set -eux; \
     "$PY" -c "import pytantan; from pytantan.lib import RepeatFinder, default_scoring_matrix; print('pytantan smoke test OK', pytantan.__version__)"
 
 # Pre-generate an activation script so the final image doesn't need pixi.
+# The post-hook PATH re-prepend keeps /opt/glimmerhmm/bin ahead of
+# /app/.pixi/envs/default/bin even after `pixi shell-hook` activation
+# prepends the pixi env — so our generic-baseline glimmerhmm shadows the
+# bioconda v3 build at runtime. See the glimmerhmm-build stage for why.
 RUN mkdir -p /app/bin && \
     { echo '#!/bin/bash'; \
       echo 'set -e'; \
       pixi shell-hook --shell bash; \
+      echo 'export PATH="/opt/glimmerhmm/bin:$PATH"'; \
       echo 'exec "$@"'; \
     } > /app/bin/entrypoint.sh && \
     chmod +x /app/bin/entrypoint.sh
+
+# ---------------------------------------------------------------------------
+# Stage 1b: glimmerhmm — compile glimmerhmm from upstream source with a
+# generic x86_64 baseline so it runs on every host (incl. Rosetta 2).
+# The bioconda glimmerhmm 3.0.4 build sets -march=x86-64-v3 (AVX2/BMI2)
+# and SIGILLs under Rosetta 2 on Apple Silicon / pre-Haswell x86_64
+# (the same root cause as augustus and pytantan). glimmerhmm is NOT in
+# Ubuntu apt, so we build it ourselves here.
+# Install layout matches bioconda's: bin/{glimmerhmm,glimmhmm.pl,trainGlimmerHMM}
+# + share/glimmerhmm/{train/*,trained_dir/*}. The trainGlimmerHMM perl
+# script locates its support binaries via $RealBin/../share/glimmerhmm/train
+# (the same upstream patch applied by both bioconda and this recipe).
+# The bioconda glimmerhmm in the pixi env is kept as a shadowed fallback
+# (and is what runs on osx-arm64 native dev) — see the PATH order in the
+# final stage and the comment in pixi.toml.
+# ---------------------------------------------------------------------------
+FROM --platform=linux/amd64 ubuntu:${UBUNTU_VERSION} AS glimmerhmm-build
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        wget \
+        binutils && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GLIMMERHMM_VERSION=3.0.4
+ARG GLIMMERHMM_SHA256=43e321792b9f49a3d78154cbe8ddd1fb747774dccb9e5c62fbcc37c6d0650727
+
+WORKDIR /build
+RUN wget -q https://ccb.jhu.edu/software/glimmerhmm/dl/GlimmerHMM-${GLIMMERHMM_VERSION}.tar.gz && \
+    echo "${GLIMMERHMM_SHA256}  GlimmerHMM-${GLIMMERHMM_VERSION}.tar.gz" | sha256sum -c - && \
+    tar -xzf GlimmerHMM-${GLIMMERHMM_VERSION}.tar.gz
+
+WORKDIR /build/GlimmerHMM
+
+# Same upstream fixes the bioconda recipe applies (makefile typos +
+# self-locating perl entry points). Without these the `all` target in
+# train/makefile names "escoreSTOP2" / "rfapp" and clean targets a
+# nonexistent "trainGlimmerHMM", and the perl entry points don't find
+# their support binaries when invoked via PATH.
+RUN sed -i 's|^escoreSTOP2:|scoreSTOP2:|g' train/makefile && \
+    sed -i 's|^rfapp:|erfapp:|g' train/makefile && \
+    sed -i 's| trainGlimmerHMM||g' train/makefile && \
+    sed -i 's|all:    build-icm|all:    misc.o build-icm.o build-icm-noframe.o build-icm|g' train/makefile && \
+    sed -i '1 s|^.*$|#!/usr/bin/env perl|g' train/trainGlimmerHMM && \
+    sed -i 's|FindBin;|FindBin qw($RealBin);|g' train/trainGlimmerHMM && \
+    sed -i 's|$FindBin::Bin;|"$RealBin/../share/glimmerhmm/train";|g' train/trainGlimmerHMM && \
+    sed -i '1 s|^.*$|#!/usr/bin/env perl|g' bin/glimmhmm.pl
+
+# -O3 matches the bioconda recipe; -march=x86-64 -mtune=generic gives the
+# v1 baseline that every Rosetta-2-emulated CPU can execute.
+ENV CFLAGS="-O3 -march=x86-64 -mtune=generic -Wno-format -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment" \
+    CXXFLAGS="-O3 -march=x86-64 -mtune=generic -Wno-format -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment"
+
+RUN make -C sources CC=g++ CFLAGS="${CXXFLAGS}" -j"$(nproc)" && \
+    make -C train clean && \
+    make -C train all C=gcc CC=g++ CFLAGS="${CXXFLAGS}" -j"$(nproc)"
+
+# Install into /opt/glimmerhmm with the same bin/ + share/ layout
+# bioconda uses, so trainGlimmerHMM's $RealBin/../share/... lookup
+# still resolves once the tree is copied into the final stage.
+RUN mkdir -p /opt/glimmerhmm/bin /opt/glimmerhmm/share/glimmerhmm/train && \
+    install -m 0755 bin/glimmhmm.pl sources/glimmerhmm train/trainGlimmerHMM /opt/glimmerhmm/bin/ && \
+    install -m 0755 train/build-icm train/build-icm-noframe train/build1 train/build2 train/erfapp /opt/glimmerhmm/share/glimmerhmm/train/ && \
+    install -m 0755 train/falsecomp train/findsites train/karlin train/score train/score2 /opt/glimmerhmm/share/glimmerhmm/train/ && \
+    install -m 0755 train/scoreATG train/scoreATG2 train/scoreSTOP train/scoreSTOP2 train/splicescore /opt/glimmerhmm/share/glimmerhmm/train/ && \
+    cp -f train/*.pm /opt/glimmerhmm/share/glimmerhmm/train/ && \
+    cp -Rf trained_dir /opt/glimmerhmm/share/glimmerhmm/
+
+# Verify no AVX/AVX2/AVX512 instructions slipped into the compiled
+# binaries (defense-in-depth — same check pytantan uses). Plain SSE2
+# (xmm only, non-VEX) is the x86_64 baseline and is fine.
+RUN set -eux; \
+    BAD=""; \
+    for bin in /opt/glimmerhmm/bin/glimmerhmm \
+               /opt/glimmerhmm/share/glimmerhmm/train/build1 \
+               /opt/glimmerhmm/share/glimmerhmm/train/build2 \
+               /opt/glimmerhmm/share/glimmerhmm/train/build-icm \
+               /opt/glimmerhmm/share/glimmerhmm/train/build-icm-noframe; do \
+        hits=$(objdump -d -M intel --no-show-raw-insn "$bin" 2>/dev/null \
+            | grep -Ec '\b(ymm[0-9]+|zmm[0-9]+|vpbroadcast|vextracti128|vinserti128|vfmadd|vpermd|vpgatherdd)\b' || true); \
+        echo "$bin -> $hits AVX/AVX2/AVX512 hits"; \
+        if [ "$hits" -gt 0 ]; then BAD="${BAD} ${bin}"; fi; \
+    done; \
+    if [ -n "$BAD" ]; then \
+        echo "ERROR: AVX-bearing binaries in glimmerhmm:$BAD"; \
+        exit 1; \
+    fi
 
 # ---------------------------------------------------------------------------
 # Stage 2: dbs — download/build the funannotate2 databases (minus BUSCO)
@@ -130,6 +228,15 @@ RUN apt-get update && \
 COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
 COPY --from=build /app/bin/entrypoint.sh /app/bin/entrypoint.sh
 
+# Self-compiled glimmerhmm (generic x86_64 baseline). Layered onto PATH
+# ahead of /app/.pixi/envs/default/bin so it shadows the bioconda binary
+# at runtime — the bioconda glimmerhmm in the pixi env is built with
+# -march=x86-64-v3 (AVX2/BMI2) and SIGILLs under Rosetta 2. See the
+# glimmerhmm-build stage above for the rationale; the pixi-env glimmerhmm
+# remains in the image as a shadowed fallback (and is what runs natively
+# on osx-arm64 outside docker).
+COPY --from=glimmerhmm-build /opt/glimmerhmm /opt/glimmerhmm
+
 # Pre-built databases (~3 GB; BUSCO lineages download at runtime)
 COPY --from=dbs /opt/funannotate2_db /opt/funannotate2_db
 
@@ -139,7 +246,7 @@ COPY --from=dbs /opt/funannotate2_db /opt/funannotate2_db
 # installs new_species.pl, optimize_augustus.pl, etc.
 ENV FUNANNOTATE2_DB=/opt/funannotate2_db \
     AUGUSTUS_CONFIG_PATH=/usr/share/augustus/config \
-    PATH=/app/.pixi/envs/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PATH=/opt/glimmerhmm/bin:/app/.pixi/envs/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 WORKDIR /data
 

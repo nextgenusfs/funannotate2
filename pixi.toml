@@ -17,6 +17,13 @@ pip = "*"
 # installs augustus from Ubuntu apt instead (generic-baseline build, runs
 # everywhere). On native macOS development the funannotate2 CLI is exercised
 # via the dockerized image, so augustus on osx-arm64 is not needed here.
+# NOTE: glimmerhmm has the same root cause (bioconda compiles with
+# -march=x86-64-v3 → SIGILL under Rosetta 2). It is NOT in Ubuntu apt, so
+# the Docker image compiles it from source with a generic baseline and
+# layers it onto PATH ahead of the pixi env (see Dockerfile). The bioconda
+# entry below is kept anyway: on osx-arm64 it provides the arm64-native
+# binary for outside-docker dev work, and inside the image it acts as a
+# shadowed fallback if /opt/glimmerhmm is somehow missing.
 minimap2 = "*"
 miniprot = "*"
 snap = "*"
