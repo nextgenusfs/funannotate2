@@ -1611,7 +1611,11 @@ def abinitio_wrapper(
         )
 
     if tools_run:
-        logger.info(f"Successfully ran tools for {contig_name}: {', '.join(tools_run)}")
+        # Per-contig success is a debug-level detail; on assemblies with many
+        # contigs an info-level line per contig drowns the user-facing log.
+        # The downstream "<tool> predictions filtered: ..." summary lines
+        # already convey aggregate success at info level.
+        logger.debug(f"Successfully ran tools for {contig_name}: {', '.join(tools_run)}")
 
     # Store error information in memory stats for tracking
     if monitor_memory:
