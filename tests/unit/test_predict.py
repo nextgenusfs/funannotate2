@@ -310,7 +310,8 @@ class TestPredict:
         debug_messages = [call.args[0] for call in logger.debug.call_args_list]
 
         assert "snap tool output" in info_messages
-        assert "Successfully ran tools for scaffold_1.fasta: snap" in info_messages
+        assert "Successfully ran tools for scaffold_1.fasta: snap" in debug_messages
+        assert not any("Successfully ran tools" in message for message in info_messages)
         assert not any("Processing contig" in message for message in info_messages)
         assert not any("memory prediction for scaffold_1.fasta" in message for message in info_messages)
         assert not any("Processing contig" in message for message in debug_messages)

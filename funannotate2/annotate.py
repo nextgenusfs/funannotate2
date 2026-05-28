@@ -41,11 +41,11 @@ from .utilities import (
     choose_best_busco_species,
     create_directories,
     create_tmpdir,
+    ensure_busco_lineage,
     find_files,
     load_json,
     lookup_taxonomy,
     naming_slug,
-    get_odb_version,
     validate_busco_lineage,
 )
 
@@ -345,9 +345,6 @@ def annotate(args):
     # busco proteome analysis
     busco_all = os.path.join(misc_dir, "busco.results.json")
     busco_annots = os.path.join(misc_dir, "annotations.busco.tsv")
-    odb_version = get_odb_version(
-        os.path.join(os.path.dirname(__file__), "downloads.json")
-    )
     if not checkfile(busco_annots):
         if not taxonomy:
             # get taxonomy information
@@ -366,9 +363,12 @@ def annotate(args):
         else:
             # choose best busco species
             busco_species = choose_best_busco_species(taxonomy)
-        busco_model_path = os.path.join(
-            env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
-        )
+        # Ensure the BUSCO lineage is available under FUNANNOTATE2_DB,
+        # downloading it if needed. In dockerized usage the lineage from a
+        # previous train/predict run is gone when annotate starts in a fresh
+        # container, so this guards against the cryptic "<path> is not a
+        # directory" failure from buscolite further down.
+        busco_model_path = ensure_busco_lineage(busco_species, logger)
 
         # run busco proteome screen
         logger.info(

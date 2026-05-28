@@ -24,13 +24,11 @@ from .utilities import (
     choose_best_augustus_species,
     choose_best_busco_species,
     create_directories,
-    download,
-    load_json,
+    ensure_busco_lineage,
     lookup_taxonomy,
     naming_slug,
     runSubprocess,
     which_path,
-    get_odb_version,
     rename_gff_contigs,
     validate_busco_lineage,
     validate_augustus_species,
@@ -142,13 +140,10 @@ def train(args):
     else:
         # choose best busco species
         busco_species = choose_best_busco_species(taxonomy)
-    # pull the latest odb version from downloads link
-    odb_version = get_odb_version(
-        os.path.join(os.path.dirname(__file__), "downloads.json")
-    )
-    busco_model_path = os.path.join(
-        env["FUNANNOTATE2_DB"], f"{busco_species}_{odb_version}"
-    )
+    # Ensure the BUSCO lineage exists under FUNANNOTATE2_DB (downloading
+    # it if necessary) and capture its on-disk path for buscolite + the
+    # params.json output below.
+    busco_model_path = ensure_busco_lineage(busco_species, logger)
 
     # run buscolite on genome to get training set
     filt_train_models = os.path.join(misc_dir, "training-models.final.gff3")
@@ -159,26 +154,6 @@ def train(args):
                 logger.info(
                     f"Choosing best busco species based on taxonomy: {busco_species}"
                 )
-                if not os.path.isdir(busco_model_path):
-                    download_urls = load_json(
-                        os.path.join(os.path.dirname(__file__), "downloads.json")
-                    )
-                    busco_url = download_urls["busco"][busco_species][0]
-                    busco_tgz = os.path.join(
-                        env["FUNANNOTATE2_DB"], os.path.basename(busco_url)
-                    )
-                    logger.info(
-                        f"Downloading {busco_species}_{odb_version} model from {busco_url}"
-                    )
-                    download(busco_url, busco_tgz, wget=False)
-                    if os.path.isfile(busco_tgz):
-                        runSubprocess(
-                            ["tar", "-zxf", os.path.basename(busco_tgz)],
-                            logger,
-                            cwd=env["FUNANNOTATE2_DB"],
-                        )
-                        if os.path.isdir(busco_model_path):
-                            os.remove(busco_tgz)
                 log("Running buscolite to generate training set using filtered genome")
                 buscolite(
                     TrainingGenomeFasta,

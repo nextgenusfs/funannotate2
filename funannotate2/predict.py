@@ -38,15 +38,12 @@ from .utilities import (
     choose_best_busco_species,
     create_directories,
     create_tmpdir,
-    download,
+    ensure_busco_lineage,
     find_files,
-    load_json,
     lookup_taxonomy,
     naming_slug,
     runProcessJob,
-    runSubprocess,
     which_path,
-    get_odb_version,
 )
 
 
@@ -906,29 +903,7 @@ def predict(args):
     busco_tax = choose_best_busco_species(
         {"superkingdom": taxonomy.get("superkingdom"), "kingdom": taxonomy.get("kingdom")}
     )
-    # pull the latest odb version from downloads link
-    odb_version = get_odb_version(
-        os.path.join(os.path.dirname(__file__), "downloads.json")
-    )
-    busco_model_path = os.path.join(
-        env["FUNANNOTATE2_DB"], f"{busco_tax}_{odb_version}"
-    )
-    if not os.path.isdir(busco_model_path):
-        download_urls = load_json(
-            os.path.join(os.path.dirname(__file__), "downloads.json")
-        )
-        busco_url = download_urls["busco"][busco_tax][0]
-        busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
-        logger.info(f"Downloading {busco_tax}_{odb_version} model from {busco_url}")
-        download(busco_url, busco_tgz, wget=False)
-        if os.path.isfile(busco_tgz):
-            runSubprocess(
-                ["tar", "-zxf", os.path.basename(busco_tgz)],
-                logger,
-                cwd=env["FUNANNOTATE2_DB"],
-            )
-            if os.path.isdir(busco_model_path):
-                os.remove(busco_tgz)
+    busco_model_path = ensure_busco_lineage(busco_tax, logger)
 
     # now we can loop through the abinitio predictions and run busco for completion
     # write this to file for re-use if consensus file already present?
@@ -1611,7 +1586,11 @@ def abinitio_wrapper(
         )
 
     if tools_run:
-        logger.info(f"Successfully ran tools for {contig_name}: {', '.join(tools_run)}")
+        # Per-contig success is a debug-level detail; on assemblies with many
+        # contigs an info-level line per contig drowns the user-facing log.
+        # The downstream "<tool> predictions filtered: ..." summary lines
+        # already convey aggregate success at info level.
+        logger.debug(f"Successfully ran tools for {contig_name}: {', '.join(tools_run)}")
 
     # Store error information in memory stats for tracking
     if monitor_memory:
