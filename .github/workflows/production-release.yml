@@ -73,17 +73,17 @@ jobs:
         VERSION="${{ needs.validate-tag.outputs.tag }}"
         VERSION=${VERSION#v}
 
-        # Update version and date in CITATION.cff
+        # Update version and date in CITATION.cff. The CFF file uses
+        # unquoted version: and single-quoted date-released:; the regex
+        # must match those exact forms, and anchor with ^ so the
+        # version: rule does not also rewrite the cff-version: line.
         python -c "
         import re
         with open('CITATION.cff', 'r') as f:
             content = f.read()
 
-        # Update version
-        content = re.sub(r'version: \".*\"', f'version: \"$VERSION\"', content)
-
-        # Update date-released
-        content = re.sub(r'date-released: \'.*\'', f'date-released: \'$TODAY\'', content)
+        content = re.sub(r'^version: .*', 'version: $VERSION', content, flags=re.MULTILINE)
+        content = re.sub(r\"^date-released: '.*'\", \"date-released: '$TODAY'\", content, flags=re.MULTILINE)
 
         with open('CITATION.cff', 'w') as f:
             f.write(content)

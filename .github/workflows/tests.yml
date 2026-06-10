@@ -13,6 +13,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  version-consistency:
+    name: Version consistency check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check pyproject.toml, CITATION.cff, and pixi.lock agree on version
+      run: |
+        set -euo pipefail
+
+        PYPROJECT_VERSION=$(grep -E '^[[:space:]]*version[[:space:]]*=' pyproject.toml \
+          | head -1 \
+          | sed -E 's/.*version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+        if [ -z "$PYPROJECT_VERSION" ]; then
+          echo "::error file=pyproject.toml::Could not extract version"
+          exit 1
+        fi
+
+        CFF_VERSION=$(grep -E '^version: ' CITATION.cff | head -1 | sed -E 's/^version: //')
+        LOCK_VERSION=$(awk '
+          /^  name: funannotate2$/ { found = 1; next }
+          found && /^  version:/    { print $2; exit }
+        ' pixi.lock)
+
+        printf 'pyproject.toml: %s\nCITATION.cff:   %s\npixi.lock:      %s\n' \
+          "$PYPROJECT_VERSION" "$CFF_VERSION" "$LOCK_VERSION"
+
+        status=0
+        if [ "$PYPROJECT_VERSION" != "$CFF_VERSION" ]; then
+          echo "::error file=CITATION.cff::CITATION.cff version ($CFF_VERSION) does not match pyproject.toml ($PYPROJECT_VERSION). Update CITATION.cff (the .githooks/pre-commit hook will do this automatically when pyproject.toml changes)."
+          status=1
+        fi
+        if [ "$PYPROJECT_VERSION" != "$LOCK_VERSION" ]; then
+          echo "::error file=pixi.lock::pixi.lock pins funannotate2 ($LOCK_VERSION) but pyproject.toml is $PYPROJECT_VERSION. Run 'pixi install' locally and commit the refreshed pixi.lock; otherwise the Docker build will fail on 'pixi install --locked'."
+          status=1
+        fi
+        exit $status
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
