@@ -205,7 +205,11 @@ def predict(args):
     contig_name_map = simplify_headers_drop(
         args.fasta, GenomeFasta, GenomeMito, drop=list(mito_contigs.keys())
     )
-    # Create inverse contig map for BAM processing (maps simplified names back to original)
+    # Build the BAM->simplified contig map for annorefine.bam2hints. The BAM
+    # file references the user's original contig names, but everything
+    # downstream (per-contig FASTAs, hints files) uses the simplified names
+    # produced by simplify_headers_drop, so we need {original: simplified}.
+    # contig_name_map is {simplified: original}, so invert it here.
     inv_contig_map = {value: key for key, value in contig_name_map.items()}
     maskedRegions = os.path.join(misc_dir, "softmasked-regions.bed")
     asmGaps = os.path.join(misc_dir, "assembly-gaps.bed")
