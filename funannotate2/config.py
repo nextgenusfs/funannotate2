@@ -1082,13 +1082,6 @@ busco_taxonomy = {
         "class": "Magnoliopsida",
         "order": "Brassicales",
     },
-    "capnodiales": {
-        "superkingdom": "Eukaryota",
-        "kingdom": "Fungi",
-        "phylum": "Ascomycota",
-        "class": "Dothideomycetes",
-        "order": "Capnodiales",
-    },
     "carnivora": {
         "superkingdom": "Eukaryota",
         "kingdom": "Metazoa",
