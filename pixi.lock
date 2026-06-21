@@ -1098,7 +1098,7 @@ packages:
   timestamp: 1752167450180
 - pypi: ./
   name: funannotate2
-  version: 26.6.9
+  version: 26.6.21
   sha256: 5f4ab893b264f7f8fd3cfde73ae52cff0cfbab49f2bec1f8e3c78dcc6ff6ef33
   requires_dist:
   - natsort
