@@ -111,7 +111,7 @@ def install(args):
         logger.info("Retrieving download links from GitHub Repo")
         DBURL = json.loads(
             requests.get(
-                "https://raw.githubusercontent.com/nextgenusfs/funannotate2/master/funannotate2/downloads_v2.json"
+                "https://raw.githubusercontent.com/nextgenusfs/funannotate2/main/funannotate2/downloads_v2.json"
             ).text
         )["downloads"]
     except:  # noqa: E722
@@ -537,8 +537,25 @@ def dbCANDB(wget=False):
     md5 = calcmd5remote(DBURL.get("dbCAN"))
     # download data
     download(DBURL.get("dbCAN"), hmm, wget=wget)
-    download(DBURL.get("dbCAN-tsv"), familyinfo, wget=wget)
-    download(DBURL.get("dbCAN-log"), versionfile, wget=wget)
+    
+    # Try to copy familyinfo and versionfile from local package resources, fallback to download
+    local_resources_dir = os.path.join(os.path.dirname(__file__), "resources")
+    local_fam = os.path.join(local_resources_dir, "dbCAN-fam-HMMs.txt")
+    local_changelog = os.path.join(local_resources_dir, "dbCAN.changelog.txt")
+    
+    if os.path.exists(local_fam) and os.path.exists(local_changelog):
+        import shutil
+        try:
+            shutil.copy(local_fam, familyinfo)
+            shutil.copy(local_changelog, versionfile)
+            logger.info("Copied dbCAN metadata files from package resources")
+        except Exception as e:
+            logger.warning(f"Could not copy local metadata resources ({e}), falling back to download")
+            download(DBURL.get("dbCAN-tsv"), familyinfo, wget=wget)
+            download(DBURL.get("dbCAN-log"), versionfile, wget=wget)
+    else:
+        download(DBURL.get("dbCAN-tsv"), familyinfo, wget=wget)
+        download(DBURL.get("dbCAN-log"), versionfile, wget=wget)
     dbdate = ""
     dbvers = ""
     with io.open(versionfile, encoding="utf8", errors="ignore") as infile:
