@@ -1036,6 +1036,12 @@ busco_taxonomy = {
         "superkingdom": "Eukaryota",
         "kingdom": "Chromista",
     },
+    "amphibia": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Metazoa",
+        "phylum": "Chordata",
+        "class": "Amphibia",
+    },
     "apicomplexa": {
         "superkingdom": "Eukaryota",
         "kingdom": "Chromista",
@@ -1090,6 +1096,20 @@ busco_taxonomy = {
         "order": "Carnivora",
     },
     "artiodactyla": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Metazoa",
+        "phylum": "Chordata",
+        "class": "Mammalia",
+        "order": "Artiodactyla",
+    },
+    "cercopithecoidea": {
+        "superkingdom": "Eukaryota",
+        "kingdom": "Metazoa",
+        "phylum": "Chordata",
+        "class": "Mammalia",
+        "order": "Primates",
+    },
+    "cetacea": {
         "superkingdom": "Eukaryota",
         "kingdom": "Metazoa",
         "phylum": "Chordata",

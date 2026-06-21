@@ -169,9 +169,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
       - pypi: https://files.pythonhosted.org/packages/2c/2f/51d27f44689aa1ee000bb145811570002d420c7dfa0b153a992c28e0e297/annorefine-2026.2.22-cp311-cp311-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/15/12/7f9edf5a5a547ce0421e8f120c157b3602eabb12147ffea95eefbd55a94e/archspec-0.2.6-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a7/ac/2d4a5fee4ef34c5631e936a29964a6cbce17bd63809156970100ae855393/buscolite-26.4.22-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1e/6a/c4578014b6e73f307517fdecc9857140d403fe25a8473798931d003da6d2/buscolite-26.6.21-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/89/2e3f29c41cb86273dcd8f3ec2df5b4e87ae0d554cbb268ae7c3092940cae/funannotate2_addons-26.3.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ea/7e/c24801878ba6d7a1dff6d6928f5aeacd4eec1d6e0a463687594d07c8c18c/gapmm2-26.5.22-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3d/cb/d0d829646b9ee685898d3c35712a43458af6f80f74e1bc632c1a4178af01/gfftk-26.5.22-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/f8/65d52c1383a1832761f80bad6206de6e9e675adb67aaa8673cc709fe84c2/helixerlite-25.5.27-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl
@@ -333,9 +332,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: https://files.pythonhosted.org/packages/ad/82/7d12e63dfa9d2db71167c270a1fafa7292ce444fb0398afbcfaa57482c01/annorefine-2026.2.22-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/15/12/7f9edf5a5a547ce0421e8f120c157b3602eabb12147ffea95eefbd55a94e/archspec-0.2.6-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a7/ac/2d4a5fee4ef34c5631e936a29964a6cbce17bd63809156970100ae855393/buscolite-26.4.22-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1e/6a/c4578014b6e73f307517fdecc9857140d403fe25a8473798931d003da6d2/buscolite-26.6.21-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/89/2e3f29c41cb86273dcd8f3ec2df5b4e87ae0d554cbb268ae7c3092940cae/funannotate2_addons-26.3.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ea/7e/c24801878ba6d7a1dff6d6928f5aeacd4eec1d6e0a463687594d07c8c18c/gapmm2-26.5.22-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3d/cb/d0d829646b9ee685898d3c35712a43458af6f80f74e1bc632c1a4178af01/gfftk-26.5.22-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/02/79a58cfc45dd2fdc4747fbdb63304920faa095e456391e182972993ab075/helixerlite-25.5.27-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl
@@ -810,10 +808,10 @@ packages:
   - pkg:pypi/brotli?source=hash-mapping
   size: 359588
   timestamp: 1764018467340
-- pypi: https://files.pythonhosted.org/packages/a7/ac/2d4a5fee4ef34c5631e936a29964a6cbce17bd63809156970100ae855393/buscolite-26.4.22-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/1e/6a/c4578014b6e73f307517fdecc9857140d403fe25a8473798931d003da6d2/buscolite-26.6.21-py3-none-any.whl
   name: buscolite
-  version: 26.4.22
-  sha256: c8c1cca1ea05ba5c28a71e349de7e1f8546f895ea209be9b5e80c8a4cb871707
+  version: 26.6.21
+  sha256: b878d94b05ef26d90e5dd62098599769361096d74019e6a3d744e4ebf1df5019
   requires_dist:
   - natsort
   - packaging
@@ -1101,13 +1099,13 @@ packages:
 - pypi: ./
   name: funannotate2
   version: 26.6.9
-  sha256: cfd6919273c0adc5b559e250385e7955f4941aa92c1f33d466664519cc774005
+  sha256: 5f4ab893b264f7f8fd3cfde73ae52cff0cfbab49f2bec1f8e3c78dcc6ff6ef33
   requires_dist:
   - natsort
   - numpy
   - mappy
   - gfftk>=26.5.22
-  - buscolite>=26.4.22
+  - buscolite>=26.6.21
   - gapmm2>=26.5.22
   - pyhmmer>=0.12.0
   - pyfastx>=2.0.0
@@ -1132,14 +1130,6 @@ packages:
   - pytest-cov>=4.0.0 ; extra == 'dev'
   - pytest>=7.0.0 ; extra == 'dev'
   requires_python: '>=3.7.0'
-- pypi: https://files.pythonhosted.org/packages/ea/7e/c24801878ba6d7a1dff6d6928f5aeacd4eec1d6e0a463687594d07c8c18c/gapmm2-26.5.22-py3-none-any.whl
-  name: gapmm2
-  version: 26.5.22
-  sha256: e2d60596c9b1a5a6c74caa853b99d0a5fcdcbf2a0a66b50cdafbcc395b975a6d
-  requires_dist:
-  - edlib
-  - mappy
-  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/bioconda/noarch/gapmm2-26.5.22-pyhdfd78af_0.conda
   sha256: d3d4745e45157befc6ed9d7263c53356937d70450de9f16e0072ac2a29634033
   md5: 93373ff3567d14a0819df231df0da7f7
@@ -1150,6 +1140,8 @@ packages:
   - python-edlib
   license: BSD-2-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/gapmm2?source=hash-mapping
   size: 24769
   timestamp: 1779521119590
 - conda: https://conda.anaconda.org/conda-forge/noarch/gast-0.7.0-pyhd8ed1ab_0.conda

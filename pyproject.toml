@@ -16,7 +16,7 @@ dependencies = [
     "numpy",
     "mappy",
     "gfftk>=26.5.22",
-    "buscolite>=26.4.22",
+    "buscolite>=26.6.21",
     "gapmm2>=26.5.22",
     "pyhmmer>=0.12.0",
     "pyfastx>=2.0.0",
@@ -49,6 +49,7 @@ funannotate2 = "funannotate2.__main__:main"
 include = [
   "funannotate2/*.py",
   "funannotate2/downloads.json",
+  "funannotate2/downloads_v2.json",
   "funannotate2/resources/*",
   "README.md",
   "LICENSE.md"

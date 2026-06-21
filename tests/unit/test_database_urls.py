@@ -12,13 +12,13 @@ import pytest
 import requests
 
 
-@pytest.fixture(scope="module")
-def database_urls():
-    """Load database URLs from downloads.json."""
+@pytest.fixture(scope="module", params=["downloads.json", "downloads_v2.json"])
+def database_urls(request):
+    """Load database URLs from downloads.json or downloads_v2.json."""
     downloads_json = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
         "funannotate2",
-        "downloads.json",
+        request.param,
     )
     with open(downloads_json, "r") as f:
         data = json.load(f)
