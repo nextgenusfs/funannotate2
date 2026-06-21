@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "funannotate2"
-version = "26.6.9"
+version = "26.6.21"
 description = "Funannotate2: eukarytoic genome annotation pipeline"
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
