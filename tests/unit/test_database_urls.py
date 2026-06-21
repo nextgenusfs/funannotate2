@@ -94,6 +94,17 @@ class TestDatabaseURLs:
         url = database_urls.get(db_name)
         assert url is not None, f"URL for {db_name} not found in downloads.json"
 
+        # Special handling for raw GitHub files of the repository itself.
+        # During PR checks, they might not be on main yet.
+        if url.startswith("https://raw.githubusercontent.com/nextgenusfs/funannotate2/main/"):
+            local_path = url.replace("https://raw.githubusercontent.com/nextgenusfs/funannotate2/main/", "")
+            local_abs_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                local_path
+            )
+            assert os.path.exists(local_abs_path), f"Local file not found for URL: {url}"
+            return
+
         is_reachable, status_code, error_msg = check_url_reachable(url, timeout=15)
 
         assert is_reachable, (

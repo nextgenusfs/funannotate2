@@ -1,0 +1,4 @@
+# dbCAN HMMdb release 14.0
+# 08/26/2025
+# total 875 CAZyme HMMs (514 family HMMs + 3 bacterial cellulosome HMMs + 2 fungal cellulosome HMMs + 356 subfamily HMMs)
+# data based on CAZyDB released on 07/10/2025
