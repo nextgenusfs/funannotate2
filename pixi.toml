@@ -67,7 +67,7 @@ funannotate2 = { path = ".", editable = false }
 helixerlite = "*"
 annorefine = ">=2026.2.9"
 # buscolite via pypi to avoid its bioconda recipe's augustus dependency
-buscolite = ">=26.4.22"
+buscolite = ">=26.6.21"
 # pytantan: built from the nextgenusfs/pytantan fork, which adds a
 # `PYTANTAN_DISABLE_SIMD` CMake option and a `PYTANTAN_SIMD` env-var override.
 # The PyPI wheels ship with AVX2 enabled and SIGILL under Rosetta 2 on Apple

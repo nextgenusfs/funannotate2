@@ -11,10 +11,10 @@ This directory contains tests for the funannotate2 package.
 
 ### Special Tests
 
-- `unit/test_database_urls.py`: Tests that all database URLs in `funannotate2/downloads.json` are reachable. This test runs:
+- `unit/test_database_urls.py`: Tests that all database URLs in `funannotate2/downloads.json` and `funannotate2/downloads_v2.json` are reachable. This test runs:
   - On every push/PR (as part of the unit test suite)
   - Weekly (Monday at 2 AM UTC) via scheduled GitHub Actions workflow
-  - When `downloads.json` is modified
+  - When either JSON file is modified
 
   The test uses HEAD/GET requests with range headers to check URL availability without downloading large files.
 

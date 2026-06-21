@@ -177,7 +177,7 @@ def ensure_busco_lineage(species, logger):
     - SystemExit(1): If the directory could not be made present after the
       download/extract attempt.
     """
-    downloads_json = os.path.join(os.path.dirname(__file__), "downloads.json")
+    downloads_json = os.path.join(os.path.dirname(__file__), "downloads_v2.json")
     odb_version = get_odb_version(downloads_json)
     busco_model_path = os.path.join(
         env["FUNANNOTATE2_DB"], f"{species}_{odb_version}"

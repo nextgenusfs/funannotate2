@@ -111,12 +111,12 @@ def install(args):
         logger.info("Retrieving download links from GitHub Repo")
         DBURL = json.loads(
             requests.get(
-                "https://raw.githubusercontent.com/nextgenusfs/funannotate2/master/funannotate2/downloads.json"
+                "https://raw.githubusercontent.com/nextgenusfs/funannotate2/master/funannotate2/downloads_v2.json"
             ).text
         )["downloads"]
     except:  # noqa: E722
         logger.error("Unable to download links from GitHub, using local copy from funannotate2")
-        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads.json"))["downloads"]
+        DBURL = load_json(os.path.join(os.path.dirname(__file__), "downloads_v2.json"))["downloads"]
     logger.info(json.dumps(DBURL, indent=2))
 
     # let user know what you are doing
