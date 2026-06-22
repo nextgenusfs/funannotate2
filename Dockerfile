@@ -33,7 +33,7 @@ COPY funannotate2 ./funannotate2
 # safe on Rosetta 2 (Apple Silicon) and pre-Haswell x86_64 servers.
 ENV CMAKE_ARGS="-DPYTANTAN_DISABLE_SIMD=ON"
 
-RUN pixi install --locked
+RUN pixi lock && pixi install --locked
 
 # Verify pytantan was built without SIMD backends. Two independent checks:
 #   (a) No avx*/sse4*/neon* platform module .so files should exist.
