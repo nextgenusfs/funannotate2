@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from funannotate2.utilities import (
     create_tmpdir,
+    download,
     merge_coordinates,
     naming_slug,
     readBlocks,
@@ -259,3 +260,87 @@ class TestRunSubprocess:
         debug_messages = [call.args[0] for call in logger.debug.call_args_list]
         assert "snap input.fasta" in debug_messages
         assert not any("Memory usage for" in message for message in debug_messages)
+
+
+class TestDownload:
+    """Tests for the download function."""
+
+    @patch("funannotate2.utilities.requests.get")
+    @patch("funannotate2.utilities.requests.head")
+    def test_download_from_scratch(self, mock_head, mock_get, tmp_path):
+        """Test downloading a file from scratch."""
+        dest = tmp_path / "test_file.txt"
+
+        # Mock requests.head
+        mock_head_resp = MagicMock()
+        mock_head_resp.status_code = 200
+        mock_head_resp.headers = {"Content-Length": "10"}
+        mock_head.return_value.__enter__.return_value = mock_head_resp
+
+        # Mock requests.get
+        mock_get_resp = MagicMock()
+        mock_get_resp.status_code = 200
+        mock_get_resp.iter_content.return_value = [b"0123456789"]
+        mock_get.return_value.__enter__.return_value = mock_get_resp
+
+        download("https://example.com/file.txt", str(dest))
+
+        assert dest.exists()
+        assert dest.read_bytes() == b"0123456789"
+        mock_get.assert_called_once_with(
+            "https://example.com/file.txt",
+            stream=True,
+            timeout=60,
+            verify=False,
+            headers={},
+        )
+
+    @patch("funannotate2.utilities.requests.get")
+    @patch("funannotate2.utilities.requests.head")
+    def test_download_resume(self, mock_head, mock_get, tmp_path):
+        """Test resuming a partial download using range requests."""
+        dest = tmp_path / "test_file.txt"
+        dest.write_bytes(b"01234")  # Partial file of 5 bytes
+
+        # Mock requests.head
+        mock_head_resp = MagicMock()
+        mock_head_resp.status_code = 200
+        mock_head_resp.headers = {"Content-Length": "10"}
+        mock_head.return_value.__enter__.return_value = mock_head_resp
+
+        # Mock requests.get (returns range)
+        mock_get_resp = MagicMock()
+        mock_get_resp.status_code = 206
+        mock_get_resp.iter_content.return_value = [b"56789"]
+        mock_get.return_value.__enter__.return_value = mock_get_resp
+
+        download("https://example.com/file.txt", str(dest))
+
+        assert dest.exists()
+        assert dest.read_bytes() == b"0123456789"
+        mock_get.assert_called_once_with(
+            "https://example.com/file.txt",
+            stream=True,
+            timeout=60,
+            verify=False,
+            headers={"Range": "bytes=5-"},
+        )
+
+    @patch("funannotate2.utilities.requests.get")
+    @patch("funannotate2.utilities.requests.head")
+    def test_download_already_complete(self, mock_head, mock_get, tmp_path):
+        """Test that if the file is already complete, no download request is made."""
+        dest = tmp_path / "test_file.txt"
+        dest.write_bytes(b"0123456789")  # 10 bytes
+
+        # Mock requests.head
+        mock_head_resp = MagicMock()
+        mock_head_resp.status_code = 200
+        mock_head_resp.headers = {"Content-Length": "10"}
+        mock_head.return_value.__enter__.return_value = mock_head_resp
+
+        download("https://example.com/file.txt", str(dest))
+
+        # Check that get was never called
+        mock_get.assert_not_called()
+        assert dest.read_bytes() == b"0123456789"
