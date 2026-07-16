@@ -242,10 +242,62 @@ def download(url, name, wget=False, timeout=60, retries=3):
     # Try HTTPS first
     while attempt < retries:
         try:
+            headers = {}
+            existing_size = 0
+            if os.path.exists(file_name):
+                existing_size = os.path.getsize(file_name)
+
+            # Send HEAD request to check remote size and Range support
+            remote_size = None
+            try:
+                # Use a smaller timeout for HEAD to avoid hanging
+                with requests.head(url, timeout=10, allow_redirects=True, verify=False) as head_resp:
+                    if head_resp.status_code == 200:
+                        remote_size = int(head_resp.headers.get("Content-Length", 0))
+            except Exception:
+                pass
+
+            # If local file matches remote size, download is complete
+            if remote_size and existing_size == remote_size:
+                return
+
+            # If local file is larger than remote size, overwrite from scratch
+            if remote_size and existing_size > remote_size:
+                try:
+                    os.remove(file_name)
+                except Exception:
+                    pass
+                existing_size = 0
+
+            # If we have a partially downloaded file, try range request
+            if existing_size > 0:
+                headers["Range"] = f"bytes={existing_size}-"
+
             # Use requests for HTTP/HTTPS
-            with requests.get(url, stream=True, timeout=timeout, verify=False) as r:
+            with requests.get(url, stream=True, timeout=timeout, verify=False, headers=headers) as r:
+                if r.status_code == 206:
+                    write_mode = "ab"
+                elif r.status_code == 416:
+                    # Range Not Satisfiable (might be fully downloaded or server error)
+                    # Delete the file and start from scratch to be safe
+                    try:
+                        os.remove(file_name)
+                    except Exception:
+                        pass
+                    existing_size = 0
+                    headers.pop("Range", None)
+                    with requests.get(url, stream=True, timeout=timeout, verify=False) as r_retry:
+                        r_retry.raise_for_status()
+                        with open(file_name, "wb") as f:
+                            for chunk in r_retry.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                    return
+                else:
+                    write_mode = "wb"
+
                 r.raise_for_status()  # Raise an exception for HTTP errors
-                with open(file_name, "wb") as f:
+                with open(file_name, write_mode) as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive chunks
                             f.write(chunk)
@@ -270,7 +322,10 @@ def download(url, name, wget=False, timeout=60, retries=3):
                         return
 
                 # If we get here, both HTTPS and FTP failed
-                raise Exception(f"Download failed: {str(e)}")
+                raise Exception(
+                    f"Download failed: {str(e)}. If you have unstable internet or download timeouts, "
+                    "try running with the '--wget' option to use wget for robust downloads."
+                )
 
 
 def _download_ftp(url, file_name, timeout=60):
