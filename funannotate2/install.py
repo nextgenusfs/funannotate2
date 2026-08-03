@@ -718,6 +718,7 @@ def interproDB(wget=False):
     num_records = ""
     version = ""
     iprdate = ""
+    xml_done = False
     for event, elem in cElementTree.iterparse(iprXML):
         if elem.tag == "release":
             for x in list(elem):
@@ -725,6 +726,10 @@ def interproDB(wget=False):
                     num_records = int(x.attrib["entry_count"])
                     version = x.attrib["version"]
                     iprdate = x.attrib["file_date"]
+                    xml_done = True
+                    break
+            if xml_done:
+                break
     try:
         iprdate = datetime.datetime.strptime(iprdate, "%d-%b-%y").strftime("%Y-%m-%d")
     except ValueError:
