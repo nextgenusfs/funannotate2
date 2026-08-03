@@ -42,6 +42,12 @@ def install(args):
     log = logger.info
     system_info(log)
 
+    if not env["FUNANNOTATE2_DB"]:
+        logger.error(
+            "Backend database location $FUNANNOTATE2_DB environment variable has not been defined."
+        )
+        return
+
     # now get databases and ensure folders exist
     if not os.path.isdir(env["FUNANNOTATE2_DB"]):
         os.makedirs(env["FUNANNOTATE2_DB"])
