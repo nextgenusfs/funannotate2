@@ -55,7 +55,7 @@ def species(args):
     db_species = show_species(layout=args.format)
     logger.info(f"Pre-trained species in database [format={args.format}]:\n{db_species}")
     logger.info(
-        'Note, use these spcies in funannotate2 predict with the "-p, --pretrained" argument'
+        'Note, use these species in funannotate2 predict with the "-p, --pretrained" argument'
     )
 
 
