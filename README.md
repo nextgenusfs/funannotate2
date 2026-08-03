@@ -63,11 +63,12 @@ The pixi environment is currently defined for `linux-64` only. macOS users shoul
 
 #### Linux systems (conda)
 
-Until this gets pushed to bioconda, can try this:
+Until this gets pushed to bioconda, you can try this:
+
 ```shell
-mamba create -n funannotate2 gfftk gapmm2 minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn gb-io buscolite
+conda create -n funannotate2 gfftk gapmm2 minimap2 miniprot snap "augustus==3.5.0" glimmerhmm diamond trnascan-se table2asn gb-io buscolite
 conda activate funannotate2
-python -m pip install git+https://github.com/nextgenusfs/funannotate2.git
+python -m pip install funannotate2
 ```
 
 #### Apple Silicon (M series)
@@ -81,7 +82,7 @@ Once that is working, you can then install most of the remaining dependencies wi
 
 ```shell
 # first install most of the dependencies
-mamba create -n funannotate2 --platform osx-64 "python>=3.7,<3.13" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair pytantan "mkl<2022"
+conda create -n funannotate2 --platform osx-64 "python>=3.7,<3.13" gfftk gapmm2 minimap2 miniprot snap glimmerhmm diamond trnascan-se gb-io pyhmmer pyfastx requests json-repair pytantan "mkl<2022"
 
 # we can then add the required FUNANNOTATE2_DB env variable to the conda environment, note need to reactivate to use it
 conda activate funannotate2
