@@ -5,7 +5,10 @@ Unit tests for the taxonomy-related functions in utilities.py.
 from unittest.mock import patch
 
 import funannotate2.utilities
-from funannotate2.utilities import choose_best_busco_species
+from funannotate2.utilities import (
+    busco_lineage_from_taxonomy,
+    choose_best_busco_species,
+)
 from funannotate2.config import busco_taxonomy
 
 
@@ -351,3 +354,116 @@ class TestChooseBestBuscoSpecies:
                 assert result in busco_taxonomy, (
                     f"Result '{result}' should be a valid key in busco_taxonomy"
                 )
+
+
+class TestBuscoLineageFromTaxonomy:
+    """Tests for busco_lineage_from_taxonomy.
+
+    Regression coverage for issue #93 (crash on missing taxonomy) plus the
+    latent random-lineage path: a non-empty taxonomy that matches nothing in
+    busco_taxonomy must resolve to the default deterministically, not to a
+    random tie-broken lineage.
+    """
+
+    def test_false_returns_default_without_crashing(self):
+        # Issue #93: predict() fed a `False` taxonomy straight into `.get()`,
+        # raising `AttributeError: 'bool' object has no attribute 'get'`.
+        assert busco_lineage_from_taxonomy(False) == "fungi"
+
+    def test_none_returns_default(self):
+        assert busco_lineage_from_taxonomy(None) == "fungi"
+
+    def test_empty_dict_returns_default(self):
+        assert busco_lineage_from_taxonomy({}) == "fungi"
+
+    def test_real_match_returns_valid_lineage(self):
+        # Exact, deterministic match -- not merely "some valid key", which would
+        # also pass if _overlaps() regressed and everything silently defaulted.
+        result = busco_lineage_from_taxonomy(
+            {"superkingdom": "Eukaryota", "kingdom": "Fungi"}
+        )
+        assert result == "fungi"
+
+    def test_partial_but_matching_dict_returns_valid_lineage(self):
+        # superkingdom-only match resolves to the broad "eukaryota" lineage.
+        result = busco_lineage_from_taxonomy({"superkingdom": "Eukaryota"})
+        assert result == "eukaryota"
+
+    def test_non_matching_dict_is_deterministic_default(self):
+        # A non-empty dict whose values match nothing would otherwise fall
+        # through best_taxonomy to random.choice(); the helper must not.
+        results = {
+            busco_lineage_from_taxonomy(
+                {"superkingdom": "Bacteria", "kingdom": "Nonexistent"}
+            )
+            for _ in range(50)
+        }
+        assert results == {"fungi"}
+
+    def test_all_none_is_deterministic_default(self):
+        results = {
+            busco_lineage_from_taxonomy({"superkingdom": None, "kingdom": None})
+            for _ in range(50)
+        }
+        assert results == {"fungi"}
+
+    def test_result_is_always_a_valid_lineage(self):
+        inputs = [
+            False,
+            None,
+            {},
+            {"superkingdom": "Eukaryota", "kingdom": "Fungi"},
+            {"superkingdom": "Eukaryota"},
+            {"superkingdom": "Bacteria", "kingdom": "Nonexistent"},
+        ]
+        for tax in inputs:
+            assert busco_lineage_from_taxonomy(tax) in busco_taxonomy
+
+    def test_default_none_signals_unresolved(self):
+        # predict() passes default=None to detect when it must warn and fall back.
+        assert busco_lineage_from_taxonomy(False, default=None) is None
+        assert (
+            busco_lineage_from_taxonomy(
+                {"superkingdom": "Bacteria", "kingdom": "Nonexistent"}, default=None
+            )
+            is None
+        )
+        # a genuine match still returns a real lineage, not the sentinel
+        assert (
+            busco_lineage_from_taxonomy(
+                {"superkingdom": "Eukaryota", "kingdom": "Fungi"}, default=None
+            )
+            in busco_taxonomy
+        )
+
+    def test_default_is_overridable(self):
+        assert (
+            busco_lineage_from_taxonomy(False, default="eukaryota") == "eukaryota"
+        )
+
+    def test_every_kingdom_resolves_deterministically(self):
+        # The determinism guarantee currently rests on the busco_taxonomy data
+        # shape, not on structure. Sweep every real kingdom with no superkingdom
+        # (the shape most likely to reach best_taxonomy's random tie-break) and
+        # assert a single stable result across many runs, so a future reference
+        # edit that reintroduces a random pick fails here instead of shipping.
+        kingdoms = {
+            v.get("kingdom") for v in busco_taxonomy.values() if v.get("kingdom")
+        }
+        for kingdom in kingdoms:
+            results = {
+                busco_lineage_from_taxonomy({"superkingdom": None, "kingdom": kingdom})
+                for _ in range(25)
+            }
+            assert len(results) == 1, f"non-deterministic lineage for {kingdom}: {results}"
+            assert results.pop() in busco_taxonomy
+
+    def test_non_string_values_do_not_crash(self):
+        # Guards the isinstance(value, str) checks in _overlaps: odd taxonomy
+        # values must degrade to a valid default, never raise.
+        for tax in [
+            {"superkingdom": 123, "kingdom": ["Fungi"]},
+            {"superkingdom": {"x": 1}, "kingdom": None},
+            {"superkingdom": "", "kingdom": ""},
+        ]:
+            assert busco_lineage_from_taxonomy(tax) in busco_taxonomy
