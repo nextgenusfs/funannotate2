@@ -735,9 +735,12 @@ def add2dict(adict, gene, key, value):
 
 
 def swissprot_valid_gene(name):
+    if not name:
+        return False
     if (
-        number_present(name)
-        and len(name) > 2
+        len(name) > 2
+        and not name.startswith("orf")
+        and not name[0].isdigit()
         and not morethanXnumbers(name, 3)
         and "." not in name
     ):
