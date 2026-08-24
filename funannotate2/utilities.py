@@ -497,6 +497,53 @@ def choose_best_busco_species(query_tax):
     return best_taxonomy(query_tax, busco_taxonomy, exact=True)
 
 
+def busco_lineage_from_taxonomy(taxonomy, default="fungi"):
+    """
+    Resolve a valid BUSCO lineage key from a taxonomy dict, deterministically.
+
+    `predict` gets taxonomy from `lookup_taxonomy` (which returns False when the
+    JGI lookup fails) and falls back to the training-data taxonomy (which may
+    also be False for a novel organism). Passing such a value straight into
+    `choose_best_busco_species` either crashed (`.get()` on a bool) or, for a
+    non-empty but unmatched taxonomy, returned a random lineage via
+    `best_taxonomy`'s tie-break. This helper guards both cases and always returns
+    a lineage that exists in `busco_taxonomy`.
+
+    Parameters:
+    - taxonomy (dict or None): a taxonomy dict, or a falsy value (False/None) when unavailable.
+    - default (str): lineage to fall back to; must be a valid busco_taxonomy key.
+
+    Returns:
+    - str: a lineage key guaranteed to be present in busco_taxonomy.
+    """
+    if not isinstance(taxonomy, dict) or not taxonomy:
+        return default
+    query = {
+        "superkingdom": taxonomy.get("superkingdom"),
+        "kingdom": taxonomy.get("kingdom"),
+    }
+
+    # best_taxonomy() falls back to a random tie-break when nothing matches, and
+    # that random pick is always itself a valid busco_taxonomy key -- so a plain
+    # "result not in busco_taxonomy" check can never catch it. Only trust the
+    # matcher when the query actually overlaps the reference on superkingdom or
+    # kingdom; otherwise return the default deterministically.
+    def _overlaps(level):
+        value = query.get(level)
+        if not isinstance(value, str):
+            return False
+        value = value.lower()
+        return any(
+            isinstance(ref.get(level), str) and ref[level].lower() == value
+            for ref in busco_taxonomy.values()
+        )
+
+    if not (_overlaps("superkingdom") or _overlaps("kingdom")):
+        return default
+    lineage = choose_best_busco_species(query)
+    return lineage if lineage in busco_taxonomy else default
+
+
 def best_taxonomy(query, reference, exact=False):
     """
     Find the best matching taxonomy in a reference dictionary based on a query taxonomy.

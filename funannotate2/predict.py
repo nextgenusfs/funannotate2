@@ -34,8 +34,8 @@ from .fastx import (
 )
 from .log import finishLogging, startLogging, system_info
 from .utilities import (
+    busco_lineage_from_taxonomy,
     checkfile,
-    choose_best_busco_species,
     create_directories,
     create_tmpdir,
     ensure_busco_lineage,
@@ -903,10 +903,15 @@ def predict(args):
         logger.warning(
             "Unable to access JGI taxonomy lookup, reverting to taxonomy from training data"
         )
-        taxonomy = params["taxonomy"]
-    busco_tax = choose_best_busco_species(
-        {"superkingdom": taxonomy.get("superkingdom"), "kingdom": taxonomy.get("kingdom")}
-    )
+        taxonomy = params.get("taxonomy")
+    busco_tax = busco_lineage_from_taxonomy(taxonomy, default=None)
+    if busco_tax is None:
+        busco_tax = "fungi"
+        logger.warning(
+            f"Could not resolve a BUSCO lineage for species '{args.species}' "
+            f"(taxonomy unavailable or unrecognized); defaulting to '{busco_tax}'. "
+            "BUSCO completeness scoring will be unreliable for a non-fungal genome."
+        )
     busco_model_path = ensure_busco_lineage(busco_tax, logger)
 
     # now we can loop through the abinitio predictions and run busco for completion
