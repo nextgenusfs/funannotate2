@@ -381,15 +381,16 @@ class NameCleaner:
                         del result["name"]
 
         # Process product if present
-        if "product" in result and "name" in result:
+        if "product" in result:
             products = result["product"]
-            names = result["name"]
+            names = result.get("name", [])
+            name = names[0] if (isinstance(names, list) and names) else None
 
-            if isinstance(products, list) and products and isinstance(names, list) and names:
+            if isinstance(products, list) and products:
                 # If we have a curated product, it's already set above
-                if not self.get_curated_product(names[0]):
+                if not name or not self.get_curated_product(name):
                     # Clean the product
-                    cleaned_product = self.clean_product(products[0], names[0])
+                    cleaned_product = self.clean_product(products[0], name)
                     result["product"] = [cleaned_product]
 
         return result

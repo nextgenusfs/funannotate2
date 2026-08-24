@@ -343,8 +343,11 @@ class TestSearchComprehensive:
         assert "seq1" in result
         assert "db_xref" in result["seq1"]
         assert result["seq1"]["db_xref"] == ["UniProtKB/Swiss-Prot:P12345"]
-        assert "note" in result["seq1"]
-        assert "80.0% identical to TEST_HUMAN Test protein" in result["seq1"]["note"][0]
+        assert "name" in result["seq1"]
+        assert result["seq1"]["name"] == ["TEST"]
+        assert "product" in result["seq1"]
+        assert result["seq1"]["product"] == ["Test protein"]
+        assert "note" not in result["seq1"]
         assert mock_json_dump.call_count == 1
 
     @patch("funannotate2.search.os.path.isdir")
