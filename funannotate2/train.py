@@ -20,9 +20,9 @@ from .fastx import analyzeAssemblySimple, simplify_headers
 from .interlap import InterLap
 from .log import finishLogging, startLogging, system_info
 from .utilities import (
+    augustus_species_from_taxonomy,
+    busco_lineage_from_taxonomy,
     checkfile,
-    choose_best_augustus_species,
-    choose_best_busco_species,
     create_directories,
     ensure_busco_lineage,
     lookup_taxonomy,
@@ -123,9 +123,20 @@ def train(args):
         aug_species = args.augustus_species
         logger.info(f"Using user-specified Augustus species: {aug_species}")
     else:
-        # choose best augustus species based on taxonomy
-        aug_species = choose_best_augustus_species(taxonomy)
-        logger.info(f"Choosing best augustus species based on taxonomy: {aug_species}")
+        # choose best Augustus species; guard a missing/unresolvable taxonomy
+        # (the #93/#94 taxonomy-fallback fix, applied to the Augustus path -- #60)
+        aug_species = augustus_species_from_taxonomy(taxonomy, default=None)
+        if aug_species is None:
+            aug_species = "aspergillus_fumigatus"
+            logger.warning(
+                f"Could not resolve an Augustus species for '{args.species}' "
+                f"(taxonomy unavailable or unrecognized); defaulting to '{aug_species}'. "
+                "Ab initio gene predictions will be unreliable for a non-fungal genome."
+            )
+        else:
+            logger.info(
+                f"Choosing best Augustus species based on taxonomy: {aug_species}"
+            )
 
     # validate and set busco lineage
     if args.busco_lineage:
@@ -138,8 +149,16 @@ def train(args):
         busco_species = args.busco_lineage
         logger.info(f"Using user-specified BUSCO lineage: {busco_species}")
     else:
-        # choose best busco species
-        busco_species = choose_best_busco_species(taxonomy)
+        # choose best BUSCO species; guard a missing/unresolvable taxonomy
+        # (the #93/#94 fix landed in predict(), applied here too)
+        busco_species = busco_lineage_from_taxonomy(taxonomy, default=None)
+        if busco_species is None:
+            busco_species = "fungi"
+            logger.warning(
+                f"Could not resolve a BUSCO lineage for species '{args.species}' "
+                f"(taxonomy unavailable or unrecognized); defaulting to '{busco_species}'. "
+                "BUSCO completeness scoring will be unreliable for a non-fungal genome."
+            )
     # Ensure the BUSCO lineage exists under FUNANNOTATE2_DB (downloading
     # it if necessary) and capture its on-disk path for buscolite + the
     # params.json output below.
