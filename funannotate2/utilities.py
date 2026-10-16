@@ -162,9 +162,10 @@ def get_odb_version(downloads_json_file):
 def ensure_busco_lineage(species, logger):
     """
     Ensure the BUSCO lineage `<species>_<odb_version>` is present under
-    FUNANNOTATE2_DB, downloading and extracting it from the URL in
-    downloads.json if missing. The check is a no-op when the directory
-    already exists, so callers can invoke this idempotently.
+    BUSCO_DOWNLOAD_PATH, falling back to FUNANNOTATE2_DB if not, downloading
+    and extracting it from the URL in downloads.json if missing. The check
+    is a no-op when the directory already exists, so callers can invoke this
+    idempotently.
 
     Parameters:
     - species (str): BUSCO lineage species name (e.g. "fungi", "aspergillus").
@@ -179,21 +180,26 @@ def ensure_busco_lineage(species, logger):
     """
     downloads_json = os.path.join(os.path.dirname(__file__), "downloads_v2.json")
     odb_version = get_odb_version(downloads_json)
-    busco_model_path = os.path.join(
-        env["FUNANNOTATE2_DB"], f"{species}_{odb_version}"
-    )
+
+    if "BUSCO_DOWNLOAD_PATH" in env:
+        busco_dir_path = env["BUSCO_DOWNLOAD_PATH"]
+    else:
+        busco_dir_path = env["FUNANNOTATE2_DB"]
+    busco_model_path = os.path.join(busco_dir_path,
+            f"{species}_{odb_version}"
+        )
     if os.path.isdir(busco_model_path):
         return busco_model_path
     download_urls = load_json(downloads_json)
     busco_url = download_urls["busco"][species][0]
-    busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
+    busco_tgz = os.path.join(busco_dir_path, os.path.basename(busco_url))
     logger.info(f"Downloading {species}_{odb_version} model from {busco_url}")
     download(busco_url, busco_tgz, wget=False)
     if os.path.isfile(busco_tgz):
         runSubprocess(
             ["tar", "-zxf", os.path.basename(busco_tgz)],
             logger,
-            cwd=env["FUNANNOTATE2_DB"],
+            cwd=busco_dir_path,
         )
         if os.path.isdir(busco_model_path):
             os.remove(busco_tgz)

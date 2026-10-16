@@ -22,6 +22,9 @@ if env["AUGUSTUS_CONFIG"]:
             os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts"
         )
 
+if "BUSCO_DOWNLOAD_PATH" in os.environ:
+    env["BUSCO_DOWNLOAD_PATH"] = os.environ["BUSCO_DOWNLOAD_PATH"]
+
 
 augustus_species = {
     "pea_aphid": {

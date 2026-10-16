@@ -363,7 +363,8 @@ def annotate(args):
         else:
             # choose best busco species
             busco_species = choose_best_busco_species(taxonomy)
-        # Ensure the BUSCO lineage is available under FUNANNOTATE2_DB,
+        # Ensure the BUSCO lineage is available under BUSCO_DOWNLOAD_PATH,
+        # falling back to FUNANNOTATE2_DB i BUSCO_DOWNLOAD_PATH is not set,
         # downloading it if needed. In dockerized usage the lineage from a
         # previous train/predict run is gone when annotate starts in a fresh
         # container, so this guards against the cryptic "<path> is not a
