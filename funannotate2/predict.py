@@ -1676,12 +1676,15 @@ def calculate_weights(scores, cli_weights):
                         weights[k] = 2
                     else:
                         weights[k] = 1
-    # add hiq augustus
-    weights["augustus-hiq"] = weights["augustus"] + 2
+    
     # add any other usr_weights
     for k, v in usr_weights.items():
         if k not in weights:
             weights[k] = v
+
+    # add hiq augustus. Already present iff user-supplied.
+    if "augustus-hiq" not in weights:
+        weights["augustus-hiq"] = weights["augustus"] + 2
     # now we want a list with tool:weight annotations
     weight_list = []
     for k, v in weights.items():
