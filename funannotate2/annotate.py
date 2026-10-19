@@ -37,8 +37,8 @@ from .search import (
     swissprot_blast,
 )
 from .utilities import (
+    busco_lineage_from_taxonomy,
     checkfile,
-    choose_best_busco_species,
     create_directories,
     create_tmpdir,
     ensure_busco_lineage,
@@ -361,8 +361,16 @@ def annotate(args):
             busco_species = args.busco_lineage
             logger.info(f"Using user-specified BUSCO lineage: {busco_species}")
         else:
-            # choose best busco species
-            busco_species = choose_best_busco_species(taxonomy)
+            # choose best BUSCO species; guard a missing/unresolvable taxonomy
+            # (the #93/#94 fix landed in predict(), applied here too)
+            busco_species = busco_lineage_from_taxonomy(taxonomy, default=None)
+            if busco_species is None:
+                busco_species = "fungi"
+                logger.warning(
+                    f"Could not resolve a BUSCO lineage for species '{args.species}' "
+                    f"(taxonomy unavailable or unrecognized); defaulting to '{busco_species}'. "
+                    "BUSCO completeness scoring will be unreliable for a non-fungal genome."
+                )
         # Ensure the BUSCO lineage is available under FUNANNOTATE2_DB,
         # downloading it if needed. In dockerized usage the lineage from a
         # previous train/predict run is gone when annotate starts in a fresh

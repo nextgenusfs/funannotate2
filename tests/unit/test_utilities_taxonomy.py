@@ -6,10 +6,12 @@ from unittest.mock import patch
 
 import funannotate2.utilities
 from funannotate2.utilities import (
+    augustus_species_from_taxonomy,
     busco_lineage_from_taxonomy,
+    choose_best_augustus_species,
     choose_best_busco_species,
 )
-from funannotate2.config import busco_taxonomy
+from funannotate2.config import augustus_species, busco_taxonomy
 
 
 @patch("funannotate2.utilities.pretty_taxonomy")
@@ -467,3 +469,141 @@ class TestBuscoLineageFromTaxonomy:
             {"superkingdom": "", "kingdom": ""},
         ]:
             assert busco_lineage_from_taxonomy(tax) in busco_taxonomy
+
+
+class TestAugustusSpeciesFromTaxonomy:
+    """Tests for augustus_species_from_taxonomy.
+
+    The Augustus sibling of busco_lineage_from_taxonomy (#93/#94): `annotate` and
+    `train` fed taxonomy straight into `choose_best_augustus_species`, which
+    crashed on a `False` taxonomy and, for a non-empty taxonomy, resolved through
+    `best_taxonomy`'s random tie-break -- the "randomly picks a wrong Augustus
+    species" path behind issue #60. This helper guards both cases and always
+    returns a species present in `augustus_species`. Unlike the busco path
+    (`exact=True`, reduced query), Augustus scores across all levels, so the helper
+    delegates to `choose_best_augustus_species` with the FULL taxonomy to keep
+    working inputs byte-identical.
+    """
+
+    def test_false_returns_default_without_crashing(self):
+        # #60 sibling: a `False` taxonomy previously reached best_taxonomy and
+        # raised `TypeError: argument of type 'bool' is not iterable`.
+        assert augustus_species_from_taxonomy(False) == "aspergillus_fumigatus"
+
+    def test_none_returns_default(self):
+        assert augustus_species_from_taxonomy(None) == "aspergillus_fumigatus"
+
+    def test_empty_dict_returns_default(self):
+        assert augustus_species_from_taxonomy({}) == "aspergillus_fumigatus"
+
+    def test_overlap_delegates_to_choose_best_augustus_species(self):
+        # On a working (overlapping) input the helper must return EXACTLY what
+        # choose_best_augustus_species returns -- byte-identical selection (R1),
+        # proving the helper did not silently coarsen the query the way the busco
+        # path does. Apis mellifera resolves uniquely to 'honeybee1' (no tie).
+        tax = {
+            "superkingdom": "Eukaryota",
+            "kingdom": "Metazoa",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hymenoptera",
+            "family": "Apidae",
+            "genus": "Apis",
+            "species": "Apis mellifera",
+        }
+        assert augustus_species_from_taxonomy(tax) == choose_best_augustus_species(tax)
+        assert augustus_species_from_taxonomy(tax) in augustus_species
+
+    def test_overlapping_tie_is_deterministic(self):
+        # {"superkingdom": "Eukaryota"} alone ties every eukaryotic Augustus
+        # species at score 1, so best_taxonomy's tie-break decides the pick -- it
+        # must be deterministic, not random.choice() (the #60 lever).
+        results = {
+            augustus_species_from_taxonomy({"superkingdom": "Eukaryota"})
+            for _ in range(50)
+        }
+        assert len(results) == 1, f"non-deterministic Augustus species: {results}"
+        assert results.pop() in augustus_species
+
+    def test_choose_best_augustus_species_tie_is_deterministic(self):
+        # Direct lock on the shared best_taxonomy tie-break, independent of the
+        # helper: the same tie-inducing query must resolve stably across runs.
+        results = {
+            choose_best_augustus_species({"superkingdom": "Eukaryota"})
+            for _ in range(50)
+        }
+        assert len(results) == 1, f"non-deterministic tie-break: {results}"
+
+    def test_non_matching_dict_is_deterministic_default(self):
+        # No overlap with any Augustus species (all are Eukaryota) -> deterministic
+        # default, never a random pick.
+        results = {
+            augustus_species_from_taxonomy(
+                {"superkingdom": "Bacteria", "kingdom": "Nonexistent"}
+            )
+            for _ in range(50)
+        }
+        assert results == {"aspergillus_fumigatus"}
+
+    def test_default_none_signals_unresolved(self):
+        # annotate()/train() pass default=None to detect when to warn + fall back.
+        assert augustus_species_from_taxonomy(False, default=None) is None
+        assert (
+            augustus_species_from_taxonomy(
+                {"superkingdom": "Bacteria", "kingdom": "Nonexistent"}, default=None
+            )
+            is None
+        )
+        assert (
+            augustus_species_from_taxonomy(
+                {"superkingdom": "Eukaryota", "kingdom": "Metazoa"}, default=None
+            )
+            in augustus_species
+        )
+
+    def test_default_is_overridable(self):
+        assert (
+            augustus_species_from_taxonomy(
+                False, default="saccharomyces_cerevisiae_S288C"
+            )
+            == "saccharomyces_cerevisiae_S288C"
+        )
+
+    def test_result_is_always_a_valid_species(self):
+        for tax in [
+            False,
+            None,
+            {},
+            {"superkingdom": "Eukaryota", "kingdom": "Metazoa"},
+            {"superkingdom": "Eukaryota"},
+            {"superkingdom": "Bacteria", "kingdom": "Nonexistent"},
+        ]:
+            assert augustus_species_from_taxonomy(tax) in augustus_species
+
+    def test_non_string_values_do_not_crash(self):
+        for tax in [
+            {"superkingdom": 123, "kingdom": ["Metazoa"]},
+            {"superkingdom": {"x": 1}, "kingdom": None},
+            {"superkingdom": "", "kingdom": ""},
+        ]:
+            assert augustus_species_from_taxonomy(tax) in augustus_species
+
+    def test_deep_only_taxonomy_hits_the_gate_and_defaults(self):
+        # A taxonomy overlapping augustus_species only BELOW kingdom (no
+        # superkingdom/kingdom) is rejected by the overlap gate and returns the
+        # deterministic default, not a lower-confidence deeper-level guess. Real
+        # lookups always populate superkingdom, so this only affects malformed
+        # partial taxonomies -- the deliberate safe behavior.
+        tax = {"phylum": "Arthropoda", "class": "Insecta", "genus": "Apis"}
+        assert augustus_species_from_taxonomy(tax) == "aspergillus_fumigatus"
+
+    def test_tie_break_is_case_insensitive(self):
+        # {"superkingdom": "Eukaryota"} ties every eukaryotic species; the pick
+        # must not be biased toward the capitalized reference keys by an ASCII sort
+        # (e.g. "Xiphophorus_maculatus"). Case-insensitive ordering keeps it stable
+        # and unbiased.
+        result = augustus_species_from_taxonomy({"superkingdom": "Eukaryota"})
+        assert result in augustus_species
+        assert result == result.lower(), (
+            f"tie resolved to a capitalized oddball key: {result}"
+        )

@@ -2,7 +2,6 @@ import json
 import multiprocessing
 import os
 import queue
-import random
 import re
 import shutil
 import signal
@@ -544,6 +543,56 @@ def busco_lineage_from_taxonomy(taxonomy, default="fungi"):
     return lineage if lineage in busco_taxonomy else default
 
 
+def augustus_species_from_taxonomy(taxonomy, default="aspergillus_fumigatus"):
+    """
+    Resolve a valid Augustus species from a taxonomy dict, deterministically.
+
+    The Augustus sibling of `busco_lineage_from_taxonomy`. `annotate` and `train`
+    get taxonomy from `lookup_taxonomy` (which returns False when the JGI lookup
+    fails) and fall back to the training-data taxonomy (also possibly False).
+    Passing such a value straight into `choose_best_augustus_species` either
+    crashed (`best_taxonomy` iterates the query) or, for a non-empty but unmatched
+    taxonomy, returned a random species via `best_taxonomy`'s tie-break. This
+    helper guards both cases and always returns a species present in
+    `augustus_species`.
+
+    Unlike `busco_lineage_from_taxonomy` (which uses `exact=True` and a reduced
+    superkingdom/kingdom query), Augustus resolution scores across all taxonomic
+    levels, so the FULL taxonomy is delegated to `choose_best_augustus_species` to
+    keep working inputs byte-identical; the superkingdom/kingdom overlap check is
+    used only to decide whether to trust the matcher or return the default.
+
+    Parameters:
+    - taxonomy (dict or None): a taxonomy dict, or a falsy value when unavailable.
+    - default (str): species to fall back to; must be a valid augustus_species key.
+
+    Returns:
+    - str: an Augustus species guaranteed to be present in augustus_species.
+    """
+    if not isinstance(taxonomy, dict) or not taxonomy:
+        return default
+
+    # best_taxonomy falls back to a tie-break when nothing matches, and that pick
+    # is always itself a valid augustus_species key -- so a plain "result not in
+    # augustus_species" check can never catch a spurious match. Only trust the
+    # matcher when the taxonomy overlaps the reference on superkingdom or kingdom;
+    # otherwise return the default deterministically.
+    def _overlaps(level):
+        value = taxonomy.get(level)
+        if not isinstance(value, str):
+            return False
+        value = value.lower()
+        return any(
+            isinstance(ref.get(level), str) and ref[level].lower() == value
+            for ref in augustus_species.values()
+        )
+
+    if not (_overlaps("superkingdom") or _overlaps("kingdom")):
+        return default
+    species = choose_best_augustus_species(taxonomy)
+    return species if species in augustus_species else default
+
+
 def best_taxonomy(query, reference, exact=False):
     """
     Find the best matching taxonomy in a reference dictionary based on a query taxonomy.
@@ -632,7 +681,13 @@ def best_taxonomy(query, reference, exact=False):
             best_matches = [name]
         elif score == highest_score:
             best_matches.append(name)
-    return random.choice(best_matches) if best_matches else None
+    # Deterministic tie-break (was random.choice): when several references share the
+    # top score, pick the case-insensitively-first key so species/lineage selection
+    # is reproducible run-to-run. `key=str.lower` avoids a lexical bias toward the
+    # few capitalized reference keys (e.g. an ASCII sort would hand every tie to
+    # "Xiphophorus_maculatus"). A non-deterministic pick here is the mechanism behind
+    # issue #60 (a random -- sometimes unrunnable -- Augustus species being chosen).
+    return sorted(best_matches, key=str.lower)[0] if best_matches else None
 
 
 def which_path(file_name):
