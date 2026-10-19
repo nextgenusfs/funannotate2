@@ -46,6 +46,7 @@ from .utilities import (
     load_json,
     lookup_taxonomy,
     naming_slug,
+    resolve_annotation_key,
     validate_busco_lineage,
 )
 
@@ -501,10 +502,14 @@ def annotate(args):
                         n["gene_synonym"] += fa["name"][1:]
                 if "note" in fa:
                     n["note"][i] = fa["note"]
-                if "ec_number" in fa:
-                    n["ec_number"][i] = fa["ec_number"]
-                if "go_terms" in fa:
-                    n["go_terms"][i] = fa["go_terms"]
+                # accept the case/plural key variants eggNOG (EC_number) and
+                # InterProScan (go_term) emit, which exact-key checks dropped (#96)
+                ec_key = resolve_annotation_key(fa, "ec_number")
+                if ec_key is not None:
+                    n["ec_number"][i] = fa[ec_key]
+                go_key = resolve_annotation_key(fa, "go_terms")
+                if go_key is not None:
+                    n["go_terms"][i] = fa[go_key]
         Annotation[k] = n
 
     logger.info("Converting to GenBank format")

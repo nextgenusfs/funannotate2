@@ -723,6 +723,42 @@ def best_taxonomy(query, reference, exact=False):
     return sorted(best_matches, key=str.lower)[0] if best_matches else None
 
 
+def resolve_annotation_key(fa, canonical_key):
+    """
+    Return the key present in `fa` that maps to `canonical_key`, tolerant of the
+    case/plural variants real annotation sources emit, or None if absent.
+
+    annotate() merges functional annotations with exact-key checks, but eggNOG /
+    funannotate2-addons write the EC number under `EC_number` and InterProScan
+    writes GO terms under `go_term` (singular), while funannotate2's annotation
+    object uses `ec_number` / `go_terms`. Exact-key matching therefore silently
+    dropped those annotations (#96). A variant that actually carries data is
+    preferred, so a present-but-empty canonical key never shadows a populated
+    variant; the canonical key is first in each tuple, so it still wins when both
+    hold data (leaving canonical-key inputs unchanged).
+
+    Parameters:
+    - fa (dict): a functional-annotation dict for one gene.
+    - canonical_key (str): the funannotate2 key to resolve (e.g. "ec_number").
+
+    Returns:
+    - str or None: the matching key present in `fa`, or None if none is present.
+    """
+    variants = {
+        "ec_number": ("ec_number", "EC_number"),
+        "go_terms": ("go_terms", "go_term"),
+    }.get(canonical_key, (canonical_key,))
+    present = [key for key in variants if key in fa]
+    if not present:
+        return None
+    # prefer a variant that actually carries data, so a present-but-empty canonical
+    # key doesn't shadow a populated variant (re-dropping #96 data)
+    for key in present:
+        if fa[key]:
+            return key
+    return present[0]
+
+
 def which_path(file_name):
     """
     Find the full path of a file by searching through the directories in the system's PATH environment variable.
