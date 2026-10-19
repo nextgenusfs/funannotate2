@@ -496,34 +496,38 @@ def choose_best_busco_species(query_tax):
     return best_taxonomy(query_tax, busco_taxonomy, exact=True)
 
 
-def busco_lineage_from_taxonomy(taxonomy, default="fungi"):
+def busco_lineage_from_taxonomy(taxonomy, default="fungi", higher_level=False):
     """
     Resolve a valid BUSCO lineage key from a taxonomy dict, deterministically.
 
-    `predict` gets taxonomy from `lookup_taxonomy` (which returns False when the
-    JGI lookup fails) and falls back to the training-data taxonomy (which may
-    also be False for a novel organism). Passing such a value straight into
-    `choose_best_busco_species` either crashed (`.get()` on a bool) or, for a
-    non-empty but unmatched taxonomy, returned a random lineage via
-    `best_taxonomy`'s tie-break. This helper guards both cases and always returns
-    a lineage that exists in `busco_taxonomy`.
+    `predict`, `annotate`, and `train` get taxonomy from `lookup_taxonomy` (which
+    returns False when the JGI lookup fails) and may fall back to training/summary
+    taxonomy (which may also be False for a novel organism). Passing such a value
+    straight into `choose_best_busco_species` either crashed or, for a non-empty
+    but unmatched taxonomy, returned a random lineage via `best_taxonomy`'s
+    tie-break. This helper guards both cases and always returns a lineage that
+    exists in `busco_taxonomy`.
 
     Parameters:
     - taxonomy (dict or None): a taxonomy dict, or a falsy value (False/None) when unavailable.
     - default (str): lineage to fall back to; must be a valid busco_taxonomy key.
+    - higher_level (bool): if True, restrict query to superkingdom/kingdom only (used by predict).
 
     Returns:
     - str: a lineage key guaranteed to be present in busco_taxonomy.
     """
     if not isinstance(taxonomy, dict) or not taxonomy:
         return default
-    query = {
-        "superkingdom": taxonomy.get("superkingdom"),
-        "kingdom": taxonomy.get("kingdom"),
-    }
+    if higher_level:
+        query = {
+            "superkingdom": taxonomy.get("superkingdom"),
+            "kingdom": taxonomy.get("kingdom"),
+        }
+    else:
+        query = taxonomy
 
-    # best_taxonomy() falls back to a random tie-break when nothing matches, and
-    # that random pick is always itself a valid busco_taxonomy key -- so a plain
+    # best_taxonomy() falls back to a tie-break when nothing matches, and
+    # that pick is always itself a valid busco_taxonomy key -- so a plain
     # "result not in busco_taxonomy" check can never catch it. Only trust the
     # matcher when the query actually overlaps the reference on superkingdom or
     # kingdom; otherwise return the default deterministically.
@@ -556,11 +560,11 @@ def augustus_species_from_taxonomy(taxonomy, default="aspergillus_fumigatus"):
     helper guards both cases and always returns a species present in
     `augustus_species`.
 
-    Unlike `busco_lineage_from_taxonomy` (which uses `exact=True` and a reduced
-    superkingdom/kingdom query), Augustus resolution scores across all taxonomic
-    levels, so the FULL taxonomy is delegated to `choose_best_augustus_species` to
-    keep working inputs byte-identical; the superkingdom/kingdom overlap check is
-    used only to decide whether to trust the matcher or return the default.
+    Unlike `busco_lineage_from_taxonomy(..., higher_level=True)`, Augustus
+    resolution scores across all taxonomic levels, so the FULL taxonomy is
+    delegated to `choose_best_augustus_species` to keep working inputs
+    byte-identical; the superkingdom/kingdom overlap check is used only to decide
+    whether to trust the matcher or return the default.
 
     Parameters:
     - taxonomy (dict or None): a taxonomy dict, or a falsy value when unavailable.
@@ -609,6 +613,15 @@ def best_taxonomy(query, reference, exact=False):
     Returns:
     - str or list: The key of the best matching taxonomy in the reference dictionary, or an empty list if no match is found.
     """
+    if not query or not isinstance(query, dict):
+        if "eukaryota" in reference:
+            return "eukaryota"
+        elif "fungi" in reference:
+            return "fungi"
+        elif reference:
+            return sorted(reference.keys(), key=str.lower)[0]
+        return None
+
     levels = [
         "superkingdom",
         "kingdom",

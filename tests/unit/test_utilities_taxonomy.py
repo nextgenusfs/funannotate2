@@ -329,6 +329,27 @@ class TestChooseBestBuscoSpecies:
         assert result in busco_taxonomy
         # Should find a valid match in the busco taxonomy
 
+    def test_australozyma_monospora(self):
+        """Test with Australozyma monospora (Issue #91)."""
+        taxonomy = {
+            "superkingdom": "Eukaryota",
+            "kingdom": "Fungi",
+            "phylum": "Ascomycota",
+            "class": "Pichiomycetes",
+            "order": "Serinales",
+            "family": "Metschnikowiaceae",
+            "genus": "Australozyma",
+            "species": "Australozyma monospora",
+        }
+
+        result = choose_best_busco_species(taxonomy)
+
+        assert result is not None
+        assert result in busco_taxonomy
+        # Should return 'ascomycota' because Metschnikowiaceae is not in busco_taxonomy,
+        # and Serinales is defined under debaryomycetaceae but the species is not a Debaryomycetaceae.
+        assert result == "ascomycota", f"Expected 'ascomycota' but got '{result}'"
+
     def test_returns_valid_busco_key_always(self):
         """Test that the function always returns a valid busco_taxonomy key when it returns something."""
         test_taxonomies = [
@@ -356,6 +377,16 @@ class TestChooseBestBuscoSpecies:
                 assert result in busco_taxonomy, (
                     f"Result '{result}' should be a valid key in busco_taxonomy"
                 )
+
+    def test_none_taxonomy(self):
+        """Test with None query."""
+        result = choose_best_busco_species(None)
+        assert result == "eukaryota", f"Expected 'eukaryota' but got '{result}'"
+
+    def test_false_taxonomy(self):
+        """Test with False query."""
+        result = choose_best_busco_species(False)
+        assert result == "eukaryota", f"Expected 'eukaryota' but got '{result}'"
 
 
 class TestBuscoLineageFromTaxonomy:
@@ -385,6 +416,24 @@ class TestBuscoLineageFromTaxonomy:
             {"superkingdom": "Eukaryota", "kingdom": "Fungi"}
         )
         assert result == "fungi"
+
+    def test_full_taxonomy_resolves_specific_lineage_by_default(self):
+        # train() and annotate() pass a full taxonomy dict and expect the most
+        # specific BUSCO lineage (e.g. 'ascomycota' for Australozyma monospora,
+        # Issue #91 / #32), whereas predict() passes higher_level=True to coarsen
+        # to kingdom level ('fungi').
+        taxonomy = {
+            "superkingdom": "Eukaryota",
+            "kingdom": "Fungi",
+            "phylum": "Ascomycota",
+            "class": "Pichiomycetes",
+            "order": "Serinales",
+            "family": "Metschnikowiaceae",
+            "genus": "Australozyma",
+            "species": "Australozyma monospora",
+        }
+        assert busco_lineage_from_taxonomy(taxonomy) == "ascomycota"
+        assert busco_lineage_from_taxonomy(taxonomy, higher_level=True) == "fungi"
 
     def test_partial_but_matching_dict_returns_valid_lineage(self):
         # superkingdom-only match resolves to the broad "eukaryota" lineage.

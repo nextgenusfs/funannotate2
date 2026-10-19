@@ -904,7 +904,7 @@ def predict(args):
             "Unable to access JGI taxonomy lookup, reverting to taxonomy from training data"
         )
         taxonomy = params.get("taxonomy")
-    busco_tax = busco_lineage_from_taxonomy(taxonomy, default=None)
+    busco_tax = busco_lineage_from_taxonomy(taxonomy, default=None, higher_level=True)
     if busco_tax is None:
         busco_tax = "fungi"
         logger.warning(

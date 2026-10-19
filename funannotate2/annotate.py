@@ -194,15 +194,16 @@ def annotate(args):
                     args.gff3 = os.path.abspath(gff_files[0])
             if not args.out:
                 args.out = args.input_dir
-            if not args.species:
-                summaryjson = find_files(
-                    os.path.join(args.input_dir, "predict_results"), "summary.json"
-                )
-                if len(summaryjson) == 1:
-                    predict_json = load_json(summaryjson[0])
-                    args.species = predict_json["species"]
-                    taxonomy = predict_json["taxonomy"]
-                    args.strain = predict_json["strain"]
+            summaryjson = find_files(
+                os.path.join(args.input_dir, "predict_results"), "summary.json"
+            )
+            if len(summaryjson) == 1:
+                predict_json = load_json(summaryjson[0])
+                taxonomy = predict_json.get("taxonomy")
+                if not args.species:
+                    args.species = predict_json.get("species")
+                if not args.strain:
+                    args.strain = predict_json.get("strain")
         else:
             sys.stderr.write("ERROR: -i,--input-dir is not a directory\n")
             raise SystemExit(1)
