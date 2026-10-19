@@ -166,3 +166,55 @@ class TestMergeRenameModels:
 
         # Check the result
         assert len(result) == 0
+
+
+class TestCalculateWeights:
+    """Tests for calculate_weights (Issue #99)."""
+
+    @pytest.fixture
+    def sample_scores(self):
+        return {
+            "augustus": {
+                "busco": 0.95,
+                "train": {"average_aed": 0.15, "exon_sensitivity": 0.85},
+            },
+            "glimmerhmm": {
+                "busco": 0.70,
+                "train": {"average_aed": 0.30, "exon_sensitivity": 0.65},
+            },
+            "snap": {
+                "busco": 0.68,
+                "train": {"average_aed": 0.32, "exon_sensitivity": 0.60},
+            },
+            "helixer": {"busco": 0.96},
+            "miniprot-gene": {"busco": 0.80},
+        }
+
+    def test_default_augustus_hiq_weight_is_augustus_plus_two(self, sample_scores):
+        """When augustus-hiq is not user-supplied, it defaults to augustus + 2."""
+        weight_list = funannotate2.predict.calculate_weights(sample_scores, None)
+        weights = dict(item.split(":") for item in weight_list)
+        assert int(weights["augustus"]) == 2
+        assert int(weights["augustus-hiq"]) == 4
+
+    def test_user_supplied_augustus_hiq_weight_is_respected(self, sample_scores):
+        """User-supplied augustus-hiq weight via -w is not overwritten (Issue #99)."""
+        cli_weights = [
+            "augustus-hiq:3",
+            "augustus:2",
+            "helixer:4",
+            "glimmerhmm:1",
+            "miniprot-gene:1",
+            "snap:1",
+        ]
+        weight_list = funannotate2.predict.calculate_weights(sample_scores, cli_weights)
+        weights = {k: int(v) for k, v in (item.split(":") for item in weight_list)}
+        assert weights == {
+            "augustus": 2,
+            "augustus-hiq": 3,
+            "helixer": 4,
+            "glimmerhmm": 1,
+            "miniprot-gene": 1,
+            "snap": 1,
+        }
+
