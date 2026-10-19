@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from funannotate2.utilities import (
     create_tmpdir,
     download,
+    ensure_busco_lineage,
     merge_coordinates,
     naming_slug,
     readBlocks,
@@ -344,3 +345,118 @@ class TestDownload:
         # Check that get was never called
         mock_get.assert_not_called()
         assert dest.read_bytes() == b"0123456789"
+
+
+class TestEnsureBuscoLineage:
+    """Tests for ensure_busco_lineage and BUSCO_DOWNLOAD_PATH handling (Issue #101)."""
+
+    def test_uses_busco_download_path_when_set(self, tmp_path, monkeypatch):
+        """Uses BUSCO_DOWNLOAD_PATH over FUNANNOTATE2_DB when set."""
+        busco_cache = tmp_path / "busco_cache"
+        f2_db = tmp_path / "f2_db"
+        lineage_dir = busco_cache / "fungi_odb12"
+        lineage_dir.mkdir(parents=True)
+
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "BUSCO_DOWNLOAD_PATH",
+            str(busco_cache),
+        )
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "FUNANNOTATE2_DB",
+            str(f2_db),
+        )
+        monkeypatch.setattr("funannotate2.utilities.get_odb_version", lambda _: "odb12")
+
+        logger = MagicMock()
+        result = ensure_busco_lineage("fungi", logger)
+        assert result == str(lineage_dir)
+
+    def test_supports_standard_busco_lineages_subdir(self, tmp_path, monkeypatch):
+        """Finds existing lineage under <BUSCO_DOWNLOAD_PATH>/lineages/<lineage>."""
+        busco_cache = tmp_path / "busco_downloads"
+        lineage_dir = busco_cache / "lineages" / "fungi_odb12"
+        lineage_dir.mkdir(parents=True)
+
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "BUSCO_DOWNLOAD_PATH",
+            str(busco_cache),
+        )
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "FUNANNOTATE2_DB",
+            False,
+        )
+        monkeypatch.setattr("funannotate2.utilities.get_odb_version", lambda _: "odb12")
+
+        logger = MagicMock()
+        result = ensure_busco_lineage("fungi", logger)
+        assert result == str(lineage_dir)
+
+    def test_falls_back_to_funannotate2_db_when_busco_download_path_unset(
+        self, tmp_path, monkeypatch
+    ):
+        """Falls back to FUNANNOTATE2_DB when BUSCO_DOWNLOAD_PATH is not set."""
+        f2_db = tmp_path / "f2_db"
+        lineage_dir = f2_db / "fungi_odb12"
+        lineage_dir.mkdir(parents=True)
+
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "BUSCO_DOWNLOAD_PATH",
+            False,
+        )
+        monkeypatch.delenv("BUSCO_DOWNLOAD_PATH", raising=False)
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "FUNANNOTATE2_DB",
+            str(f2_db),
+        )
+        monkeypatch.setattr("funannotate2.utilities.get_odb_version", lambda _: "odb12")
+
+        logger = MagicMock()
+        result = ensure_busco_lineage("fungi", logger)
+        assert result == str(lineage_dir)
+
+    @patch("funannotate2.utilities.runSubprocess")
+    @patch("funannotate2.utilities.download")
+    def test_downloads_and_creates_busco_download_path_dir_when_missing(
+        self, mock_download, mock_run_subproc, tmp_path, monkeypatch
+    ):
+        """Creates BUSCO_DOWNLOAD_PATH directory and extracts lineage into it when missing."""
+        busco_cache = tmp_path / "new_busco_cache"
+
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "BUSCO_DOWNLOAD_PATH",
+            str(busco_cache),
+        )
+        monkeypatch.setitem(
+            __import__("funannotate2.config", fromlist=["env"]).env,
+            "FUNANNOTATE2_DB",
+            str(tmp_path / "f2_db"),
+        )
+        monkeypatch.setattr("funannotate2.utilities.get_odb_version", lambda _: "odb12")
+        monkeypatch.setattr(
+            "funannotate2.utilities.load_json",
+            lambda _: {"busco": {"fungi": ["https://example.com/fungi_odb12.tar.gz"]}},
+        )
+
+        def fake_download(url, dest, wget=False):
+            with open(dest, "wb") as f:
+                f.write(b"dummy")
+
+        def fake_extract(cmd, logger, cwd=None):
+            os.makedirs(os.path.join(cwd, "fungi_odb12"), exist_ok=True)
+
+        mock_download.side_effect = fake_download
+        mock_run_subproc.side_effect = fake_extract
+
+        logger = MagicMock()
+        result = ensure_busco_lineage("fungi", logger)
+        assert result == str(busco_cache / "fungi_odb12")
+        assert (busco_cache / "fungi_odb12").is_dir()
+        assert not (busco_cache / "fungi_odb12.tar.gz").exists()
+

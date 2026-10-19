@@ -161,9 +161,10 @@ def get_odb_version(downloads_json_file):
 def ensure_busco_lineage(species, logger):
     """
     Ensure the BUSCO lineage `<species>_<odb_version>` is present under
-    FUNANNOTATE2_DB, downloading and extracting it from the URL in
-    downloads.json if missing. The check is a no-op when the directory
-    already exists, so callers can invoke this idempotently.
+    BUSCO_DOWNLOAD_PATH, falling back to FUNANNOTATE2_DB if not, downloading
+    and extracting it from the URL in downloads.json if missing. The check
+    is a no-op when the directory already exists, so callers can invoke this
+    idempotently.
 
     Parameters:
     - species (str): BUSCO lineage species name (e.g. "fungi", "aspergillus").
@@ -178,21 +179,40 @@ def ensure_busco_lineage(species, logger):
     """
     downloads_json = os.path.join(os.path.dirname(__file__), "downloads_v2.json")
     odb_version = get_odb_version(downloads_json)
-    busco_model_path = os.path.join(
-        env["FUNANNOTATE2_DB"], f"{species}_{odb_version}"
+    lineage_name = f"{species}_{odb_version}"
+
+    busco_dir_path = (
+        env.get("BUSCO_DOWNLOAD_PATH")
+        or os.environ.get("BUSCO_DOWNLOAD_PATH")
+        or env.get("FUNANNOTATE2_DB")
+        or os.environ.get("FUNANNOTATE2_DB")
     )
+    if not busco_dir_path:
+        logger.critical(
+            "Neither $BUSCO_DOWNLOAD_PATH nor $FUNANNOTATE2_DB environment variable has been defined."
+        )
+        raise SystemExit(1)
+
+    busco_model_path = os.path.join(busco_dir_path, lineage_name)
     if os.path.isdir(busco_model_path):
         return busco_model_path
+
+    # Also support standard BUSCO download directory layout (<BUSCO_DOWNLOAD_PATH>/lineages/<lineage>)
+    alt_lineages_path = os.path.join(busco_dir_path, "lineages", lineage_name)
+    if os.path.isdir(alt_lineages_path):
+        return alt_lineages_path
+
+    os.makedirs(busco_dir_path, exist_ok=True)
     download_urls = load_json(downloads_json)
     busco_url = download_urls["busco"][species][0]
-    busco_tgz = os.path.join(env["FUNANNOTATE2_DB"], os.path.basename(busco_url))
-    logger.info(f"Downloading {species}_{odb_version} model from {busco_url}")
+    busco_tgz = os.path.join(busco_dir_path, os.path.basename(busco_url))
+    logger.info(f"Downloading {lineage_name} model from {busco_url}")
     download(busco_url, busco_tgz, wget=False)
     if os.path.isfile(busco_tgz):
         runSubprocess(
             ["tar", "-zxf", os.path.basename(busco_tgz)],
             logger,
-            cwd=env["FUNANNOTATE2_DB"],
+            cwd=busco_dir_path,
         )
         if os.path.isdir(busco_model_path):
             os.remove(busco_tgz)

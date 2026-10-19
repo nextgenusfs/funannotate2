@@ -5,6 +5,7 @@ env = {
     "AUGUSTUS_CONFIG": False,
     "AUGUSTUS_BASE": False,
     "FUNANNOTATE2_DB": False,
+    "BUSCO_DOWNLOAD_PATH": False,
 }
 
 if "FUNANNOTATE2_DB" in os.environ:
@@ -21,6 +22,9 @@ if env["AUGUSTUS_CONFIG"]:
         env["AUGUSTUS_BASE"] = os.path.join(
             os.path.dirname(env["AUGUSTUS_CONFIG"]), "scripts"
         )
+
+if "BUSCO_DOWNLOAD_PATH" in os.environ:
+    env["BUSCO_DOWNLOAD_PATH"] = os.environ["BUSCO_DOWNLOAD_PATH"]
 
 
 augustus_species = {
