@@ -746,7 +746,9 @@ def resolve_annotation_key(fa, canonical_key):
     """
     variants = {
         "ec_number": ("ec_number", "EC_number"),
+        "EC_number": ("EC_number", "ec_number"),
         "go_terms": ("go_terms", "go_term"),
+        "go_term": ("go_term", "go_terms"),
     }.get(canonical_key, (canonical_key,))
     present = [key for key in variants if key in fa]
     if not present:

@@ -689,8 +689,21 @@ def parse_annotations(tsv):
                     )
                     continue
 
+                # Normalize common annotation key variants (#96)
+                db_clean = db.strip()
+                db_key_map = {
+                    "ec_number": "EC_number",
+                    "EC_number": "EC_number",
+                    "go_term": "go_terms",
+                    "go_terms": "go_terms",
+                    "dbxref": "db_xref",
+                    "Dbxref": "db_xref",
+                    "DBxref": "db_xref",
+                }
+                db_clean = db_key_map.get(db_clean, db_clean)
+
                 # Successfully parsed line
-                a = add2dict(a, gene.strip(), db.strip(), value.strip())
+                a = add2dict(a, gene.strip(), db_clean, value.strip())
                 parse_errors["parsed_lines"] += 1
 
     except FileNotFoundError:
@@ -728,7 +741,8 @@ def add2dict(adict, gene, key, value):
         adict[gene] = {key: [value]}
     else:
         if key in adict[gene]:
-            adict[gene][key].append(value)
+            if value not in adict[gene][key]:
+                adict[gene][key].append(value)
         else:
             adict[gene][key] = [value]
     return adict

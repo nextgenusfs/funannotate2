@@ -72,3 +72,36 @@ class TestResolveAnnotationKey:
         # key-presence, not truthiness); the annotate() call site then assigns it,
         # preserving the pre-fix behavior for that edge.
         assert resolve_annotation_key({"ec_number": None}, "ec_number") == "ec_number"
+
+    def test_canonical_uppercase_ec_number(self):
+        # gfftk uses "EC_number" as the canonical key on gene dicts; resolve_annotation_key
+        # should accept "EC_number" as canonical_key and resolve either "EC_number" or "ec_number".
+        assert (
+            resolve_annotation_key({"EC_number": ["1.1.1.1"]}, "EC_number")
+            == "EC_number"
+        )
+        assert (
+            resolve_annotation_key({"ec_number": ["1.1.1.1"]}, "EC_number")
+            == "ec_number"
+        )
+
+    def test_parse_annotations_normalizes_key_variants(self, tmp_path):
+        from funannotate2.search import parse_annotations
+
+        annot_file = tmp_path / "addons.annotations.txt"
+        annot_file.write_text(
+            "#gene_id\tannotation_type\tannotation_value\n"
+            "FUN2_000001-T1\tEC_number\t1.1.1.1\n"
+            "FUN2_000001-T1\tec_number\t2.7.11.1\n"
+            "FUN2_000001-T1\tEC_number\t1.1.1.1\n"
+            "FUN2_000001-T1\tgo_term\tGO:0005524\n"
+            "FUN2_000001-T1\tgo_terms\tGO:0004672\n"
+            "FUN2_000001-T1\tDbxref\tInterPro:IPR000719\n"
+        )
+        parsed, errors = parse_annotations(str(annot_file))
+        assert not errors["malformed_lines"]
+        entry = parsed["FUN2_000001-T1"]
+        assert entry["EC_number"] == ["1.1.1.1", "2.7.11.1"]
+        assert entry["go_terms"] == ["GO:0005524", "GO:0004672"]
+        assert entry["db_xref"] == ["InterPro:IPR000719"]
+

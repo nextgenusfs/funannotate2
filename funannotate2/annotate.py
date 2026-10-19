@@ -403,9 +403,16 @@ def annotate(args):
     # load any annotations from cli and merge rest of annotations
     all_annotations = [pfam_dict, dbcan_dict, swiss_dict, merops_dict, busco_dict]
     # we need to look for any additional annotations that might be added by f2a
-    annots_in_dir = find_files(misc_dir, ".annotations.txt")
+    annots_in_dir = find_files(misc_dir, ".annotations.txt") + find_files(
+        misc_dir, ".annotations.tsv"
+    )
     parsing_errors = []
+    seen_annot_files = set()
     for annotfile in annots_in_dir:
+        abs_annot = os.path.abspath(annotfile)
+        if abs_annot in seen_annot_files:
+            continue
+        seen_annot_files.add(abs_annot)
         a, parse_errors = parse_annotations(annotfile)
         logger.info(f"Loaded {len(a)} annotations from {annotfile}")
 
@@ -417,6 +424,10 @@ def annotate(args):
         all_annotations.append(a)
     if args.annotations:
         for annotfile in args.annotations:
+            abs_annot = os.path.abspath(annotfile)
+            if abs_annot in seen_annot_files:
+                continue
+            seen_annot_files.add(abs_annot)
             a, parse_errors = parse_annotations(annotfile)
             logger.info(f"Loaded {len(a)} annotations from {annotfile}")
 
@@ -433,22 +444,18 @@ def annotate(args):
     for annot in all_annotations:
         for g, f in annot.items():
             if g not in merged:
-                merged[g] = f
-                for key, value in f.items():
-                    if key not in sources:
-                        sources[key] = 1
-                    else:
-                        sources[key] += 1
+                merged[g] = {k: list(v) for k, v in f.items()}
+                for key in f:
+                    sources[key] = sources.get(key, 0) + 1
             else:
                 for key, value in f.items():
                     if key not in merged[g]:
-                        merged[g][key] = value
+                        merged[g][key] = list(value)
                     else:
-                        merged[g][key] += value
-                    if key not in sources:
-                        sources[key] = 1
-                    else:
-                        sources[key] += 1
+                        for item in value:
+                            if item not in merged[g][key]:
+                                merged[g][key].append(item)
+                    sources[key] = sources.get(key, 0) + 1
     logger.info(f"Found functional annotation for {len(merged)} gene models")
     logger.info(f"Annotation sources: {sources}")
 
@@ -490,8 +497,22 @@ def annotate(args):
     for k, v in Genes.items():
         n = v.copy()
         for i, x in enumerate(n["ids"]):
-            if x in cleaned_merged:  # then functional annotation to add
-                fa = cleaned_merged.get(x)
+            # Support annotations keyed by transcript/protein ID (x) and/or gene locus_tag (k)
+            fa_sources = []
+            if x in cleaned_merged:
+                fa_sources.append(cleaned_merged[x])
+            if k in cleaned_merged and k != x:
+                fa_sources.append(cleaned_merged[k])
+            if fa_sources:  # then functional annotation to add
+                fa = {}
+                for src in fa_sources:
+                    for fk, fv in src.items():
+                        if fk not in fa:
+                            fa[fk] = list(fv) if isinstance(fv, list) else fv
+                        elif isinstance(fa[fk], list) and isinstance(fv, list):
+                            for item in fv:
+                                if item not in fa[fk]:
+                                    fa[fk].append(item)
                 if "product" in fa:
                     n["product"][i] = fa["product"][0]
                 if "db_xref" in fa:
@@ -503,13 +524,45 @@ def annotate(args):
                 if "note" in fa:
                     n["note"][i] = fa["note"]
                 # accept the case/plural key variants eggNOG (EC_number) and
-                # InterProScan (go_term) emit, which exact-key checks dropped (#96)
-                ec_key = resolve_annotation_key(fa, "ec_number")
+                # InterProScan (go_term) emit, which exact-key checks dropped (#96).
+                # Note: gfftk initializes and reads n["EC_number"][i] (uppercase EC).
+                ec_key = resolve_annotation_key(fa, "EC_number")
                 if ec_key is not None:
-                    n["ec_number"][i] = fa[ec_key]
+                    ec_target = (
+                        "EC_number"
+                        if "EC_number" in n or "ec_number" not in n
+                        else "ec_number"
+                    )
+                    if ec_target not in n:
+                        n[ec_target] = [[] for _ in range(len(n["ids"]))]
+                    if (
+                        "EC_number" in fa
+                        and "ec_number" in fa
+                        and isinstance(fa["EC_number"], list)
+                        and isinstance(fa["ec_number"], list)
+                    ):
+                        combined_ec = list(fa["EC_number"])
+                        for item in fa["ec_number"]:
+                            if item not in combined_ec:
+                                combined_ec.append(item)
+                        n[ec_target][i] = combined_ec
+                    else:
+                        n[ec_target][i] = fa[ec_key]
                 go_key = resolve_annotation_key(fa, "go_terms")
                 if go_key is not None:
-                    n["go_terms"][i] = fa[go_key]
+                    if (
+                        "go_terms" in fa
+                        and "go_term" in fa
+                        and isinstance(fa["go_terms"], list)
+                        and isinstance(fa["go_term"], list)
+                    ):
+                        combined_go = list(fa["go_terms"])
+                        for item in fa["go_term"]:
+                            if item not in combined_go:
+                                combined_go.append(item)
+                        n["go_terms"][i] = combined_go
+                    else:
+                        n["go_terms"][i] = fa[go_key]
         Annotation[k] = n
 
     logger.info("Converting to GenBank format")
