@@ -1022,9 +1022,6 @@ def predict(args):
         and hasattr(args, "bam_library")
         and args.bam_library
     ):
-        refined_consensus = os.path.join(
-            misc_dir, "consensus.predictions.utr_refined.gff3"
-        )
         if not checkfile(refined_consensus):
             logger.info(
                 f"Refining UTRs using RNA-seq data from BAM file (library type: {args.bam_library})"
@@ -1056,9 +1053,6 @@ def predict(args):
                     # Replace consensus with refined version
                     logger.info("UTR refinement completed successfully")
                     # Keep backup of original consensus
-                    consensus_backup = os.path.join(
-                        misc_dir, "consensus.predictions.pre_utr_refinement.gff3"
-                    )
                     if not os.path.isfile(consensus_backup):
                         shutil.copy(Consensus, consensus_backup)
                     # Use refined version

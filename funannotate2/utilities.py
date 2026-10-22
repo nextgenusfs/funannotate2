@@ -950,8 +950,7 @@ def consensus_needs_rebuild(consensus, record, weightings):
     if not checkfile(consensus):
         return True, "no existing consensus predictions found"
     try:
-        with open(record, "r") as infile:
-            previous = {k: int(v) for k, v in json.load(infile).items()}
+        previous = {k: int(v) for k, v in load_json(record).items()}
     except (OSError, ValueError, TypeError, AttributeError):
         return True, "no record of the weights used for existing consensus predictions"
     current = _weightings_to_dict(weightings)
