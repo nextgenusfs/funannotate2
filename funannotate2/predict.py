@@ -36,14 +36,17 @@ from .log import finishLogging, startLogging, system_info
 from .utilities import (
     busco_lineage_from_taxonomy,
     checkfile,
+    consensus_needs_rebuild,
     create_directories,
     create_tmpdir,
     ensure_busco_lineage,
     find_files,
     lookup_taxonomy,
     naming_slug,
+    remove_files,
     runProcessJob,
     which_path,
+    write_consensus_weights,
 )
 
 
@@ -974,8 +977,16 @@ def predict(args):
     consensus_tmp = os.path.join(tmp_dir, "evm")
     if not os.path.isdir(consensus_tmp):
         os.makedirs(consensus_tmp)
-    # now run consensus
-    if not checkfile(Consensus):
+    # now run consensus, re-using existing predictions only if built with the same weights
+    consensus_weights = os.path.join(misc_dir, "consensus.predictions.weights.json")
+    refined_consensus = os.path.join(misc_dir, "consensus.predictions.utr_refined.gff3")
+    consensus_backup = os.path.join(misc_dir, "consensus.predictions.pre_utr_refinement.gff3")
+    rebuild_consensus, reason = consensus_needs_rebuild(Consensus, consensus_weights, weightings)
+    if rebuild_consensus:
+        if checkfile(Consensus):
+            logger.info(f"Re-generating consensus predictions: {reason}")
+        # remove stale consensus and anything derived from it
+        remove_files([Consensus, refined_consensus, consensus_backup, consensus_weights])
         p_aligns = []
         if checkfile(ProtAlign):
             p_aligns.append(ProtAlign)
@@ -998,8 +1009,11 @@ def predict(args):
             evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
             num_processes=args.cpus,
         )
+        write_consensus_weights(consensus_weights, weightings)
     else:
-        logger.info("Existing consensus predictions found, will re-use and continue")
+        logger.info(
+            "Existing consensus predictions found with the same weights, will re-use and continue"
+        )
 
     # Refine UTRs using RNA-seq data if BAM file is provided
     if (
@@ -1008,9 +1022,6 @@ def predict(args):
         and hasattr(args, "bam_library")
         and args.bam_library
     ):
-        refined_consensus = os.path.join(
-            misc_dir, "consensus.predictions.utr_refined.gff3"
-        )
         if not checkfile(refined_consensus):
             logger.info(
                 f"Refining UTRs using RNA-seq data from BAM file (library type: {args.bam_library})"
@@ -1042,9 +1053,6 @@ def predict(args):
                     # Replace consensus with refined version
                     logger.info("UTR refinement completed successfully")
                     # Keep backup of original consensus
-                    consensus_backup = os.path.join(
-                        misc_dir, "consensus.predictions.pre_utr_refinement.gff3"
-                    )
                     if not os.path.isfile(consensus_backup):
                         shutil.copy(Consensus, consensus_backup)
                     # Use refined version
