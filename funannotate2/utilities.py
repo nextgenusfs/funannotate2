@@ -920,6 +920,82 @@ def checkfile(infile):
         return False
 
 
+def _weightings_to_dict(weightings):
+    """
+    Convert a list of "tool:weight" strings into a {tool: int(weight)} dictionary.
+    """
+    weights = {}
+    for x in weightings:
+        tool, weight = x.rsplit(":", 1)
+        weights[tool] = int(weight)
+    return weights
+
+
+def consensus_needs_rebuild(consensus, record, weightings):
+    """
+    Decide whether existing consensus predictions can be re-used for these weights.
+
+    The weights used to build the consensus are stored in a JSON record next to it
+    (see write_consensus_weights). A consensus without a readable record is treated
+    as stale, since the weights it was built with are unknown.
+
+    Parameters:
+    - consensus (str): Path to the consensus predictions GFF3 file.
+    - record (str): Path to the JSON record of the weights used to build it.
+    - weightings (list): Current weights as "tool:weight" strings.
+
+    Returns:
+    - tuple: (bool, str) whether to rebuild, and the reason for logging.
+    """
+    if not checkfile(consensus):
+        return True, "no existing consensus predictions found"
+    try:
+        with open(record, "r") as infile:
+            previous = {k: int(v) for k, v in json.load(infile).items()}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return True, "no record of the weights used for existing consensus predictions"
+    current = _weightings_to_dict(weightings)
+    if previous == current:
+        return False, "weights unchanged"
+    changes = []
+    for tool in sorted(set(previous) | set(current)):
+        old = previous.get(tool, "none")
+        new = current.get(tool, "none")
+        if old != new:
+            changes.append(f"{tool}: {old} -> {new}")
+    return True, f"weights changed ({', '.join(changes)})"
+
+
+def write_consensus_weights(record, weightings):
+    """
+    Write the weights used to build consensus predictions to a JSON record.
+
+    Parameters:
+    - record (str): Path to the JSON record to write.
+    - weightings (list): Weights as "tool:weight" strings.
+    """
+    with open(record, "w") as outfile:
+        json.dump(_weightings_to_dict(weightings), outfile, indent=2, sort_keys=True)
+
+
+def remove_files(paths):
+    """
+    Remove the files that exist from a list of paths.
+
+    Parameters:
+    - paths (list): File paths to remove; missing files are skipped.
+
+    Returns:
+    - list: The paths that were removed.
+    """
+    removed = []
+    for f in paths:
+        if os.path.isfile(f) or os.path.islink(f):
+            os.remove(f)
+            removed.append(f)
+    return removed
+
+
 @contextmanager
 def process_handle(handle, mode="w"):
     """
