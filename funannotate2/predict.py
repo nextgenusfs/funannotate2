@@ -36,14 +36,20 @@ from .log import finishLogging, startLogging, system_info
 from .utilities import (
     busco_lineage_from_taxonomy,
     checkfile,
+    consensus_needs_rebuild,
     create_directories,
     create_tmpdir,
     ensure_busco_lineage,
+    file_sha256,
     find_files,
     lookup_taxonomy,
     naming_slug,
+    remove_files,
     runProcessJob,
+    utr_refinement_needs_rebuild,
     which_path,
+    write_consensus_weights,
+    write_utr_refinement_record,
 )
 
 
@@ -267,11 +273,17 @@ def predict(args):
     TranAlign = os.path.join(misc_dir, "transcript-alignments.gff3")
     TranGenes = os.path.join(misc_dir, "predictions.gapmm2-gene.gff3")
     Transcripts = os.path.join(misc_dir, "transcripts.to.align.fasta")
-    if args.transcripts and not checkfile(Transcripts):
+    if args.transcripts:
+        prev_tran_sha = file_sha256(Transcripts) if checkfile(Transcripts) else None
         n_transcripts, tot_transcripts = mergefasta(args.transcripts, Transcripts)
         logger.info(
             f"Parsed {n_transcripts} [out of {tot_transcripts}] transcripts to align for evidence, derived from:\n{'/n'.join(args.transcripts)}"
         )
+        if prev_tran_sha is not None and prev_tran_sha != file_sha256(Transcripts):
+            logger.info(
+                "Transcript evidence changed, removing stale transcript alignments"
+            )
+            remove_files([TranAlign, TranGenes])
     if checkfile(Transcripts) and not checkfile(TranAlign):
         align_transcripts(
             GenomeFasta,
@@ -302,10 +314,14 @@ def predict(args):
     if checkfile(uniprot_db) and uniprot_db not in args.proteins:
         args.proteins.append(uniprot_db)
     # merge and dereplicate
+    prev_prot_sha = file_sha256(Proteins) if checkfile(Proteins) else None
     n_prots, tot_prots = mergefasta(args.proteins, Proteins)
     logger.info(
         f"Parsed {n_prots} [out of {tot_prots}] proteins to align for evidence, derived from:\n{'/n'.join(args.proteins)}"
     )
+    if prev_prot_sha is not None and prev_prot_sha != file_sha256(Proteins):
+        logger.info("Protein evidence changed, removing stale protein alignments")
+        remove_files([ProtAlign, ProtGenes])
     if checkfile(Proteins) and not checkfile(ProtAlign):
         align_proteins(
             GenomeFasta,
@@ -883,10 +899,21 @@ def predict(args):
                 logger.info(f"Memory monitoring data written to: {memory_log_file}")
 
     else:
-        abinitio_preds = []
-        for f in os.listdir(misc_dir):
-            if f.startswith("predictions") and f.endswith(".gff3"):
-                abinitio_preds.append(os.path.join(misc_dir, f))
+        abinitio_preds = list(external_abinitio)
+        if checkfile(ProtGenes):
+            abinitio_preds.append(ProtGenes)
+        if checkfile(TranGenes):
+            abinitio_preds.append(TranGenes)
+        for ab in list(params["abinitio"].keys()):
+            if ab == "augustus":
+                for suffix in ("", "-hiq"):
+                    cand = os.path.join(misc_dir, f"predictions.{ab}{suffix}.gff3")
+                    if checkfile(cand):
+                        abinitio_preds.append(cand)
+            else:
+                cand = os.path.join(misc_dir, f"predictions.{ab}.gff3")
+                if checkfile(cand):
+                    abinitio_preds.append(cand)
         logger.info(
             "Existing ab initio predictions found, re-using these files\n - {}".format(
                 "\n - ".join(abinitio_preds)
@@ -914,51 +941,87 @@ def predict(args):
         )
     busco_model_path = ensure_busco_lineage(busco_tax, logger)
 
-    # now we can loop through the abinitio predictions and run busco for completion
-    # write this to file for re-use if consensus file already present?
+    # Group active prediction files by tool name (augustus and augustus-hiq share the 'augustus' score)
+    tool_to_files = {}
+    for ap in abinitio_preds:
+        ab_initio_tool = os.path.basename(ap).split(".")[1]
+        if ab_initio_tool == "augustus-hiq":
+            ab_initio_tool = "augustus"
+        tool_to_files.setdefault(ab_initio_tool, []).append(ap)
+
     abinitio_scores_file = os.path.join(misc_dir, "abinitio_algorithm_scoring.json")
+    cached_scores = {}
     if checkfile(abinitio_scores_file):
+        try:
+            with open(abinitio_scores_file, "r") as infile:
+                loaded = json.load(infile)
+                if isinstance(loaded, dict):
+                    cached_scores = loaded
+        except (OSError, ValueError, TypeError):
+            cached_scores = {}
+
+    tools_to_score = []
+    for tool_name, tool_files in tool_to_files.items():
+        current_fp = {os.path.basename(f): file_sha256(f) for f in tool_files}
+        entry = cached_scores.get(tool_name)
+        if not isinstance(entry, dict) or "busco" not in entry:
+            tools_to_score.append(tool_name)
+        elif "files" in entry and entry["files"] != current_fp:
+            tools_to_score.append(tool_name)
+        elif "files" not in entry:
+            # Legacy scoring file without file fingerprints: verify .prots.fa is not older than the GFF3
+            for f in tool_files:
+                prots_fa = os.path.join(misc_dir, os.path.basename(f) + ".prots.fa")
+                if not checkfile(prots_fa) or os.path.getmtime(prots_fa) < os.path.getmtime(f):
+                    tools_to_score.append(tool_name)
+                    break
+
+    if not tools_to_score and cached_scores:
         logger.info("Existing abinitio scoring file present, will re-use and continue")
-        with open(abinitio_scores_file, "r") as infile:
-            abinitio_scores = json.load(infile)
     else:
-        abinitio_scores = {}
         logger.info(
-            f"Measuring assembly completeness with buscolite [lineage={os.path.basename(busco_model_path)}] for all ab initio predictions"
+            f"Measuring assembly completeness with buscolite [lineage={os.path.basename(busco_model_path)}] for ab initio predictions"
         )
-        for ap in abinitio_preds:
-            ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
-            gene_models = gff2dict(ap, GenomeFasta)
-            _dict2proteins(gene_models, output=ProtPreds)
-            if checkfile(ProtPreds):
-                d, m, stats, cfg = runbusco(
-                    ProtPreds,
-                    busco_model_path,
-                    mode="proteins",
-                    cpus=args.cpus,
-                    logger=logger,
-                    verbosity=0,
-                )
-                cov = (stats["single-copy"] + stats["duplicated"]) / float(
-                    stats["total"]
-                )
-            else:
-                cov = 0.00
-            # measure completeness for each tool
-            ab_initio_tool = os.path.basename(ap).split(".")[1]
-            if ab_initio_tool == "augustus-hiq":  # add these just augustus
-                ab_initio_tool = "augustus"
-            if ab_initio_tool not in abinitio_scores:
-                abinitio_scores[ab_initio_tool] = {"busco": cov}
-            else:
-                abinitio_scores[ab_initio_tool]["busco"] += cov
-        # add the params based scoring to the dictionary to calculate weights
-        for k, v in params["abinitio"].items():
-            if k in abinitio_scores:
-                abinitio_scores[k]["train"] = v["train_results"]
-        # write it to file
+        for tool_name in tools_to_score:
+            tool_cov = 0.0
+            tool_files = tool_to_files[tool_name]
+            for ap in tool_files:
+                ProtPreds = os.path.join(misc_dir, os.path.basename(ap) + ".prots.fa")
+                gene_models = gff2dict(ap, GenomeFasta)
+                _dict2proteins(gene_models, output=ProtPreds)
+                if checkfile(ProtPreds):
+                    d, m, stats, cfg = runbusco(
+                        ProtPreds,
+                        busco_model_path,
+                        mode="proteins",
+                        cpus=args.cpus,
+                        logger=logger,
+                        verbosity=0,
+                    )
+                    cov = (stats["single-copy"] + stats["duplicated"]) / float(
+                        stats["total"]
+                    )
+                else:
+                    cov = 0.00
+                tool_cov += cov
+            cached_scores[tool_name] = {
+                "busco": tool_cov,
+                "files": {os.path.basename(f): file_sha256(f) for f in tool_files},
+            }
+
+    abinitio_scores = {}
+    for tool_name, tool_files in tool_to_files.items():
+        entry = dict(cached_scores[tool_name])
+        if tool_name in params["abinitio"]:
+            entry["train"] = params["abinitio"][tool_name]["train_results"]
+        elif "train" in entry:
+            del entry["train"]
+        cached_scores[tool_name] = entry
+        abinitio_scores[tool_name] = {k: v for k, v in entry.items() if k != "files"}
+
+    if tools_to_score or not checkfile(abinitio_scores_file):
         with open(abinitio_scores_file, "w") as outfile:
-            json.dump(abinitio_scores, outfile, indent=2)
+            json.dump(cached_scores, outfile, indent=2)
 
     logger.info(
         "ab initio models scoring by algorithm:\n{}".format(
@@ -974,14 +1037,31 @@ def predict(args):
     consensus_tmp = os.path.join(tmp_dir, "evm")
     if not os.path.isdir(consensus_tmp):
         os.makedirs(consensus_tmp)
-    # now run consensus
-    if not checkfile(Consensus):
-        p_aligns = []
-        if checkfile(ProtAlign):
-            p_aligns.append(ProtAlign)
-        t_aligns = []
-        if checkfile(TranAlign):
-            t_aligns.append(TranAlign)
+    # now run consensus, re-using existing predictions only if built with the same inputs
+    p_aligns = []
+    if checkfile(ProtAlign):
+        p_aligns.append(ProtAlign)
+    t_aligns = []
+    if checkfile(TranAlign):
+        t_aligns.append(TranAlign)
+    consensus_weights = os.path.join(misc_dir, "consensus.predictions.weights.json")
+    refined_consensus = os.path.join(misc_dir, "consensus.predictions.utr_refined.gff3")
+    utr_record = os.path.join(misc_dir, "consensus.predictions.utr_refined.json")
+    consensus_backup = os.path.join(misc_dir, "consensus.predictions.pre_utr_refinement.gff3")
+    rebuild_consensus, reason = consensus_needs_rebuild(
+        Consensus,
+        consensus_weights,
+        weightings,
+        max_intron=args.max_intron,
+        abinitio_preds=abinitio_preds,
+        protein_alignments=p_aligns,
+        transcript_alignments=t_aligns,
+    )
+    if rebuild_consensus:
+        if checkfile(Consensus):
+            logger.info(f"Re-generating consensus predictions: {reason}")
+        # remove stale consensus and anything derived from it
+        remove_files([Consensus, refined_consensus, utr_record, consensus_backup, consensus_weights])
         # run gfftk consensus
         _ = generate_consensus(
             GenomeFasta,
@@ -998,8 +1078,18 @@ def predict(args):
             evidence_derived_models=["miniprot-gene", "gapmm2-gene"],
             num_processes=args.cpus,
         )
+        write_consensus_weights(
+            consensus_weights,
+            weightings,
+            max_intron=args.max_intron,
+            abinitio_preds=abinitio_preds,
+            protein_alignments=p_aligns,
+            transcript_alignments=t_aligns,
+        )
     else:
-        logger.info("Existing consensus predictions found, will re-use and continue")
+        logger.info(
+            "Existing consensus predictions found with matching inputs, will re-use and continue"
+        )
 
     # Refine UTRs using RNA-seq data if BAM file is provided
     if (
@@ -1008,10 +1098,13 @@ def predict(args):
         and hasattr(args, "bam_library")
         and args.bam_library
     ):
-        refined_consensus = os.path.join(
-            misc_dir, "consensus.predictions.utr_refined.gff3"
+        rebuild_utr, utr_reason = utr_refinement_needs_rebuild(
+            refined_consensus, utr_record, Consensus, args.bam, args.bam_library
         )
-        if not checkfile(refined_consensus):
+        if rebuild_utr:
+            if checkfile(refined_consensus):
+                logger.info(f"Re-running UTR refinement: {utr_reason}")
+            remove_files([refined_consensus, utr_record])
             logger.info(
                 f"Refining UTRs using RNA-seq data from BAM file (library type: {args.bam_library})"
             )
@@ -1042,11 +1135,11 @@ def predict(args):
                     # Replace consensus with refined version
                     logger.info("UTR refinement completed successfully")
                     # Keep backup of original consensus
-                    consensus_backup = os.path.join(
-                        misc_dir, "consensus.predictions.pre_utr_refinement.gff3"
-                    )
                     if not os.path.isfile(consensus_backup):
                         shutil.copy(Consensus, consensus_backup)
+                    write_utr_refinement_record(
+                        utr_record, Consensus, args.bam, args.bam_library
+                    )
                     # Use refined version
                     Consensus = refined_consensus
                 else:
@@ -1061,7 +1154,7 @@ def predict(args):
                 logger.warning("Continuing with original consensus predictions")
         else:
             logger.info(
-                "Existing UTR-refined consensus found, will re-use and continue"
+                "Existing UTR-refined consensus found with matching BAM inputs, will re-use and continue"
             )
             Consensus = refined_consensus
 
