@@ -7,7 +7,9 @@ import json
 from funannotate2.utilities import (
     consensus_needs_rebuild,
     remove_files,
+    utr_refinement_needs_rebuild,
     write_consensus_weights,
+    write_utr_refinement_record,
 )
 
 WEIGHTS = ["augustus-hiq:4", "augustus:2", "helixer:2", "glimmerhmm:1", "snap:1"]
@@ -96,6 +98,85 @@ class TestConsensusNeedsRebuild:
         rebuild, _ = consensus_needs_rebuild(consensus, record, WEIGHTS)
         assert rebuild
 
+    def test_changed_max_intron(self, tmp_path):
+        """A change in max_intron triggers a rebuild."""
+        consensus = make_consensus(tmp_path)
+        record = str(tmp_path / "consensus.predictions.weights.json")
+        write_consensus_weights(record, WEIGHTS, max_intron=3000)
+        rebuild, _ = consensus_needs_rebuild(consensus, record, WEIGHTS, max_intron=3000)
+        assert not rebuild
+        rebuild, reason = consensus_needs_rebuild(consensus, record, WEIGHTS, max_intron=5000)
+        assert rebuild
+        assert "max_intron changed (3000 -> 5000)" in reason
+
+    def test_abinitio_preds_added_removed_modified(self, tmp_path):
+        """Adding, removing, or modifying a prediction GFF3 triggers a rebuild."""
+        consensus = make_consensus(tmp_path)
+        record = str(tmp_path / "consensus.predictions.weights.json")
+        pred_a = tmp_path / "predictions.augustus.gff3"
+        pred_b = tmp_path / "predictions.snap.gff3"
+        pred_a.write_text("##gff-version 3\nchr1\taugustus\tgene\t1\t100\t.\t+\t.\tID=g1\n")
+        pred_b.write_text("##gff-version 3\nchr1\tsnap\tgene\t1\t100\t.\t+\t.\tID=g2\n")
+
+        write_consensus_weights(record, WEIGHTS, abinitio_preds=[str(pred_a), str(pred_b)])
+        rebuild, _ = consensus_needs_rebuild(
+            consensus, record, WEIGHTS, abinitio_preds=[str(pred_a), str(pred_b)]
+        )
+        assert not rebuild
+
+        # Modify pred_a content (e.g. external prediction re-run with updated GFF3)
+        pred_a.write_text("##gff-version 3\nchr1\taugustus\tgene\t1\t200\t.\t+\t.\tID=g1\n")
+        rebuild, reason = consensus_needs_rebuild(
+            consensus, record, WEIGHTS, abinitio_preds=[str(pred_a), str(pred_b)]
+        )
+        assert rebuild
+        assert "modified predictions.augustus.gff3" in reason
+
+        # Remove pred_b and add pred_c
+        pred_c = tmp_path / "predictions.helixer.gff3"
+        pred_c.write_text("##gff-version 3\n")
+        rebuild, reason = consensus_needs_rebuild(
+            consensus, record, WEIGHTS, abinitio_preds=[str(pred_a), str(pred_c)]
+        )
+        assert rebuild
+        assert "removed predictions.snap.gff3" in reason
+        assert "added predictions.helixer.gff3" in reason
+
+    def test_protein_and_transcript_alignments_changed(self, tmp_path):
+        """Changes to protein or transcript alignment files trigger a rebuild."""
+        consensus = make_consensus(tmp_path)
+        record = str(tmp_path / "consensus.predictions.weights.json")
+        prot = tmp_path / "protein-alignments.gff3"
+        tran = tmp_path / "transcript-alignments.gff3"
+        prot.write_text("##gff-version 3\nchr1\tminiprot\tmRNA\t1\t100\t.\t+\t.\tID=mp1\n")
+        tran.write_text("##gff-version 3\nchr1\tgapmm2\tcDNA_match\t1\t100\t.\t+\t.\tID=tr1\n")
+
+        write_consensus_weights(
+            record,
+            WEIGHTS,
+            protein_alignments=[str(prot)],
+            transcript_alignments=[str(tran)],
+        )
+        rebuild, _ = consensus_needs_rebuild(
+            consensus,
+            record,
+            WEIGHTS,
+            protein_alignments=[str(prot)],
+            transcript_alignments=[str(tran)],
+        )
+        assert not rebuild
+
+        tran.write_text("##gff-version 3\nchr1\tgapmm2\tcDNA_match\t1\t250\t.\t+\t.\tID=tr1\n")
+        rebuild, reason = consensus_needs_rebuild(
+            consensus,
+            record,
+            WEIGHTS,
+            protein_alignments=[str(prot)],
+            transcript_alignments=[str(tran)],
+        )
+        assert rebuild
+        assert "transcript alignments changed (modified transcript-alignments.gff3)" in reason
+
 
 class TestWriteConsensusWeights:
     """Tests for write_consensus_weights."""
@@ -105,6 +186,68 @@ class TestWriteConsensusWeights:
         record = tmp_path / "consensus.predictions.weights.json"
         write_consensus_weights(str(record), ["augustus:2", "snap:1"])
         assert json.loads(record.read_text()) == {"augustus": 2, "snap": 1}
+
+    def test_record_contents_with_extended_inputs(self, tmp_path):
+        """When additional consensus inputs are provided, a structured manifest is written."""
+        record = tmp_path / "consensus.predictions.weights.json"
+        pred = tmp_path / "predictions.snap.gff3"
+        pred.write_text("##gff-version 3\n")
+        write_consensus_weights(
+            str(record),
+            ["augustus:2", "snap:1"],
+            max_intron=3000,
+            abinitio_preds=[str(pred)],
+            protein_alignments=[],
+            transcript_alignments=[],
+        )
+        data = json.loads(record.read_text())
+        assert data["weights"] == {"augustus": 2, "snap": 1}
+        assert data["max_intron"] == 3000
+        assert "predictions.snap.gff3" in data["abinitio_preds"]
+        assert data["protein_alignments"] == {}
+        assert data["transcript_alignments"] == {}
+
+
+class TestUtrRefinementNeedsRebuild:
+    """Tests for utr_refinement_needs_rebuild and write_utr_refinement_record."""
+
+    def test_utr_refinement_lifecycle(self, tmp_path):
+        """UTR refinement is re-used when consensus, BAM file, and library match, and rebuilt otherwise."""
+        consensus = make_consensus(tmp_path)
+        refined = tmp_path / "consensus.predictions.utr_refined.gff3"
+        record = str(tmp_path / "consensus.predictions.utr_refined.json")
+        bam = tmp_path / "rnaseq.bam"
+        bam.write_bytes(b"BAM\x01mockcontent")
+
+        # Missing refined file -> needs rebuild
+        rebuild, reason = utr_refinement_needs_rebuild(
+            str(refined), record, consensus, str(bam), "RF"
+        )
+        assert rebuild
+        assert "no existing UTR-refined consensus" in reason
+
+        # Write refined file and record -> re-used
+        refined.write_text("##gff-version 3\n")
+        write_utr_refinement_record(record, consensus, str(bam), "RF")
+        rebuild, _ = utr_refinement_needs_rebuild(
+            str(refined), record, consensus, str(bam), "RF"
+        )
+        assert not rebuild
+
+        # Changing bam_library triggers rebuild
+        rebuild, reason = utr_refinement_needs_rebuild(
+            str(refined), record, consensus, str(bam), "FR"
+        )
+        assert rebuild
+        assert "bam_library changed (RF -> FR)" in reason
+
+        # Changing base consensus triggers rebuild
+        consensus = make_consensus(tmp_path, content="##gff-version 3\n# updated\n")
+        rebuild, reason = utr_refinement_needs_rebuild(
+            str(refined), record, consensus, str(bam), "RF"
+        )
+        assert rebuild
+        assert "base consensus predictions changed" in reason
 
 
 class TestRemoveFiles:

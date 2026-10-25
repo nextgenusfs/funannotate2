@@ -1,3 +1,4 @@
+import hashlib
 import json
 import multiprocessing
 import os
@@ -920,6 +921,45 @@ def checkfile(infile):
         return False
 
 
+def file_sha256(path):
+    """
+    Compute the SHA-256 hex digest of a file, or return None if the file does not exist.
+    """
+    if not path or not os.path.isfile(path):
+        return None
+    h = hashlib.sha256()
+    with open(path, "rb") as infile:
+        for chunk in iter(lambda: infile.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _files_to_fingerprints(paths):
+    """
+    Convert a list of file paths into a {basename: sha256} dictionary for existing files.
+    """
+    fingerprints = {}
+    for p in paths or []:
+        if p and os.path.isfile(p):
+            fingerprints[os.path.basename(p)] = file_sha256(p)
+    return fingerprints
+
+
+def _diff_fingerprints(previous, current):
+    """
+    Describe added, removed, or modified files between two {basename: sha256} dictionaries.
+    """
+    changes = []
+    for name in sorted(set(previous) | set(current)):
+        if name not in previous:
+            changes.append(f"added {name}")
+        elif name not in current:
+            changes.append(f"removed {name}")
+        elif previous[name] != current[name]:
+            changes.append(f"modified {name}")
+    return changes
+
+
 def _weightings_to_dict(weightings):
     """
     Convert a list of "tool:weight" strings into a {tool: int(weight)} dictionary.
@@ -931,18 +971,31 @@ def _weightings_to_dict(weightings):
     return weights
 
 
-def consensus_needs_rebuild(consensus, record, weightings):
+def consensus_needs_rebuild(
+    consensus,
+    record,
+    weightings,
+    max_intron=None,
+    abinitio_preds=None,
+    protein_alignments=None,
+    transcript_alignments=None,
+):
     """
-    Decide whether existing consensus predictions can be re-used for these weights.
+    Decide whether existing consensus predictions can be re-used for the given inputs.
 
-    The weights used to build the consensus are stored in a JSON record next to it
+    The inputs used to build the consensus (weights, max_intron, prediction GFF3 files,
+    and evidence alignment GFF3 files) are stored in a JSON record next to it
     (see write_consensus_weights). A consensus without a readable record is treated
-    as stale, since the weights it was built with are unknown.
+    as stale, since the parameters it was built with are unknown.
 
     Parameters:
     - consensus (str): Path to the consensus predictions GFF3 file.
-    - record (str): Path to the JSON record of the weights used to build it.
+    - record (str): Path to the JSON record of the inputs used to build it.
     - weightings (list): Current weights as "tool:weight" strings.
+    - max_intron (int, optional): Current maximum intron length.
+    - abinitio_preds (list, optional): Current list of prediction GFF3 file paths.
+    - protein_alignments (list, optional): Current list of protein alignment GFF3 file paths.
+    - transcript_alignments (list, optional): Current list of transcript alignment GFF3 file paths.
 
     Returns:
     - tuple: (bool, str) whether to rebuild, and the reason for logging.
@@ -950,31 +1003,147 @@ def consensus_needs_rebuild(consensus, record, weightings):
     if not checkfile(consensus):
         return True, "no existing consensus predictions found"
     try:
-        previous = {k: int(v) for k, v in load_json(record).items()}
+        raw = load_json(record)
+        if not isinstance(raw, dict):
+            raise TypeError("record must be a JSON object")
+        raw_weights = raw["weights"] if isinstance(raw.get("weights"), dict) else raw
+        previous_weights = {k: int(v) for k, v in raw_weights.items()}
     except (OSError, ValueError, TypeError, AttributeError):
         return True, "no record of the weights used for existing consensus predictions"
-    current = _weightings_to_dict(weightings)
-    if previous == current:
-        return False, "weights unchanged"
-    changes = []
-    for tool in sorted(set(previous) | set(current)):
-        old = previous.get(tool, "none")
-        new = current.get(tool, "none")
-        if old != new:
-            changes.append(f"{tool}: {old} -> {new}")
-    return True, f"weights changed ({', '.join(changes)})"
+
+    reasons = []
+    current_weights = _weightings_to_dict(weightings)
+    if previous_weights != current_weights:
+        changes = []
+        for tool in sorted(set(previous_weights) | set(current_weights)):
+            old = previous_weights.get(tool, "none")
+            new = current_weights.get(tool, "none")
+            if old != new:
+                changes.append(f"{tool}: {old} -> {new}")
+        reasons.append(f"weights changed ({', '.join(changes)})")
+
+    if max_intron is not None:
+        prev_intron = raw.get("max_intron") if isinstance(raw.get("weights"), dict) else None
+        try:
+            prev_intron_val = int(prev_intron) if prev_intron is not None else None
+        except (ValueError, TypeError):
+            prev_intron_val = None
+        if prev_intron_val != int(max_intron):
+            old_label = prev_intron_val if prev_intron_val is not None else "unknown"
+            reasons.append(f"max_intron changed ({old_label} -> {int(max_intron)})")
+
+    if abinitio_preds is not None:
+        prev_preds = raw.get("abinitio_preds") if isinstance(raw.get("weights"), dict) else None
+        curr_preds = _files_to_fingerprints(abinitio_preds)
+        if not isinstance(prev_preds, dict):
+            reasons.append("prediction inputs not recorded")
+        elif prev_preds != curr_preds:
+            diffs = _diff_fingerprints(prev_preds, curr_preds)
+            reasons.append(f"prediction inputs changed ({', '.join(diffs)})")
+
+    if protein_alignments is not None:
+        prev_prots = raw.get("protein_alignments") if isinstance(raw.get("weights"), dict) else None
+        curr_prots = _files_to_fingerprints(protein_alignments)
+        if not isinstance(prev_prots, dict):
+            reasons.append("protein alignment inputs not recorded")
+        elif prev_prots != curr_prots:
+            diffs = _diff_fingerprints(prev_prots, curr_prots)
+            reasons.append(f"protein alignments changed ({', '.join(diffs)})")
+
+    if transcript_alignments is not None:
+        prev_trans = raw.get("transcript_alignments") if isinstance(raw.get("weights"), dict) else None
+        curr_trans = _files_to_fingerprints(transcript_alignments)
+        if not isinstance(prev_trans, dict):
+            reasons.append("transcript alignment inputs not recorded")
+        elif prev_trans != curr_trans:
+            diffs = _diff_fingerprints(prev_trans, curr_trans)
+            reasons.append(f"transcript alignments changed ({', '.join(diffs)})")
+
+    if reasons:
+        return True, "; ".join(reasons)
+    return False, "weights unchanged"
 
 
-def write_consensus_weights(record, weightings):
+def write_consensus_weights(
+    record,
+    weightings,
+    max_intron=None,
+    abinitio_preds=None,
+    protein_alignments=None,
+    transcript_alignments=None,
+):
     """
-    Write the weights used to build consensus predictions to a JSON record.
+    Write the weights and consensus inputs used to build consensus predictions to a JSON record.
 
-    Parameters:
-    - record (str): Path to the JSON record to write.
-    - weightings (list): Weights as "tool:weight" strings.
+    When called with only (record, weightings), writes a flat {tool: weight} mapping
+    for backward compatibility. When additional consensus inputs are supplied, writes
+    a structured manifest containing weights, max_intron, and input file fingerprints.
     """
+    weights_dict = _weightings_to_dict(weightings)
+    if (
+        max_intron is None
+        and abinitio_preds is None
+        and protein_alignments is None
+        and transcript_alignments is None
+    ):
+        payload = weights_dict
+    else:
+        payload = {"weights": weights_dict}
+        if max_intron is not None:
+            payload["max_intron"] = int(max_intron)
+        if abinitio_preds is not None:
+            payload["abinitio_preds"] = _files_to_fingerprints(abinitio_preds)
+        if protein_alignments is not None:
+            payload["protein_alignments"] = _files_to_fingerprints(protein_alignments)
+        if transcript_alignments is not None:
+            payload["transcript_alignments"] = _files_to_fingerprints(transcript_alignments)
     with open(record, "w") as outfile:
-        json.dump(_weightings_to_dict(weightings), outfile, indent=2, sort_keys=True)
+        json.dump(payload, outfile, indent=2, sort_keys=True)
+
+
+def utr_refinement_needs_rebuild(refined_consensus, record, consensus, bam_file, bam_library):
+    """
+    Decide whether an existing UTR-refined consensus GFF3 can be re-used for the given BAM inputs.
+    """
+    if not checkfile(refined_consensus):
+        return True, "no existing UTR-refined consensus found"
+    try:
+        raw = load_json(record)
+        if not isinstance(raw, dict):
+            raise TypeError("record must be a JSON object")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return True, "no record of the inputs used for existing UTR refinement"
+
+    reasons = []
+    curr_consensus_sha = file_sha256(consensus)
+    if raw.get("consensus_sha256") != curr_consensus_sha:
+        reasons.append("base consensus predictions changed")
+
+    abs_bam = os.path.abspath(bam_file) if bam_file else None
+    bam_size = os.stat(bam_file).st_size if bam_file and os.path.isfile(bam_file) else None
+    if raw.get("bam_file") != abs_bam or raw.get("bam_size") != bam_size:
+        reasons.append(f"bam file changed ({raw.get('bam_file', 'unknown')} -> {abs_bam})")
+
+    if raw.get("bam_library") != bam_library:
+        reasons.append(f"bam_library changed ({raw.get('bam_library', 'unknown')} -> {bam_library})")
+
+    if reasons:
+        return True, "; ".join(reasons)
+    return False, "UTR refinement inputs unchanged"
+
+
+def write_utr_refinement_record(record, consensus, bam_file, bam_library):
+    """
+    Write the inputs used for UTR refinement to a JSON record.
+    """
+    payload = {
+        "consensus_sha256": file_sha256(consensus),
+        "bam_file": os.path.abspath(bam_file) if bam_file else None,
+        "bam_size": os.stat(bam_file).st_size if bam_file and os.path.isfile(bam_file) else None,
+        "bam_library": bam_library,
+    }
+    with open(record, "w") as outfile:
+        json.dump(payload, outfile, indent=2, sort_keys=True)
 
 
 def remove_files(paths):
