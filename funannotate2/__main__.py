@@ -241,7 +241,7 @@ def predict_subparser(subparsers):
         "--bam-library",
         required=False,
         choices=["RF", "FR", "UU"],
-        help="RNA-seq library type (required if --bam is set): RF (dUTP/NSR), FR (Ligation), UU (Unstranded)",
+        help="RNA-seq library strandedness (required if --bam is set): RF (dUTP/NSR), FR (Ligation eg TruSeq), UU (Unstranded)",
         metavar="",
     )
     optional_args.add_argument(
