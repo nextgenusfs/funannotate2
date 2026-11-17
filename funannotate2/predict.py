@@ -137,7 +137,7 @@ def predict(args):
     if hasattr(args, "bam") and args.bam:
         if not hasattr(args, "bam_library") or not args.bam_library:
             sys.stderr.write(
-                "ERROR: --bam-library is required when --bam is provided. Valid options: RF, FR, UU, R, F\n"
+                "ERROR: --bam-library is required when --bam is provided. Valid options: RF, FR, UU\n"
             )
             raise SystemExit(1)
         if not os.path.isfile(args.bam):
